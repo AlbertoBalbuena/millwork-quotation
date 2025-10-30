@@ -13,6 +13,8 @@ interface AutocompleteSelectProps {
   placeholder?: string;
   label?: string;
   required?: boolean;
+  allowCreate?: boolean;
+  onCreateOption?: (value: string) => Promise<void>;
 }
 
 export function AutocompleteSelect({
@@ -22,6 +24,8 @@ export function AutocompleteSelect({
   placeholder = 'Select an option...',
   label,
   required,
+  allowCreate = false,
+  onCreateOption,
 }: AutocompleteSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +39,19 @@ export function AutocompleteSelect({
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const showCreateOption = allowCreate && searchTerm && !filteredOptions.some(
+    opt => opt.value.toLowerCase() === searchTerm.toLowerCase()
+  );
+
+  async function handleCreateOption() {
+    if (searchTerm && onCreateOption) {
+      await onCreateOption(searchTerm);
+      onChange(searchTerm);
+      setIsOpen(false);
+      setSearchTerm('');
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -177,19 +194,36 @@ export function AutocompleteSelect({
         <div className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-64 overflow-auto">
           <div ref={listRef}>
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((option, index) => (
-                <div
-                  key={option.value}
-                  onClick={() => handleSelect(option.value)}
-                  className={`px-3 py-2 cursor-pointer transition-colors ${
-                    index === highlightedIndex
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'hover:bg-slate-50'
-                  } ${value === option.value ? 'bg-blue-100 font-medium' : ''}`}
-                >
-                  {option.label}
-                </div>
-              ))
+              <>
+                {filteredOptions.map((option, index) => (
+                  <div
+                    key={option.value}
+                    onClick={() => handleSelect(option.value)}
+                    className={`px-3 py-2 cursor-pointer transition-colors ${
+                      index === highlightedIndex
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'hover:bg-slate-50'
+                    } ${value === option.value ? 'bg-blue-100 font-medium' : ''}`}
+                  >
+                    {option.label}
+                  </div>
+                ))}
+                {showCreateOption && (
+                  <div
+                    onClick={handleCreateOption}
+                    className="px-3 py-2 cursor-pointer bg-green-50 hover:bg-green-100 text-green-700 font-medium border-t border-slate-200"
+                  >
+                    + Create "{searchTerm}"
+                  </div>
+                )}
+              </>
+            ) : showCreateOption ? (
+              <div
+                onClick={handleCreateOption}
+                className="px-3 py-2 cursor-pointer bg-green-50 hover:bg-green-100 text-green-700 font-medium"
+              >
+                + Create "{searchTerm}"
+              </div>
             ) : (
               <div className="px-3 py-6 text-center text-slate-500 text-sm">
                 No options found

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
+import { AutocompleteSelect } from '../components/AutocompleteSelect';
 import { formatCurrency } from '../lib/calculations';
 import type { PriceListItem, PriceListInsert } from '../types';
 
@@ -282,9 +283,63 @@ function PriceListFormModal({
     sf_per_sheet: item?.sf_per_sheet || null,
   });
 
-  const [useCustomType, setUseCustomType] = useState(
-    !existingTypes.includes(item?.type || '')
-  );
+  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [customUnits, setCustomUnits] = useState<string[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  useEffect(() => {
+    loadCustomOptions();
+  }, []);
+
+  async function loadCustomOptions() {
+    try {
+      const [typesRes, unitsRes] = await Promise.all([
+        supabase.from('custom_types').select('type_name').order('type_name'),
+        supabase.from('custom_units').select('unit_name').order('unit_name'),
+      ]);
+
+      if (typesRes.data) {
+        setCustomTypes(typesRes.data.map(t => t.type_name));
+      }
+      if (unitsRes.data) {
+        setCustomUnits(unitsRes.data.map(u => u.unit_name));
+      }
+    } catch (error) {
+      console.error('Error loading custom options:', error);
+    } finally {
+      setLoadingOptions(false);
+    }
+  }
+
+  async function handleCreateType(typeName: string) {
+    try {
+      const { error } = await supabase
+        .from('custom_types')
+        .insert([{ type_name: typeName }]);
+
+      if (error) throw error;
+
+      setCustomTypes(prev => [...prev, typeName].sort());
+    } catch (error) {
+      console.error('Error creating type:', error);
+      alert('Failed to create type');
+    }
+  }
+
+  async function handleCreateUnit(unitName: string) {
+    try {
+      const { error } = await supabase
+        .from('custom_units')
+        .insert([{ unit_name: unitName }]);
+
+      if (error) throw error;
+
+      setCustomUnits(prev => [...prev, unitName].sort());
+    } catch (error) {
+      console.error('Error creating unit:', error);
+      alert('Failed to create unit');
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -307,41 +362,16 @@ function PriceListFormModal({
             placeholder="MEL-001"
           />
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Type
-            </label>
-            {useCustomType ? (
-              <Input
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                required
-                placeholder="Melamine, Edgeband, etc."
-              />
-            ) : (
-              <select
-                value={formData.type}
-                onChange={(e) => {
-                  if (e.target.value === '__custom__') {
-                    setUseCustomType(true);
-                    setFormData({ ...formData, type: '' });
-                  } else {
-                    setFormData({ ...formData, type: e.target.value });
-                  }
-                }}
-                className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Select type...</option>
-                {existingTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-                <option value="__custom__">+ Add Custom Type</option>
-              </select>
-            )}
-          </div>
+          <AutocompleteSelect
+            label="Type"
+            required
+            value={formData.type}
+            onChange={(value) => setFormData({ ...formData, type: value })}
+            options={customTypes.map(type => ({ value: type, label: type }))}
+            placeholder="Melamine, Edgeband, etc."
+            allowCreate={true}
+            onCreateOption={handleCreateType}
+          />
         </div>
 
         <Input
@@ -369,23 +399,16 @@ function PriceListFormModal({
             placeholder="4ft x 8ft, 19x1mm"
           />
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Unit
-            </label>
-            <select
-              value={formData.unit}
-              onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-              className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="Sheet">Sheet</option>
-              <option value="Meter">Meter</option>
-              <option value="Piece">Piece</option>
-              <option value="Roll">Roll</option>
-              <option value="Box">Box</option>
-            </select>
-          </div>
+          <AutocompleteSelect
+            label="Unit"
+            required
+            value={formData.unit}
+            onChange={(value) => setFormData({ ...formData, unit: value })}
+            options={customUnits.map(unit => ({ value: unit, label: unit }))}
+            placeholder="Sheet, Meter, Piece..."
+            allowCreate={true}
+            onCreateOption={handleCreateUnit}
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
