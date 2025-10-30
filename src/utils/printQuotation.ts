@@ -53,16 +53,23 @@ export async function printQuotation(
 
   let logoUrl = '';
   try {
-    const { data: settings } = await supabase
+    const { data: settings, error } = await supabase
       .from('settings')
       .select('logo_url')
-      .single();
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching settings:', error);
+    }
 
     if (settings?.logo_url) {
       const { data } = supabase.storage
         .from('logos')
         .getPublicUrl(settings.logo_url);
       logoUrl = data.publicUrl;
+    } else {
+      console.warn('No logo_url found in settings');
     }
   } catch (error) {
     console.error('Error fetching logo URL:', error);
@@ -470,19 +477,19 @@ export async function printQuotation(
         window.onload = function() {
           const logo = document.querySelector('.logo-section img');
           if (logo) {
-            if (logo.complete) {
-              setTimeout(() => window.print(), 250);
+            if (logo.complete && logo.naturalHeight > 0) {
+              setTimeout(() => window.print(), 500);
             } else {
               logo.onload = function() {
-                setTimeout(() => window.print(), 250);
+                setTimeout(() => window.print(), 500);
               };
-              logo.onerror = function() {
-                console.error('Logo failed to load');
-                setTimeout(() => window.print(), 250);
+              logo.onerror = function(e) {
+                console.error('Logo failed to load. URL:', logo.src);
+                setTimeout(() => window.print(), 500);
               };
             }
           } else {
-            setTimeout(() => window.print(), 250);
+            setTimeout(() => window.print(), 500);
           }
         };
       </script>
