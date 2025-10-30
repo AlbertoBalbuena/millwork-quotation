@@ -16,38 +16,45 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate }: CabinetC
 
   return (
     <div className="border border-slate-200 rounded-lg overflow-hidden">
-      <div className="bg-slate-50 px-4 py-3 flex justify-between items-center">
-        <div className="flex-1">
-          <div className="flex items-center space-x-3">
-            <span className="font-medium text-slate-900">{cabinet.product_sku}</span>
-            <span className="text-sm text-slate-600">Qty: {cabinet.quantity}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          <div className="text-right">
-            <div className="text-lg font-bold text-slate-900">
-              {formatCurrency(cabinet.subtotal)}
+      <div className="bg-slate-50 px-3 sm:px-4 py-3">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <div className="flex items-center justify-between sm:flex-1">
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+              <span className="font-medium text-slate-900 truncate text-sm sm:text-base">{cabinet.product_sku}</span>
+              <span className="text-xs sm:text-sm text-slate-600 whitespace-nowrap">Qty: {cabinet.quantity}</span>
+            </div>
+            <div className="text-right sm:hidden">
+              <div className="text-base font-bold text-slate-900">
+                {formatCurrency(cabinet.subtotal)}
+              </div>
             </div>
           </div>
 
-          <div className="flex space-x-1">
-            <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              <Edit2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDuplicate}>
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
-              <Trash2 className="h-4 w-4 text-red-600" />
-            </Button>
+          <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
+            <div className="text-right hidden sm:block">
+              <div className="text-lg font-bold text-slate-900">
+                {formatCurrency(cabinet.subtotal)}
+              </div>
+            </div>
+
+            <div className="flex space-x-1">
+              <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onDuplicate}>
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onDelete}>
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

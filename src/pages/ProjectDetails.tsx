@@ -433,12 +433,12 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
           Back to Projects
         </Button>
 
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 p-6 shadow-sm mb-6">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm mb-6">
+          <div className="mb-4">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{project.name}</h1>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block w-fit ${
                   project.status === 'won' ? 'bg-green-100 text-green-700' :
                   project.status === 'pending' ? 'bg-blue-100 text-blue-700' :
                   'bg-red-100 text-red-700'
@@ -447,19 +447,19 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 </span>
               </div>
               {project.address && (
-                <p className="text-slate-600 flex items-center gap-2">
+                <p className="text-slate-600 flex items-center gap-2 text-sm sm:text-base">
                   <span className="text-slate-400">📍</span> {project.address}
                 </p>
               )}
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-xs sm:text-sm text-slate-500">
                 Quote Date: {new Date(project.quote_date).toLocaleDateString()} • Type: {project.project_type}
               </p>
             </div>
           </div>
 
           <div className="border-t border-slate-200 pt-4 mt-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
+            <div className="flex flex-col lg:flex-row items-start gap-4">
+              <div className="flex-1 w-full">
                 <VersionManager
                   projectId={project.id}
                   onVersionChange={handleVersionChange}
@@ -467,13 +467,14 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 />
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-lg p-4">
+              <div className="bg-white border border-slate-200 rounded-lg p-4 w-full lg:w-auto lg:min-w-[200px]">
                 <div className="text-xs text-slate-600 mb-2 font-medium">Display Currency</div>
                 <div className="flex items-center space-x-2">
                   <Button
                     size="sm"
                     variant={currencyDisplay === 'USD' ? 'primary' : 'secondary'}
                     onClick={() => setCurrencyDisplay('USD')}
+                    className="flex-1 lg:flex-none"
                   >
                     USD
                   </Button>
@@ -481,6 +482,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                     size="sm"
                     variant={currencyDisplay === 'MXN' ? 'primary' : 'secondary'}
                     onClick={() => setCurrencyDisplay('MXN')}
+                    className="flex-1 lg:flex-none"
                   >
                     MXN
                   </Button>
@@ -488,13 +490,14 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                     size="sm"
                     variant={currencyDisplay === 'BOTH' ? 'primary' : 'secondary'}
                     onClick={() => setCurrencyDisplay('BOTH')}
+                    className="flex-1 lg:flex-none"
                   >
                     Both
                   </Button>
                 </div>
                 <div className="mt-3 pt-3 border-t border-slate-200">
                   <div className="text-xs text-slate-500 mb-1">Project Total</div>
-                  <div className="text-xl font-bold text-slate-900">
+                  <div className="text-lg sm:text-xl font-bold text-slate-900">
                     {formatPrice(projectTotal)}
                   </div>
                 </div>
@@ -516,25 +519,30 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
       </div>
 
       <div className="mb-6 space-y-4">
-        <div className="flex space-x-3">
-          <Button onClick={() => setIsAreaModalOpen(true)}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-3 sm:gap-0">
+          <Button onClick={() => setIsAreaModalOpen(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
-            Add Area
+            <span className="hidden sm:inline">Add Area</span>
+            <span className="sm:hidden">Area</span>
           </Button>
-          <Button variant="secondary" onClick={handlePrint}>
+          <Button variant="secondary" onClick={handlePrint} className="w-full sm:w-auto">
             <Printer className="h-4 w-4 mr-2" />
-            Print / Export PDF
+            <span className="hidden md:inline">Print / Export PDF</span>
+            <span className="md:hidden">Print</span>
           </Button>
-          <Button variant="secondary" onClick={handleSaveChanges}>
+          <Button variant="secondary" onClick={handleSaveChanges} className="w-full sm:w-auto">
             <Save className="h-4 w-4 mr-2" />
-            Save Changes
+            <span className="hidden sm:inline">Save Changes</span>
+            <span className="sm:hidden">Save</span>
           </Button>
           <Button
             variant={showAnalytics ? 'primary' : 'secondary'}
             onClick={() => setShowAnalytics(!showAnalytics)}
+            className="w-full sm:w-auto"
           >
             <BarChart3 className="h-4 w-4 mr-2" />
-            {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+            <span className="hidden md:inline">{showAnalytics ? 'Hide Analytics' : 'Show Analytics'}</span>
+            <span className="md:hidden">Analytics</span>
           </Button>
         </div>
 
@@ -687,19 +695,19 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         ) : (
           areas.map((area) => (
             <div key={area.id} className="bg-white rounded-lg shadow-sm border border-slate-200">
-              <div className="border-b border-slate-200 p-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-900">{area.name}</h2>
-                    <p className="mt-1 text-sm text-slate-600">
+              <div className="border-b border-slate-200 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <div className="flex-1">
+                    <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{area.name}</h2>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-600">
                       {area.cabinets.length} cabinet{area.cabinets.length !== 1 ? 's' : ''}
                     </p>
                   </div>
 
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <div className="text-sm text-slate-600">Area Total</div>
-                      <div className="text-xl font-bold text-slate-900">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:space-x-4 sm:gap-0">
+                    <div className="text-left sm:text-right">
+                      <div className="text-xs sm:text-sm text-slate-600">Area Total</div>
+                      <div className="text-base sm:text-xl font-bold text-slate-900">
                         {formatCurrency(
                           area.cabinets.reduce((sum, c) => sum + c.subtotal, 0) +
                           area.items.reduce((sum, i) => sum + i.subtotal, 0)
@@ -707,7 +715,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                       </div>
                     </div>
 
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-1 sm:space-x-2">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -737,13 +745,13 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 </div>
               </div>
 
-              <div className="p-6">
-                <div className="flex gap-2 mb-4">
-                  <Button size="sm" onClick={() => handleAddCabinet(area.id)}>
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                  <Button size="sm" onClick={() => handleAddCabinet(area.id)} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Cabinet
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelectedAreaForItem(area.id)}>
+                  <Button size="sm" variant="outline" onClick={() => setSelectedAreaForItem(area.id)} className="w-full sm:w-auto">
                     <ListPlus className="h-4 w-4 mr-2" />
                     Add Item
                   </Button>
