@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, DollarSign, Info } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, DollarSign, Info, Bookmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from './Button';
 import { Input } from './Input';
 import { Modal } from './Modal';
 import { AutocompleteSelect } from './AutocompleteSelect';
+import { TemplateSelectorModal } from './TemplateSelectorModal';
+import { logTemplateUsage } from '../lib/templateManager';
+import type { CabinetTemplate } from '../types';
 import { getSettings } from '../lib/settingsStore';
 import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
@@ -39,6 +42,8 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({ laborCostNoDrawers: 400, laborCostWithDrawers: 600, laborCostAccessories: 100, wastePercentageBox: 10, wastePercentageDoors: 10 });
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(cabinet?.quantity || 1);
@@ -168,6 +173,30 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
     };
   }
 
+  function handleLoadTemplate(template: CabinetTemplate) {
+    const product = products.find(p => p.sku === template.product_sku);
+    if (product) {
+      setSelectedProduct(product);
+    }
+
+    setBoxMaterialId(template.box_material_id || '');
+    setBoxEdgebandId(template.box_edgeband_id || '');
+    setBoxInteriorFinishId(template.box_interior_finish_id || '');
+    setUseBoxInteriorFinish(template.use_box_interior_finish);
+
+    setDoorsMaterialId(template.doors_material_id || '');
+    setDoorsEdgebandId(template.doors_edgeband_id || '');
+    setDoorsInteriorFinishId(template.doors_interior_finish_id || '');
+    setUseDoorsInteriorFinish(template.use_doors_interior_finish);
+
+    setHardware(Array.isArray(template.hardware) ? template.hardware : []);
+    setIsRta(template.is_rta);
+
+    setLoadedTemplateId(template.id);
+    setShowTemplateSelector(false);
+    setQuantity(1);
+  }
+
   async function handleSave() {
     if (!selectedProduct) {
       alert('Please select a product');
@@ -228,6 +257,25 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
           throw error;
         }
         console.log('Insert successful:', data);
+
+        if (loadedTemplateId && data && data.length > 0) {
+          const cabinetId = data[0].id;
+          const projectIdResult = await supabase
+            .from('project_areas')
+            .select('project_id')
+            .eq('id', areaId)
+            .single();
+
+          if (projectIdResult.data) {
+            await logTemplateUsage(
+              loadedTemplateId,
+              projectIdResult.data.project_id,
+              areaId,
+              cabinetId,
+              quantity
+            );
+          }
+        }
       }
 
       if (!versionId) {
@@ -278,15 +326,31 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
   }
 
   return (
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      title={cabinet ? 'Edit Cabinet' : 'Add New Cabinet'}
-      size="xl"
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <>
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title={cabinet ? 'Edit Cabinet' : 'Add New Cabinet'}
+        size="xl"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            {!cabinet && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center">
+                  <Bookmark className="h-5 w-5 text-blue-600 mr-2" />
+                  <span className="text-sm text-blue-800">Start with a template to save time</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowTemplateSelector(true)}
+                >
+                  Load from Template
+                </Button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Select Product
@@ -657,5 +721,16 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
         </div>
       </div>
     </Modal>
+
+    {showTemplateSelector && (
+      <TemplateSelectorModal
+        isOpen={true}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelectTemplate={handleLoadTemplate}
+        priceList={priceList}
+        products={products}
+      />
+    )}
+    </>
   );
 }

@@ -96,3 +96,98 @@ export interface ProjectWithDetails extends Project {
     cabinets?: AreaCabinet[];
   })[];
 }
+
+export interface CabinetTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  product_sku: string | null;
+  product_description: string | null;
+  box_material_id: string | null;
+  box_material_name: string | null;
+  box_edgeband_id: string | null;
+  box_edgeband_name: string | null;
+  box_interior_finish_id: string | null;
+  box_interior_finish_name: string | null;
+  use_box_interior_finish: boolean;
+  doors_material_id: string | null;
+  doors_material_name: string | null;
+  doors_edgeband_id: string | null;
+  doors_edgeband_name: string | null;
+  doors_interior_finish_id: string | null;
+  doors_interior_finish_name: string | null;
+  use_doors_interior_finish: boolean;
+  hardware: HardwareItem[];
+  is_rta: boolean;
+  usage_count: number;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CabinetTemplateInsert {
+  name: string;
+  description?: string | null;
+  category: string;
+  product_sku: string | null;
+  product_description: string | null;
+  box_material_id: string | null;
+  box_material_name: string | null;
+  box_edgeband_id: string | null;
+  box_edgeband_name: string | null;
+  box_interior_finish_id: string | null;
+  box_interior_finish_name: string | null;
+  use_box_interior_finish: boolean;
+  doors_material_id: string | null;
+  doors_material_name: string | null;
+  doors_edgeband_id: string | null;
+  doors_edgeband_name: string | null;
+  doors_interior_finish_id: string | null;
+  doors_interior_finish_name: string | null;
+  use_doors_interior_finish: boolean;
+  hardware: HardwareItem[];
+  is_rta: boolean;
+}
+
+export interface TemplateUsageLog {
+  id: string;
+  template_id: string;
+  project_id: string;
+  area_id: string;
+  cabinet_id: string | null;
+  used_at: string;
+  quantity_used: number;
+}
+
+export interface TemplateUsageLogInsert {
+  template_id: string;
+  project_id: string;
+  area_id: string;
+  cabinet_id?: string | null;
+  quantity_used?: number;
+}
+
+export type TemplateCategory = 'Base Cabinets' | 'Wall Cabinets' | 'Tall Cabinets' | 'Specialty' | 'Accessories' | 'General';
+
+export interface TemplateAnalytics {
+  totalTemplates: number;
+  totalUses: number;
+  averageUsesPerTemplate: number;
+  mostUsedTemplates: Array<{
+    id: string;
+    name: string;
+    category: string;
+    usage_count: number;
+    last_used_at: string | null;
+  }>;
+  usageByCategory: Array<{
+    category: string;
+    total_templates: number;
+    total_uses: number;
+  }>;
+  usageTimeline: Array<{
+    usage_date: string;
+    usage_count: number;
+  }>;
+}

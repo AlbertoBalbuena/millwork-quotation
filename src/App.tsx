@@ -5,6 +5,7 @@ import { ProductsCatalog } from './pages/ProductsCatalog';
 import { PriceList } from './pages/PriceList';
 import { Projects } from './pages/Projects';
 import { Settings } from './pages/Settings';
+import { Templates } from './pages/Templates';
 import { Login } from './pages/Login';
 
 function App() {
@@ -56,6 +57,8 @@ function App() {
         return <PriceList />;
       case 'projects':
         return <Projects selectedProjectId={selectedProjectId} onClearSelection={() => setSelectedProjectId(null)} />;
+      case 'templates':
+        return <Templates />;
       case 'settings':
         return <Settings />;
       default:

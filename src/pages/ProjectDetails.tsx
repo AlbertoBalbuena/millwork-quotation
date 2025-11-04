@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { formatCurrency } from '../lib/calculations';
-import type { Project, ProjectArea, AreaCabinet, ProjectAreaInsert, Product, AreaItem, AreaCountertop } from '../types';
+import type { Project, ProjectArea, AreaCabinet, ProjectAreaInsert, Product, AreaItem, AreaCountertop, PriceListItem } from '../types';
 import { CabinetForm } from '../components/CabinetForm';
 import { ItemForm } from '../components/ItemForm';
 import { CountertopForm } from '../components/CountertopForm';
@@ -22,6 +22,8 @@ import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
 import { VersionManager } from '../components/VersionManager';
 import { VersionComparison } from '../components/VersionComparison';
+import { SaveTemplateModal } from '../components/SaveTemplateModal';
+import { createTemplateFromCabinet } from '../lib/templateManager';
 import {
   getCurrentVersion,
   getVersionData,
@@ -58,6 +60,8 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [installDelivery, setInstallDelivery] = useState(project.install_delivery || 0);
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const [compareVersions, setCompareVersions] = useState<{ v1: string; v2: string } | null>(null);
+  const [savingTemplateCabinet, setSavingTemplateCabinet] = useState<AreaCabinet | null>(null);
+  const [priceList, setPriceList] = useState<PriceListItem[]>([]);
 
   useEffect(() => {
     loadCurrentVersion();
@@ -108,13 +112,14 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
   async function loadAreas() {
     try {
-      const [areasResult, productsResult, settingsData] = await Promise.all([
+      const [areasResult, productsResult, priceListResult, settingsData] = await Promise.all([
         supabase
           .from('project_areas')
           .select('*')
           .eq('project_id', project.id)
           .order('display_order'),
         supabase.from('products_catalog').select('*'),
+        supabase.from('price_list').select('*').eq('is_active', true),
         getSettings(),
       ]);
 
@@ -122,6 +127,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
       if (areasError) throw areasError;
 
       setProducts(productsResult.data || []);
+      setPriceList(priceListResult.data || []);
       setExchangeRate(settingsData.exchangeRateUsdToMxn);
 
       const areasWithCabinetsAndItems = await Promise.all(
@@ -380,6 +386,34 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
       await loadVersionAreas(currentVersionId);
     } else {
       await loadAreas();
+    }
+  }
+
+  function handleSaveAsTemplate(cabinet: AreaCabinet) {
+    setSavingTemplateCabinet(cabinet);
+  }
+
+  async function handleCreateTemplate(name: string, description: string, category: string) {
+    if (!savingTemplateCabinet) return;
+
+    try {
+      const product = products.find(p => p.sku === savingTemplateCabinet.product_sku);
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      await createTemplateFromCabinet(
+        savingTemplateCabinet,
+        product,
+        priceList,
+        name,
+        description,
+        category
+      );
+
+      alert('Template saved successfully!');
+    } catch (error: any) {
+      throw error;
     }
   }
 
@@ -852,6 +886,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                             onEdit={() => handleEditCabinet(cabinet)}
                             onDelete={() => handleDeleteCabinet(cabinet)}
                             onDuplicate={() => handleDuplicateCabinet(cabinet)}
+                            onSaveAsTemplate={() => handleSaveAsTemplate(cabinet)}
                           />
                         ))}
                       </>
@@ -1026,6 +1061,15 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
           countertop={editingCountertop}
           onClose={handleCloseCountertopForm}
           versionId={currentVersionId}
+        />
+      )}
+
+      {savingTemplateCabinet && (
+        <SaveTemplateModal
+          isOpen={true}
+          onClose={() => setSavingTemplateCabinet(null)}
+          onSave={handleCreateTemplate}
+          defaultName={savingTemplateCabinet.product_sku || ''}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Trash2, Copy, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit2, Trash2, Copy, ChevronDown, ChevronUp, Bookmark } from 'lucide-react';
 import { Button } from './Button';
 import { formatCurrency, formatNumber } from '../lib/calculations';
 import type { AreaCabinet } from '../types';
@@ -9,9 +9,10 @@ interface CabinetCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSaveAsTemplate?: () => void;
 }
 
-export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate }: CabinetCardProps) {
+export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTemplate }: CabinetCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -45,6 +46,16 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate }: CabinetC
                   <ChevronDown className="h-4 w-4" />
                 )}
               </Button>
+              {onSaveAsTemplate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onSaveAsTemplate}
+                  title="Save as Template"
+                >
+                  <Bookmark className="h-4 w-4 text-blue-600" />
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={onEdit}>
                 <Edit2 className="h-4 w-4" />
               </Button>

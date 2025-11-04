@@ -7,7 +7,8 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Menu,
-  X
+  X,
+  Bookmark
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -23,6 +24,7 @@ export function Layout({ children, currentPage, onNavigate, onLogout }: LayoutPr
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: FolderOpen },
+    { id: 'templates', label: 'Templates', icon: Bookmark },
     { id: 'products', label: 'Products Catalog', icon: Package },
     { id: 'prices', label: 'Price List', icon: DollarSign },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
