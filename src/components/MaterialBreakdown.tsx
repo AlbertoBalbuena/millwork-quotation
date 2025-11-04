@@ -406,7 +406,7 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
         </div>
       </div>
 
-      {countertops.length > 0 && (
+      {countertops && countertops.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
             <HammerIcon className="h-5 w-5 mr-2 text-orange-600" />
@@ -496,7 +496,7 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
             </div>
             <div className="text-xl font-bold">{formatCurrency(breakdown.totals.labor)}</div>
           </div>
-          {countertops.length > 0 && (
+          {countertops && countertops.length > 0 && (
             <div>
               <div className="text-sm text-slate-300 flex items-center">
                 <HammerIcon className="h-4 w-4 mr-1" />
@@ -505,7 +505,7 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
               <div className="text-xl font-bold">{formatCurrency(countertops.reduce((sum, ct) => sum + ct.subtotal, 0))}</div>
             </div>
           )}
-          {items.length > 0 && (
+          {items && items.length > 0 && (
             <div>
               <div className="text-sm text-slate-300 flex items-center">
                 <ListChecks className="h-4 w-4 mr-1" />
@@ -516,7 +516,7 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
           )}
           <div className="border-l border-slate-500 pl-4">
             <div className="text-sm text-slate-300">Total Cost</div>
-            <div className="text-2xl font-bold">{formatCurrency(breakdown.totals.total + countertops.reduce((sum, ct) => sum + ct.subtotal, 0) + items.reduce((sum, item) => sum + item.subtotal, 0))}</div>
+            <div className="text-2xl font-bold">{formatCurrency(breakdown.totals.total + (countertops || []).reduce((sum, ct) => sum + ct.subtotal, 0) + (items || []).reduce((sum, item) => sum + item.subtotal, 0))}</div>
           </div>
         </div>
       </div>

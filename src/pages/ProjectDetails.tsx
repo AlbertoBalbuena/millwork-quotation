@@ -13,6 +13,7 @@ import { CabinetCard } from '../components/CabinetCard';
 import { MaterialBreakdown } from '../components/MaterialBreakdown';
 import { MaterialBreakdownByArea } from '../components/MaterialBreakdownByArea';
 import { ProjectCharts } from '../components/ProjectCharts';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { printQuotation } from '../utils/printQuotation';
 import { BoxesPalletsBreakdown } from '../components/BoxesPalletsBreakdown';
 import { calculateAreaBoxesAndPallets } from '../lib/boxesAndPallets';
@@ -677,8 +678,16 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
       </div>
 
       {showAnalytics && areas.length > 0 && (
-        <div className="mb-6 space-y-6">
-          <ProjectCharts areas={areas} />
+        <ErrorBoundary>
+          <div className="mb-6 space-y-6">
+            {loading ? (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-slate-600">Loading analytics...</p>
+              </div>
+            ) : (
+              <>
+            <ProjectCharts areas={areas} />
 
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-slate-200 p-6">
             <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
@@ -727,11 +736,14 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
           <MaterialBreakdownByArea projectId={project.id} />
           <MaterialBreakdown
-            cabinets={areas.flatMap(a => a.cabinets)}
-            items={areas.flatMap(a => a.items)}
-            countertops={areas.flatMap(a => a.countertops)}
+            cabinets={areas.flatMap(a => a.cabinets || [])}
+            items={areas.flatMap(a => a.items || [])}
+            countertops={areas.flatMap(a => a.countertops || [])}
           />
-        </div>
+              </>
+            )}
+          </div>
+        </ErrorBoundary>
       )}
 
       <div className="space-y-6">

@@ -30,24 +30,24 @@ export function ProjectCharts({ areas }: ProjectChartsProps) {
     };
 
     const areasCosts = areas.map((area) => {
-      const cabinetsTotal = area.cabinets.reduce((sum, c) => sum + c.subtotal, 0);
-      const itemsTotal = area.items.reduce((sum, i) => sum + i.subtotal, 0);
-      const countertopsTotal = area.countertops.reduce((sum, ct) => sum + ct.subtotal, 0);
-      const cabinetsCount = area.cabinets.reduce((sum, c) => sum + c.quantity, 0);
+      const cabinetsTotal = (area.cabinets || []).reduce((sum, c) => sum + c.subtotal, 0);
+      const itemsTotal = (area.items || []).reduce((sum, i) => sum + i.subtotal, 0);
+      const countertopsTotal = (area.countertops || []).reduce((sum, ct) => sum + ct.subtotal, 0);
+      const cabinetsCount = (area.cabinets || []).reduce((sum, c) => sum + c.quantity, 0);
       return {
         name: area.name,
         total: cabinetsTotal + itemsTotal + countertopsTotal,
-        taxes: calculateTaxesForArea(area.cabinets),
+        taxes: calculateTaxesForArea(area.cabinets || []),
         cabinets: cabinetsCount,
-        cabinetEntries: area.cabinets.length,
-        items: area.items.length,
-        countertops: area.countertops.length,
+        cabinetEntries: (area.cabinets || []).length,
+        items: (area.items || []).length,
+        countertops: (area.countertops || []).length,
       };
     });
 
-    const allCabinets = areas.flatMap((a) => a.cabinets);
-    const allItems = areas.flatMap((a) => a.items);
-    const allCountertops = areas.flatMap((a) => a.countertops);
+    const allCabinets = areas.flatMap((a) => a.cabinets || []);
+    const allItems = areas.flatMap((a) => a.items || []);
+    const allCountertops = areas.flatMap((a) => a.countertops || []);
     const totalItemsCost = allItems.reduce((sum, i) => sum + i.subtotal, 0);
     const totalCountertopsCost = allCountertops.reduce((sum, ct) => sum + ct.subtotal, 0);
 
