@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Package, Layers, Hash, Ruler } from 'lucide-react';
+import { Package, Layers, Hash, Ruler, Hammer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/calculations';
 
@@ -12,8 +12,10 @@ interface AreaMaterialBreakdown {
   boxEdgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>;
   doorsEdgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>;
   hardware: Map<string, { quantity: number; cost: number }>;
+  countertops: Map<string, { quantity: number; cost: number }>;
   totalCost: number;
   cabinetCount: number;
+  countertopCount: number;
 }
 
 interface MaterialBreakdownByAreaProps {
@@ -69,6 +71,18 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
 
       if (cabinetsError) throw cabinetsError;
 
+      const { data: countertops, error: countertopsError } = await supabase
+        .from('area_countertops')
+        .select(`
+          area_id,
+          item_name,
+          quantity,
+          unit_price,
+          subtotal
+        `);
+
+      if (countertopsError) throw countertopsError;
+
       const { data: priceList, error: priceListError } = await supabase
         .from('price_list')
         .select('id, concept_description');
@@ -88,14 +102,16 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
 
       areas?.forEach(area => {
         const areaCabinets = cabinets?.filter(c => c.area_id === area.id) || [];
+        const areaCountertops = countertops?.filter(ct => ct.area_id === area.id) || [];
 
-        if (areaCabinets.length === 0) return;
+        if (areaCabinets.length === 0 && areaCountertops.length === 0) return;
 
         const boxMaterialSheets = new Map<string, { sheetsNeeded: number; totalSF: number; cost: number }>();
         const doorsMaterialSheets = new Map<string, { sheetsNeeded: number; totalSF: number; cost: number }>();
         const boxEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>();
         const doorsEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>();
         const hardware = new Map<string, { quantity: number; cost: number }>();
+        const countertopsMap = new Map<string, { quantity: number; cost: number }>();
 
         let totalCost = 0;
 
@@ -174,6 +190,20 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
           totalCost += cabinet.subtotal || 0;
         });
 
+        areaCountertops.forEach(countertop => {
+          const name = countertop.item_name || 'Unknown Countertop';
+          const qty = countertop.quantity || 0;
+          const cost = countertop.subtotal || 0;
+
+          const existing = countertopsMap.get(name) || { quantity: 0, cost: 0 };
+          countertopsMap.set(name, {
+            quantity: existing.quantity + qty,
+            cost: existing.cost + cost,
+          });
+
+          totalCost += cost;
+        });
+
         areaBreakdowns.push({
           areaId: area.id,
           areaName: area.name,
@@ -183,8 +213,10 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
           boxEdgebandRolls,
           doorsEdgebandRolls,
           hardware,
+          countertops: countertopsMap,
           totalCost,
           cabinetCount: areaCabinets.length,
+          countertopCount: areaCountertops.length,
         });
       });
 
@@ -243,6 +275,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
                 <div className="flex items-center gap-4 mt-2">
                   <span className="text-xs text-slate-500">
                     {area.cabinetCount} cabinet{area.cabinetCount !== 1 ? 's' : ''}
+                    {area.countertopCount > 0 && ` • ${area.countertopCount} countertop${area.countertopCount !== 1 ? 's' : ''}`}
                   </span>
                   <span className="text-xs font-semibold text-green-600">
                     Total: {formatCurrency(area.totalCost)}
@@ -349,6 +382,26 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
                         <div className="flex justify-between text-slate-600">
                           <span><Hash className="h-3 w-3 inline mr-1" />{data.quantity} pcs</span>
                           <span className="font-semibold text-slate-700">{formatCurrency(data.cost)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {area.countertops.size > 0 && (
+                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200 lg:col-span-2">
+                  <div className="flex items-center mb-3">
+                    <Hammer className="h-4 w-4 text-orange-700 mr-2" />
+                    <h4 className="text-sm font-semibold text-orange-900">Countertops</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {Array.from(area.countertops.entries()).map(([name, data]) => (
+                      <div key={name} className="bg-white rounded p-2 text-xs">
+                        <div className="font-medium text-slate-900 truncate mb-1">{name}</div>
+                        <div className="flex justify-between text-slate-600">
+                          <span><Hash className="h-3 w-3 inline mr-1" />{data.quantity.toFixed(2)} units</span>
+                          <span className="font-semibold text-orange-700">{formatCurrency(data.cost)}</span>
                         </div>
                       </div>
                     ))}
