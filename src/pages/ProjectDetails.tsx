@@ -648,10 +648,10 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                   <span className="text-sm text-slate-500">Total Cabinets</span>
                 </div>
                 <div className="text-3xl font-bold text-slate-900">
-                  {areas.reduce((sum, area) => sum + area.cabinets.length, 0)}
+                  {areas.reduce((sum, area) => sum + area.cabinets.reduce((s, c) => s + c.quantity, 0), 0)}
                 </div>
                 <div className="text-xs text-slate-500 mt-1">
-                  {areas.reduce((sum, area) => sum + area.cabinets.reduce((s, c) => s + c.quantity, 0), 0)} units total
+                  {areas.reduce((sum, area) => sum + area.cabinets.length, 0)} cabinet entries
                 </div>
               </div>
 
@@ -662,14 +662,14 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 </div>
                 <div className="text-3xl font-bold text-slate-900">
                   {formatCurrency(
-                    areas.reduce((sum, area) => sum + area.cabinets.length, 0) > 0
+                    areas.reduce((sum, area) => sum + area.cabinets.reduce((s, c) => s + c.quantity, 0), 0) > 0
                       ? areas.reduce((sum, area) => sum + area.cabinets.reduce((s, c) => s + c.subtotal, 0), 0) /
-                        areas.reduce((sum, area) => sum + area.cabinets.length, 0)
+                        areas.reduce((sum, area) => sum + area.cabinets.reduce((s, c) => s + c.quantity, 0), 0)
                       : 0
                   )}
                 </div>
                 <div className="text-xs text-slate-500 mt-1">
-                  Per cabinet entry
+                  Per cabinet unit
                 </div>
               </div>
 
@@ -767,7 +767,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                   <div className="flex-1">
                     <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{area.name}</h2>
                     <p className="mt-1 text-xs sm:text-sm text-slate-600">
-                      {area.cabinets.length} cabinet{area.cabinets.length !== 1 ? 's' : ''}
+                      {area.cabinets.reduce((sum, c) => sum + c.quantity, 0)} cabinet{area.cabinets.reduce((sum, c) => sum + c.quantity, 0) !== 1 ? 's' : ''} ({area.cabinets.length} {area.cabinets.length !== 1 ? 'entries' : 'entry'})
                     </p>
                   </div>
 

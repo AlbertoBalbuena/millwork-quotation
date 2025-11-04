@@ -147,15 +147,26 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
             });
           }
 
-          if (cabinet.hardware && Array.isArray(cabinet.hardware)) {
+          if (cabinet.hardware && Array.isArray(cabinet.hardware) && cabinet.hardware.length > 0) {
+            const totalHardwareCost = cabinet.hardware_cost || 0;
+            const totalHardwareItems = cabinet.hardware.reduce((sum: number, hw: any) => sum + (hw.quantity_per_cabinet || 0), 0);
+
             (cabinet.hardware as any[]).forEach((hw: any) => {
-              const name = hw.name || 'Unknown Hardware';
-              const hwQty = (hw.quantity || 0) * qty;
-              const hwCost = (hw.totalCost || 0);
+              const hardwareId = hw.hardware_id;
+              const quantityPerCabinet = hw.quantity_per_cabinet || 0;
+
+              if (!hardwareId || quantityPerCabinet === 0) return;
+
+              const name = priceListMap.get(hardwareId) || 'Unknown Hardware';
+              const hwQty = quantityPerCabinet * qty;
+              const proportionalCost = totalHardwareItems > 0
+                ? (quantityPerCabinet / totalHardwareItems) * totalHardwareCost
+                : 0;
+
               const existing = hardware.get(name) || { quantity: 0, cost: 0 };
               hardware.set(name, {
                 quantity: existing.quantity + hwQty,
-                cost: existing.cost + hwCost,
+                cost: existing.cost + proportionalCost,
               });
             });
           }
