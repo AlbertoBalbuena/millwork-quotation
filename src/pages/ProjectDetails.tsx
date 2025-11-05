@@ -57,6 +57,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [currencyDisplay, setCurrencyDisplay] = useState<'USD' | 'MXN' | 'BOTH'>('MXN');
   const [exchangeRate, setExchangeRate] = useState(18);
   const [otherExpenses, setOtherExpenses] = useState(project.other_expenses || 0);
+  const [tariffPercentage, setTariffPercentage] = useState(project.tariff_percentage || 0);
   const [taxesPercentage, setTaxesPercentage] = useState(project.taxes_percentage || 0);
   const [installDelivery, setInstallDelivery] = useState(project.install_delivery || 0);
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
@@ -455,8 +456,11 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
   const materialsSubtotal = cabinetsSubtotal + itemsSubtotal + countertopsSubtotal;
 
-  const taxesAmount = (materialsSubtotal * taxesPercentage) / 100;
-  const projectTotal = materialsSubtotal + otherExpenses + taxesAmount + installDelivery;
+  const subtotalBeforeTariff = materialsSubtotal + otherExpenses + installDelivery;
+  const tariffAmount = (subtotalBeforeTariff * tariffPercentage) / 100;
+  const subtotalWithTariff = subtotalBeforeTariff + tariffAmount;
+  const taxesAmount = (subtotalWithTariff * taxesPercentage) / 100;
+  const projectTotal = subtotalWithTariff + taxesAmount;
 
   const formatPrice = (amount: number) => {
     const amountInUSD = amount / exchangeRate;
@@ -484,6 +488,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         .from('projects')
         .update({
           other_expenses: otherExpenses,
+          tariff_percentage: tariffPercentage,
           taxes_percentage: taxesPercentage,
           install_delivery: installDelivery,
           total_amount: projectTotal,
@@ -657,26 +662,6 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Taxes (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={taxesPercentage}
-                onChange={(e) => setTaxesPercentage(parseFloat(e.target.value) || 0)}
-                onBlur={updateProjectCosts}
-                className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                {taxesPercentage > 0 ? formatPrice(taxesAmount) : 'Percentage of subtotal'}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Install & Delivery
               </label>
               <input
@@ -691,6 +676,46 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
               />
               <p className="mt-1 text-xs text-slate-500">Flat amount</p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Tariff (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={tariffPercentage}
+                onChange={(e) => setTariffPercentage(parseFloat(e.target.value) || 0)}
+                onBlur={updateProjectCosts}
+                className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {tariffPercentage > 0 ? formatPrice(tariffAmount) : 'Percentage of subtotal'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Taxes (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={taxesPercentage}
+                onChange={(e) => setTaxesPercentage(parseFloat(e.target.value) || 0)}
+                onBlur={updateProjectCosts}
+                className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {taxesPercentage > 0 ? formatPrice(taxesAmount) : 'Percentage of subtotal + tariff'}
+              </p>
+            </div>
           </div>
 
           <div className="mt-4 pt-4 border-t border-slate-200">
@@ -701,8 +726,9 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 <p className="text-sm text-slate-600">Individual Items Subtotal:</p>
                 <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-300">Materials Subtotal:</p>
                 <p className="text-sm text-slate-600">Other Expenses:</p>
-                <p className="text-sm text-slate-600">Taxes ({taxesPercentage}%):</p>
                 <p className="text-sm text-slate-600">Install & Delivery:</p>
+                {tariffPercentage > 0 && <p className="text-sm text-slate-600">Tariff ({tariffPercentage}%):</p>}
+                <p className="text-sm text-slate-600">Taxes ({taxesPercentage}%):</p>
                 <p className="text-base font-semibold text-slate-900 mt-2">Total:</p>
               </div>
               <div className="text-right">
@@ -711,8 +737,9 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 <p className="text-sm font-medium text-slate-700">{formatPrice(itemsSubtotal)}</p>
                 <p className="text-sm font-semibold text-slate-900 mt-2 pt-2 border-t border-slate-300">{formatPrice(materialsSubtotal)}</p>
                 <p className="text-sm font-medium text-slate-700">{formatPrice(otherExpenses)}</p>
-                <p className="text-sm font-medium text-slate-700">{formatPrice(taxesAmount)}</p>
                 <p className="text-sm font-medium text-slate-700">{formatPrice(installDelivery)}</p>
+                {tariffPercentage > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(tariffAmount)}</p>}
+                <p className="text-sm font-medium text-slate-700">{formatPrice(taxesAmount)}</p>
                 <p className="text-base font-bold text-slate-900 mt-2">{formatPrice(projectTotal)}</p>
               </div>
             </div>
