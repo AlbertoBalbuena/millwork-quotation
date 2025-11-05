@@ -53,78 +53,103 @@ export async function calculateAreaEdgebandRolls(
     return { edgebandUsages: [], cabinetCosts: [] };
   }
 
+  // Map to aggregate total meters per edgeband finish
   const edgebandMap = new Map<string, {
     edgeband: PriceListItem;
-    cabinetsUsing: Array<{
+    totalMeters: number;
+    cabinetUsages: Array<{
+      cabinetId: string;
       cabinet: AreaCabinet;
       product: Product;
       boxMeters: number;
       doorsMeters: number;
     }>;
-    totalMeters: number;
   }>();
 
+  // First pass: calculate all meters per cabinet and aggregate by edgeband
   cabinets.forEach((cabinet) => {
     const product = products.find((p) => p.sku === cabinet.product_sku);
     if (!product) return;
 
-    const boxMeters = (product.box_edgeband || 0) * cabinet.quantity;
-    const doorsMeters = (product.doors_fronts_edgeband || 0) * cabinet.quantity;
+    const qty = cabinet.quantity;
+    const boxMeters = (product.box_edgeband || 0) * qty;
+    const doorsMeters = (product.doors_fronts_edgeband || 0) * qty;
 
+    // Process box edgeband
     if (cabinet.box_edgeband_id && boxMeters > 0) {
       const edgeband = priceList.find((p) => p.id === cabinet.box_edgeband_id);
       if (edgeband) {
         if (!edgebandMap.has(edgeband.id)) {
           edgebandMap.set(edgeband.id, {
             edgeband,
-            cabinetsUsing: [],
             totalMeters: 0,
+            cabinetUsages: [],
           });
         }
+
         const entry = edgebandMap.get(edgeband.id)!;
-        entry.cabinetsUsing.push({
-          cabinet,
-          product,
-          boxMeters,
-          doorsMeters: 0,
-        });
-        entry.totalMeters += boxMeters;
+        const existingUsage = entry.cabinetUsages.find(u => u.cabinetId === cabinet.id);
+
+        if (existingUsage) {
+          // Cabinet already exists, add box meters
+          existingUsage.boxMeters = boxMeters;
+        } else {
+          // New cabinet
+          entry.cabinetUsages.push({
+            cabinetId: cabinet.id,
+            cabinet,
+            product,
+            boxMeters,
+            doorsMeters: 0,
+          });
+        }
       }
     }
 
+    // Process doors edgeband
     if (cabinet.doors_edgeband_id && doorsMeters > 0) {
       const edgeband = priceList.find((p) => p.id === cabinet.doors_edgeband_id);
       if (edgeband) {
         if (!edgebandMap.has(edgeband.id)) {
           edgebandMap.set(edgeband.id, {
             edgeband,
-            cabinetsUsing: [],
             totalMeters: 0,
+            cabinetUsages: [],
           });
         }
-        const entry = edgebandMap.get(edgeband.id)!;
 
-        const existingCabinet = entry.cabinetsUsing.find(
-          (c) => c.cabinet.id === cabinet.id
-        );
-        if (existingCabinet) {
-          existingCabinet.doorsMeters = doorsMeters;
+        const entry = edgebandMap.get(edgeband.id)!;
+        const existingUsage = entry.cabinetUsages.find(u => u.cabinetId === cabinet.id);
+
+        if (existingUsage) {
+          // Cabinet already exists, add doors meters
+          existingUsage.doorsMeters = doorsMeters;
         } else {
-          entry.cabinetsUsing.push({
+          // New cabinet
+          entry.cabinetUsages.push({
+            cabinetId: cabinet.id,
             cabinet,
             product,
             boxMeters: 0,
             doorsMeters,
           });
         }
-        entry.totalMeters += doorsMeters;
       }
     }
+  });
+
+  // Second pass: calculate total meters per edgeband
+  edgebandMap.forEach((entry) => {
+    entry.totalMeters = entry.cabinetUsages.reduce(
+      (sum, usage) => sum + usage.boxMeters + usage.doorsMeters,
+      0
+    );
   });
 
   const edgebandUsages: EdgebandUsage[] = [];
   const cabinetCostsMap = new Map<string, CabinetEdgebandCost>();
 
+  // Third pass: calculate costs based on full rolls
   edgebandMap.forEach((entry, edgebandId) => {
     const rollsNeeded = Math.ceil(entry.totalMeters / ROLL_LENGTH_METERS);
     const totalMetersRounded = rollsNeeded * ROLL_LENGTH_METERS;
@@ -141,21 +166,23 @@ export async function calculateAreaEdgebandRolls(
       totalCost,
     });
 
+    // Calculate cost per meter based on full rolls
     const costPerMeter = totalCost / entry.totalMeters;
 
-    entry.cabinetsUsing.forEach(({ cabinet, boxMeters, doorsMeters }) => {
+    // Distribute cost to each cabinet proportionally
+    entry.cabinetUsages.forEach(({ cabinetId, boxMeters, doorsMeters }) => {
       const boxCost = boxMeters * costPerMeter;
       const doorsCost = doorsMeters * costPerMeter;
 
-      if (!cabinetCostsMap.has(cabinet.id)) {
-        cabinetCostsMap.set(cabinet.id, {
-          cabinetId: cabinet.id,
+      if (!cabinetCostsMap.has(cabinetId)) {
+        cabinetCostsMap.set(cabinetId, {
+          cabinetId,
           boxEdgebandCost: 0,
           doorsEdgebandCost: 0,
         });
       }
 
-      const cabinetCost = cabinetCostsMap.get(cabinet.id)!;
+      const cabinetCost = cabinetCostsMap.get(cabinetId)!;
       cabinetCost.boxEdgebandCost += boxCost;
       cabinetCost.doorsEdgebandCost += doorsCost;
     });
@@ -227,9 +254,20 @@ export async function recalculateAreaEdgebandCosts(areaId: string): Promise<bool
       return false;
     }
 
+    const { data: countertops, error: countertopsError } = await supabase
+      .from('area_countertops')
+      .select('subtotal')
+      .eq('area_id', areaId);
+
+    if (countertopsError) {
+      console.error('Error loading countertops for area subtotal:', countertopsError);
+      return false;
+    }
+
     const areaSubtotal =
       cabinets.reduce((sum, c) => sum + c.subtotal, 0) +
-      (items || []).reduce((sum, i) => sum + i.subtotal, 0);
+      (items || []).reduce((sum, i) => sum + i.subtotal, 0) +
+      (countertops || []).reduce((sum, ct) => sum + ct.subtotal, 0);
 
     const { error: areaUpdateError } = await supabase
       .from('project_areas')

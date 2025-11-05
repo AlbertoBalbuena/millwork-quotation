@@ -8,8 +8,7 @@ import { calculateAreaSheetMaterials } from '../lib/sheetMaterials';
 interface MaterialData {
   boxMaterialSheets: Map<string, { sheetsNeeded: number; totalSF: number; cost: number; sfPerSheet: number }>;
   doorsMaterialSheets: Map<string, { sheetsNeeded: number; totalSF: number; cost: number; sfPerSheet: number }>;
-  boxEdgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>;
-  doorsEdgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>;
+  edgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>;
   hardware: Map<string, { quantity: number; cost: number }>;
   countertops: Map<string, { quantity: number; cost: number }>;
   totalCost: number;
@@ -61,37 +60,15 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
       });
     });
 
-    const boxEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>();
-    const doorsEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>();
-
-    const { data: priceList } = await supabase
-      .from('price_list')
-      .select('id, concept_description');
-
-    const priceListMap = new Map(priceList?.map(p => [p.id, p.concept_description]) || []);
-
-    const { data: cabinets } = await supabase
-      .from('area_cabinets')
-      .select('box_edgeband_id, doors_edgeband_id')
-      .eq('area_id', areaId);
-
-    const boxEdgebandIds = new Set(cabinets?.map(c => c.box_edgeband_id).filter(Boolean) || []);
-    const doorsEdgebandIds = new Set(cabinets?.map(c => c.doors_edgeband_id).filter(Boolean) || []);
+    const edgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>();
 
     edgebandResult.edgebandUsages.forEach(usage => {
-      const data = {
+      edgebandRolls.set(usage.edgebandName, {
         rollsNeeded: usage.rollsNeeded,
         totalMeters: usage.totalMeters,
         cost: usage.totalCost,
         totalMetersRounded: usage.totalMetersRounded,
-      };
-
-      if (boxEdgebandIds.has(usage.edgebandId)) {
-        boxEdgebandRolls.set(usage.edgebandName, data);
-      }
-      if (doorsEdgebandIds.has(usage.edgebandId)) {
-        doorsEdgebandRolls.set(usage.edgebandName, data);
-      }
+      });
     });
 
     const { hardware, countertops, totalCost } = await loadHardwareAndCountertops('area_cabinets', 'area_countertops');
@@ -99,8 +76,7 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
     setData({
       boxMaterialSheets,
       doorsMaterialSheets,
-      boxEdgebandRolls,
-      doorsEdgebandRolls,
+      edgebandRolls,
       hardware,
       countertops,
       totalCost,
@@ -138,13 +114,11 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
 
     const boxMaterialSheets = new Map<string, { sheetsNeeded: number; totalSF: number; cost: number; sfPerSheet: number }>();
     const doorsMaterialSheets = new Map<string, { sheetsNeeded: number; totalSF: number; cost: number; sfPerSheet: number }>();
-    const boxEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>();
-    const doorsEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>();
+    const edgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>();
 
     const boxMaterialsAgg = new Map<string, { totalSF: number; totalCost: number; sfPerSheet: number }>();
     const doorsMaterialsAgg = new Map<string, { totalSF: number; totalCost: number; sfPerSheet: number }>();
-    const boxEdgebandAgg = new Map<string, { totalMeters: number; totalCost: number }>();
-    const doorsEdgebandAgg = new Map<string, { totalMeters: number; totalCost: number }>();
+    const edgebandAgg = new Map<string, { totalMeters: number; totalCost: number }>();
 
     cabinets?.forEach(cabinet => {
       const qty = cabinet.quantity || 1;
@@ -184,8 +158,8 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
         if (material) {
           const name = material.concept_description;
           const meters = (cabinet.box_edgeband || 0) * qty;
-          const existing = boxEdgebandAgg.get(name) || { totalMeters: 0, totalCost: 0 };
-          boxEdgebandAgg.set(name, {
+          const existing = edgebandAgg.get(name) || { totalMeters: 0, totalCost: 0 };
+          edgebandAgg.set(name, {
             totalMeters: existing.totalMeters + meters,
             totalCost: existing.totalCost + (cabinet.box_edgeband_cost || 0),
           });
@@ -197,8 +171,8 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
         if (material) {
           const name = material.concept_description;
           const meters = (cabinet.doors_fronts_edgeband || 0) * qty;
-          const existing = doorsEdgebandAgg.get(name) || { totalMeters: 0, totalCost: 0 };
-          doorsEdgebandAgg.set(name, {
+          const existing = edgebandAgg.get(name) || { totalMeters: 0, totalCost: 0 };
+          edgebandAgg.set(name, {
             totalMeters: existing.totalMeters + meters,
             totalCost: existing.totalCost + (cabinet.doors_edgeband_cost || 0),
           });
@@ -228,19 +202,9 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
 
     const ROLL_LENGTH_METERS = 150;
 
-    boxEdgebandAgg.forEach((agg, name) => {
+    edgebandAgg.forEach((agg, name) => {
       const rollsNeeded = Math.ceil(agg.totalMeters / ROLL_LENGTH_METERS);
-      boxEdgebandRolls.set(name, {
-        rollsNeeded,
-        totalMeters: agg.totalMeters,
-        cost: agg.totalCost,
-        totalMetersRounded: rollsNeeded * ROLL_LENGTH_METERS,
-      });
-    });
-
-    doorsEdgebandAgg.forEach((agg, name) => {
-      const rollsNeeded = Math.ceil(agg.totalMeters / ROLL_LENGTH_METERS);
-      doorsEdgebandRolls.set(name, {
+      edgebandRolls.set(name, {
         rollsNeeded,
         totalMeters: agg.totalMeters,
         cost: agg.totalCost,
@@ -253,8 +217,7 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
     setData({
       boxMaterialSheets,
       doorsMaterialSheets,
-      boxEdgebandRolls,
-      doorsEdgebandRolls,
+      edgebandRolls,
       hardware,
       countertops,
       totalCost,
@@ -343,8 +306,7 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
   if (!data || (
     data.boxMaterialSheets.size === 0 &&
     data.doorsMaterialSheets.size === 0 &&
-    data.boxEdgebandRolls.size === 0 &&
-    data.doorsEdgebandRolls.size === 0 &&
+    data.edgebandRolls.size === 0 &&
     data.hardware.size === 0 &&
     data.countertops.size === 0
   )) {
@@ -410,41 +372,20 @@ export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMateria
           </div>
         )}
 
-        {data.boxEdgebandRolls.size > 0 && (
-          <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+        {data.edgebandRolls.size > 0 && (
+          <div className="bg-amber-50 rounded-lg p-3 border border-amber-100 lg:col-span-2">
             <div className="flex items-center mb-2">
               <Ruler className="h-3 w-3 text-amber-700 mr-1.5" />
-              <h5 className="text-xs font-semibold text-amber-900">Box Edgeband (Rolls 150m)</h5>
+              <h5 className="text-xs font-semibold text-amber-900">Edgeband (Rolls 150m)</h5>
             </div>
-            <div className="space-y-1.5">
-              {Array.from(data.boxEdgebandRolls.entries()).map(([name, rollData]) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {Array.from(data.edgebandRolls.entries()).map(([name, rollData]) => (
                 <div key={name} className="bg-white rounded p-2 text-xs">
                   <div className="font-medium text-slate-900 truncate mb-1">{name}</div>
                   <div className="flex justify-between text-slate-600">
                     <span><Hash className="h-3 w-3 inline mr-1" />{rollData.rollsNeeded} rolls</span>
-                    <span><Ruler className="h-3 w-3 inline mr-1" />{rollData.totalMeters.toFixed(1)}m ({rollData.totalMetersRounded}m)</span>
+                    <span><Ruler className="h-3 w-3 inline mr-1" />{rollData.totalMeters.toFixed(1)}m / {rollData.totalMetersRounded}m</span>
                     <span className="font-semibold text-amber-700">{formatCurrency(rollData.cost)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {data.doorsEdgebandRolls.size > 0 && (
-          <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-            <div className="flex items-center mb-2">
-              <Ruler className="h-3 w-3 text-purple-700 mr-1.5" />
-              <h5 className="text-xs font-semibold text-purple-900">Doors Edgeband (Rolls 150m)</h5>
-            </div>
-            <div className="space-y-1.5">
-              {Array.from(data.doorsEdgebandRolls.entries()).map(([name, rollData]) => (
-                <div key={name} className="bg-white rounded p-2 text-xs">
-                  <div className="font-medium text-slate-900 truncate mb-1">{name}</div>
-                  <div className="flex justify-between text-slate-600">
-                    <span><Hash className="h-3 w-3 inline mr-1" />{rollData.rollsNeeded} rolls</span>
-                    <span><Ruler className="h-3 w-3 inline mr-1" />{rollData.totalMeters.toFixed(1)}m ({rollData.totalMetersRounded}m)</span>
-                    <span className="font-semibold text-purple-700">{formatCurrency(rollData.cost)}</span>
                   </div>
                 </div>
               ))}
