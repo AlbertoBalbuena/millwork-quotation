@@ -11,12 +11,11 @@ interface CountertopFormProps {
   areaId: string;
   countertop: AreaCountertop | null;
   onClose: () => void;
-  versionId?: string | null;
 }
 
 const COUNTERTOP_TYPES = ['Quartz', 'Solid Surface', 'Plastic Laminate', 'Marble', 'Granite'];
 
-export function CountertopForm({ areaId, countertop, onClose, versionId }: CountertopFormProps) {
+export function CountertopForm({ areaId, countertop, onClose }: CountertopFormProps) {
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,24 +70,17 @@ export function CountertopForm({ areaId, countertop, onClose, versionId }: Count
       notes: notes || null,
     };
 
-    if (versionId) {
-      countertopData.version_id = versionId;
-    } else {
-      countertopData.updated_at = new Date().toISOString();
-    }
-
     try {
-      const tableName = versionId ? 'version_area_countertops' : 'area_countertops';
 
       if (countertop) {
         const { error } = await supabase
-          .from(tableName)
+          .from('area_countertops')
           .update(countertopData)
           .eq('id', countertop.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase.from(tableName).insert(countertopData);
+        const { error } = await supabase.from('area_countertops').insert(countertopData);
 
         if (error) throw error;
       }

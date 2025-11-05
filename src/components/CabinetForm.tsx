@@ -34,10 +34,9 @@ interface CabinetFormProps {
   areaId: string;
   cabinet: AreaCabinet | null;
   onClose: () => void;
-  versionId?: string | null;
 }
 
-export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetFormProps) {
+export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,37 +231,11 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
       subtotal: costs.subtotal,
     };
 
-    if (versionId) {
-      cabinetData.product_id = selectedProduct.id;
-      cabinetData.product_description = selectedProduct.description;
-      cabinetData.box_sf = selectedProduct.box_sf;
-      cabinetData.doors_fronts_sf = selectedProduct.doors_fronts_sf;
-      cabinetData.total_edgeband = selectedProduct.total_edgeband;
-      cabinetData.box_edgeband = selectedProduct.box_edgeband || 0;
-      cabinetData.doors_fronts_edgeband = selectedProduct.doors_fronts_edgeband || 0;
-      cabinetData.has_drawers = selectedProduct.description.toLowerCase().includes('drawer');
-
-      const boxMaterial = priceList.find(p => p.id === boxMaterialId);
-      const boxEdgeband = priceList.find(p => p.id === boxEdgebandId);
-      const boxInterior = useBoxInteriorFinish ? priceList.find(p => p.id === boxInteriorFinishId) : null;
-      const doorsMaterial = priceList.find(p => p.id === doorsMaterialId);
-      const doorsEdgeband = priceList.find(p => p.id === doorsEdgebandId);
-      const doorsInterior = useDoorsInteriorFinish ? priceList.find(p => p.id === doorsInteriorFinishId) : null;
-
-      if (boxMaterial) cabinetData.box_material_name = boxMaterial.concept_description;
-      if (boxEdgeband) cabinetData.box_edgeband_name = boxEdgeband.concept_description;
-      if (boxInterior) cabinetData.box_interior_finish_name = boxInterior.concept_description;
-      if (doorsMaterial) cabinetData.doors_material_name = doorsMaterial.concept_description;
-      if (doorsEdgeband) cabinetData.doors_edgeband_name = doorsEdgeband.concept_description;
-      if (doorsInterior) cabinetData.doors_interior_finish_name = doorsInterior.concept_description;
-    }
 
     try {
-      const tableName = versionId ? 'version_area_cabinets' : 'area_cabinets';
-
       if (cabinet) {
         const { data, error } = await supabase
-          .from(tableName)
+          .from('area_cabinets')
           .update(cabinetData)
           .eq('id', cabinet.id)
           .select();
@@ -272,7 +245,7 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
           throw error;
         }
       } else {
-        const { data, error } = await supabase.from(tableName).insert([cabinetData]).select();
+        const { data, error } = await supabase.from('area_cabinets').insert([cabinetData]).select();
 
         if (error) {
           console.error('Insert error details:', error);
@@ -299,10 +272,8 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
         }
       }
 
-      if (!versionId) {
-        await recalculateAreaSheetMaterialCosts(areaId);
-        await recalculateAreaEdgebandCosts(areaId);
-      }
+      await recalculateAreaSheetMaterialCosts(areaId);
+      await recalculateAreaEdgebandCosts(areaId);
 
       onClose();
     } catch (error: any) {

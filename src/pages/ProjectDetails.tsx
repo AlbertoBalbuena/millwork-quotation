@@ -20,23 +20,11 @@ import { calculateAreaBoxesAndPallets } from '../lib/boxesAndPallets';
 import { getSettings } from '../lib/settingsStore';
 import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
-import { VersionManager } from '../components/VersionManager';
-import { VersionComparison } from '../components/VersionComparison';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
 import { BulkMaterialChangeModal } from '../components/BulkMaterialChangeModal';
 import { createTemplateFromCabinet } from '../lib/templateManager';
 import { countActualCabinets, countCabinetEntries } from '../lib/cabinetFilters';
 import { downloadAreasCSV, downloadDetailedAreasCSV } from '../utils/exportAreasCSV';
-import {
-  getCurrentVersion,
-  getVersionData,
-  addVersionArea,
-  deleteVersionArea,
-  duplicateVersionCabinet,
-  deleteVersionCabinet,
-  deleteVersionItem,
-  recalculateVersionTotal,
-} from '../lib/versioningSystem';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -62,8 +50,6 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [tariffPercentage, setTariffPercentage] = useState(project.tariff_percentage || 0);
   const [taxesPercentage, setTaxesPercentage] = useState(project.taxes_percentage || 0);
   const [installDelivery, setInstallDelivery] = useState(project.install_delivery || 0);
-  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
-  const [compareVersions, setCompareVersions] = useState<{ v1: string; v2: string } | null>(null);
   const [savingTemplateCabinet, setSavingTemplateCabinet] = useState<AreaCabinet | null>(null);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [areaMaterialsVisible, setAreaMaterialsVisible] = useState<Record<string, boolean>>({});
@@ -73,51 +59,9 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   useEffect(() => {
-    loadCurrentVersion();
+    loadAreas();
   }, [project.id]);
 
-  async function loadCurrentVersion() {
-    try {
-      const version = await getCurrentVersion(project.id);
-      if (version) {
-        setCurrentVersionId(version.id);
-        await loadVersionAreas(version.id);
-      } else {
-        await loadAreas();
-      }
-    } catch (error) {
-      console.error('Error loading version:', error);
-      await loadAreas();
-    }
-  }
-
-  async function loadVersionAreas(versionId: string) {
-    try {
-      const [areasData, productsResult, settingsData] = await Promise.all([
-        getVersionData(versionId),
-        supabase.from('products_catalog').select('*'),
-        getSettings(),
-      ]);
-
-      setProducts(productsResult.data || []);
-      setExchangeRate(settingsData.exchangeRateUsdToMxn);
-      setAreas(areasData as any);
-    } catch (error) {
-      console.error('Error loading version areas:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleVersionChange(versionId: string) {
-    setCurrentVersionId(versionId);
-    setLoading(true);
-    loadVersionAreas(versionId);
-  }
-
-  function handleCompareVersions(versionId1: string, versionId2: string) {
-    setCompareVersions({ v1: versionId1, v2: versionId2 });
-  }
 
   async function loadAreas() {
     try {
@@ -208,22 +152,19 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
   async function handleSaveArea(areaData: ProjectAreaInsert) {
     try {
-      const tableName = currentVersionId ? 'version_project_areas' : 'project_areas';
-      const refField = currentVersionId ? { version_id: currentVersionId } : { project_id: project.id };
-
       if (editingArea) {
         const { error } = await supabase
-          .from(tableName)
+          .from('project_areas')
           .update(areaData)
           .eq('id', editingArea.id);
 
         if (error) throw error;
       } else {
         const maxOrder = Math.max(...areas.map((a) => a.display_order), -1);
-        const { error } = await supabase.from(tableName).insert([
+        const { error } = await supabase.from('project_areas').insert([
           {
             ...areaData,
-            ...refField,
+            project_id: project.id,
             display_order: maxOrder + 1,
           },
         ]);
@@ -231,11 +172,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         if (error) throw error;
       }
 
-      if (currentVersionId) {
-        await loadVersionAreas(currentVersionId);
-      } else {
-        await loadAreas();
-      }
+      await loadAreas();
       setIsAreaModalOpen(false);
       setEditingArea(null);
     } catch (error) {
@@ -248,16 +185,11 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
     if (!confirm(`Delete area "${area.name}" and all its cabinets?`)) return;
 
     try {
-      const tableName = currentVersionId ? 'version_project_areas' : 'project_areas';
-      const { error } = await supabase.from(tableName).delete().eq('id', area.id);
+      const { error } = await supabase.from('project_areas').delete().eq('id', area.id);
 
       if (error) throw error;
 
-      if (currentVersionId) {
-        await loadVersionAreas(currentVersionId);
-      } else {
-        await loadAreas();
-      }
+      await loadAreas();
     } catch (error) {
       console.error('Error deleting area:', error);
       alert('Failed to delete area');
@@ -268,23 +200,17 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
     if (!confirm('Delete this cabinet?')) return;
 
     try {
-      if (currentVersionId) {
-        await deleteVersionCabinet(cabinet.id);
-        await recalculateVersionTotal(currentVersionId);
-        await loadVersionAreas(currentVersionId);
-      } else {
-        const areaId = cabinet.area_id;
-        const { error } = await supabase
-          .from('area_cabinets')
-          .delete()
-          .eq('id', cabinet.id);
+      const areaId = cabinet.area_id;
+      const { error } = await supabase
+        .from('area_cabinets')
+        .delete()
+        .eq('id', cabinet.id);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        await recalculateAreaSheetMaterialCosts(areaId);
-        await recalculateAreaEdgebandCosts(areaId);
-        await loadAreas();
-      }
+      await recalculateAreaSheetMaterialCosts(areaId);
+      await recalculateAreaEdgebandCosts(areaId);
+      await loadAreas();
     } catch (error) {
       console.error('Error deleting cabinet:', error);
       alert('Failed to delete cabinet');
@@ -293,17 +219,11 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
   async function handleDuplicateCabinet(cabinet: AreaCabinet) {
     try {
-      if (currentVersionId) {
-        await duplicateVersionCabinet(cabinet.id);
-        await recalculateVersionTotal(currentVersionId);
-        await loadVersionAreas(currentVersionId);
-      } else {
-        const { id, created_at, ...cabinetData } = cabinet;
-        const { error } = await supabase.from('area_cabinets').insert([cabinetData]);
+      const { id, created_at, ...cabinetData } = cabinet;
+      const { error } = await supabase.from('area_cabinets').insert([cabinetData]);
 
-        if (error) throw error;
-        await loadAreas();
-      }
+      if (error) throw error;
+      await loadAreas();
     } catch (error) {
       console.error('Error duplicating cabinet:', error);
       alert('Failed to duplicate cabinet');
@@ -323,12 +243,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   async function handleCloseCabinetForm() {
     setSelectedAreaForCabinet(null);
     setEditingCabinet(null);
-    if (currentVersionId) {
-      await recalculateVersionTotal(currentVersionId);
-      await loadVersionAreas(currentVersionId);
-    } else {
-      await loadAreas();
-    }
+    await loadAreas();
   }
 
   function handleEditItem(item: AreaItem) {
@@ -340,16 +255,10 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      if (currentVersionId) {
-        await deleteVersionItem(itemId);
-        await recalculateVersionTotal(currentVersionId);
-        await loadVersionAreas(currentVersionId);
-      } else {
-        const { error } = await supabase.from('area_items').delete().eq('id', itemId);
+      const { error } = await supabase.from('area_items').delete().eq('id', itemId);
 
-        if (error) throw error;
-        await loadAreas();
-      }
+      if (error) throw error;
+      await loadAreas();
     } catch (error) {
       console.error('Error deleting item:', error);
       alert('Failed to delete item');
@@ -360,16 +269,9 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
     if (!confirm('Are you sure you want to delete this countertop?')) return;
 
     try {
-      if (currentVersionId) {
-        const { error } = await supabase.from('version_area_countertops').delete().eq('id', countertopId);
-        if (error) throw error;
-        await recalculateVersionTotal(currentVersionId);
-        await loadVersionAreas(currentVersionId);
-      } else {
-        const { error } = await supabase.from('area_countertops').delete().eq('id', countertopId);
-        if (error) throw error;
-        await loadAreas();
-      }
+      const { error } = await supabase.from('area_countertops').delete().eq('id', countertopId);
+      if (error) throw error;
+      await loadAreas();
     } catch (error) {
       console.error('Error deleting countertop:', error);
       alert('Failed to delete countertop');
@@ -379,23 +281,13 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   async function handleCloseItemForm() {
     setSelectedAreaForItem(null);
     setEditingItem(null);
-    if (currentVersionId) {
-      await recalculateVersionTotal(currentVersionId);
-      await loadVersionAreas(currentVersionId);
-    } else {
-      await loadAreas();
-    }
+    await loadAreas();
   }
 
   async function handleCloseCountertopForm() {
     setSelectedAreaForCountertop(null);
     setEditingCountertop(null);
-    if (currentVersionId) {
-      await recalculateVersionTotal(currentVersionId);
-      await loadVersionAreas(currentVersionId);
-    } else {
-      await loadAreas();
-    }
+    await loadAreas();
   }
 
   function handleSaveAsTemplate(cabinet: AreaCabinet) {
@@ -432,12 +324,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
   async function handleSaveChanges() {
     try {
-      if (currentVersionId) {
-        await recalculateVersionTotal(currentVersionId);
-        await loadVersionAreas(currentVersionId);
-      } else {
-        await loadAreas();
-      }
+      await loadAreas();
       alert('Changes saved successfully');
     } catch (error) {
       console.error('Error saving changes:', error);
@@ -531,14 +418,6 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
   return (
     <div>
-      {compareVersions && (
-        <VersionComparison
-          versionId1={compareVersions.v1}
-          versionId2={compareVersions.v2}
-          onClose={() => setCompareVersions(null)}
-        />
-      )}
-
       <div className="mb-6">
         <Button variant="ghost" onClick={onBack} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -571,15 +450,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
 
           <div className="border-t border-slate-200 pt-4 mt-4">
             <div className="flex flex-col lg:flex-row items-start gap-4">
-              <div className="flex-1 w-full">
-                <VersionManager
-                  projectId={project.id}
-                  onVersionChange={handleVersionChange}
-                  onCompare={handleCompareVersions}
-                />
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-lg p-4 w-full lg:w-auto lg:min-w-[200px]">
+              <div className="bg-white border border-slate-200 rounded-lg p-4 w-full lg:w-auto lg:min-w-[200px] lg:ml-auto">
                 <div className="text-xs text-slate-600 mb-2 font-medium">Display Currency</div>
                 <div className="flex items-center space-x-2">
                   <Button
@@ -1060,7 +931,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                         />
 
                         {areaMaterialsVisible[area.id] && (
-                          <AreaMaterialBreakdown areaId={area.id} isVersion={!!currentVersionId} />
+                          <AreaMaterialBreakdown areaId={area.id} />
                         )}
 
                         {area.cabinets.map((cabinet) => (
@@ -1228,7 +1099,6 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
           areaId={selectedAreaForCabinet}
           cabinet={editingCabinet}
           onClose={handleCloseCabinetForm}
-          versionId={currentVersionId}
         />
       )}
 
@@ -1237,7 +1107,6 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
           areaId={selectedAreaForItem}
           item={editingItem}
           onClose={handleCloseItemForm}
-          versionId={currentVersionId}
         />
       )}
 
@@ -1246,7 +1115,6 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
           areaId={selectedAreaForCountertop}
           countertop={editingCountertop}
           onClose={handleCloseCountertopForm}
-          versionId={currentVersionId}
         />
       )}
 
@@ -1266,17 +1134,11 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
           setBulkChangePreselectedAreaId(undefined);
         }}
         onSuccess={async () => {
-          if (currentVersionId) {
-            await recalculateVersionTotal(currentVersionId);
-            await loadVersionAreas(currentVersionId);
-          } else {
-            await loadAreas();
-          }
+          await loadAreas();
         }}
         projectId={project.id}
         areas={areas}
         preselectedAreaId={bulkChangePreselectedAreaId}
-        versionId={currentVersionId}
       />
     </div>
   );

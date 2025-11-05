@@ -12,10 +12,9 @@ interface ItemFormProps {
   areaId: string;
   item: AreaItem | null;
   onClose: () => void;
-  versionId?: string | null;
 }
 
-export function ItemForm({ areaId, item, onClose, versionId }: ItemFormProps) {
+export function ItemForm({ areaId, item, onClose }: ItemFormProps) {
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,17 +70,15 @@ export function ItemForm({ areaId, item, onClose, versionId }: ItemFormProps) {
     };
 
     try {
-      const tableName = versionId ? 'version_area_items' : 'area_items';
-
       if (item) {
         const { error } = await supabase
-          .from(tableName)
+          .from('area_items')
           .update(itemData)
           .eq('id', item.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase.from(tableName).insert(itemData);
+        const { error } = await supabase.from('area_items').insert(itemData);
 
         if (error) throw error;
       }

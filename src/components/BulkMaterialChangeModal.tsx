@@ -32,7 +32,6 @@ interface BulkMaterialChangeModalProps {
   projectId: string;
   areas: ProjectArea[];
   preselectedAreaId?: string;
-  versionId?: string | null;
 }
 
 export function BulkMaterialChangeModal({
@@ -42,7 +41,6 @@ export function BulkMaterialChangeModal({
   projectId,
   areas,
   preselectedAreaId,
-  versionId,
 }: BulkMaterialChangeModalProps) {
   const [scope, setScope] = useState<ChangeScope>(preselectedAreaId ? 'area' : 'project');
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(preselectedAreaId ? [preselectedAreaId] : []);
@@ -71,7 +69,7 @@ export function BulkMaterialChangeModal({
         }
       }
     }
-  }, [isOpen, scope, selectedAreaIds, changeType, versionId]);
+  }, [isOpen, scope, selectedAreaIds, changeType]);
 
   useEffect(() => {
     setPreview(null);
@@ -100,7 +98,7 @@ export function BulkMaterialChangeModal({
     try {
       setLoading(true);
       const areaIds = scope === 'project' ? [] : selectedAreaIds;
-      const materials = await getMaterialsInUse(projectId, areaIds, changeType, versionId);
+      const materials = await getMaterialsInUse(projectId, areaIds, changeType);
       setMaterialsInUse(materials);
     } catch (error) {
       console.error('Error loading materials:', error);
@@ -113,7 +111,7 @@ export function BulkMaterialChangeModal({
     try {
       setLoading(true);
       const areaIds = scope === 'project' ? [] : selectedAreaIds;
-      const hardware = await getHardwareInUse(projectId, areaIds, versionId);
+      const hardware = await getHardwareInUse(projectId, areaIds);
       setHardwareInUse(hardware);
     } catch (error) {
       console.error('Error loading hardware:', error);
@@ -190,7 +188,6 @@ export function BulkMaterialChangeModal({
           oldHardwareId: oldMaterialId,
           newHardwareId: operationType === 'replace' ? newMaterialId : undefined,
           operationType,
-          versionId,
         });
 
         setPreview(previewData);
@@ -218,7 +215,6 @@ export function BulkMaterialChangeModal({
           oldMaterialId,
           newMaterialId,
           updateMatchingInteriorFinish,
-          versionId,
         });
 
         setPreview(previewData);
@@ -264,7 +260,6 @@ export function BulkMaterialChangeModal({
           oldHardwareId: oldMaterialId,
           newHardwareId: operationType === 'replace' ? newMaterialId : undefined,
           operationType,
-          versionId,
         });
       } else {
         result = await executeBulkMaterialChange({
@@ -275,7 +270,6 @@ export function BulkMaterialChangeModal({
           oldMaterialId,
           newMaterialId,
           updateMatchingInteriorFinish,
-          versionId,
         });
       }
 
