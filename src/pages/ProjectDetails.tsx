@@ -1060,7 +1060,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                         />
 
                         {areaMaterialsVisible[area.id] && (
-                          <AreaMaterialBreakdown areaId={area.id} isVersion={!!currentVersionId} />
+                          <AreaMaterialBreakdown areaId={area.id} />
                         )}
 
                         {area.cabinets.map((cabinet) => (
