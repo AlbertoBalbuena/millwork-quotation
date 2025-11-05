@@ -1,4 +1,5 @@
 import type { AreaCabinet, Product } from '../types';
+import { isAccessoryPanel } from './cabinetFilters';
 
 export interface BoxesPalletsCalculation {
   boxes: number;
@@ -16,7 +17,7 @@ export function calculateBoxesForCabinet(
   const description = product.description;
   const quantity = cabinet.quantity;
 
-  if (sku.startsWith('460:') || sku.startsWith('460-')) {
+  if (isAccessoryPanel(sku)) {
     const boxSF = product.box_sf || 0;
     const doorsSF = product.doors_fronts_sf || 0;
     const totalSqFt = (boxSF + doorsSF) * quantity;
@@ -45,15 +46,8 @@ export function calculateAccessoriesSqFt(
   if (!product) return 0;
 
   const sku = product.sku;
-  const description = product.description.toLowerCase();
 
-  if (
-    (sku.startsWith('460:') || sku.startsWith('460-')) &&
-    (description.includes('panel') ||
-      description.includes('filler') ||
-      description.includes('toe') ||
-      description.includes('crown'))
-  ) {
+  if (isAccessoryPanel(sku)) {
     const boxSF = product.box_sf || 0;
     const doorsSF = product.doors_fronts_sf || 0;
     return (boxSF + doorsSF) * cabinet.quantity;

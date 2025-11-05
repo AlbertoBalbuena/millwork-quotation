@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { BarChart3, PieChart, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../lib/calculations';
+import { countActualCabinets, countCabinetEntries } from '../lib/cabinetFilters';
 import type { ProjectArea, AreaCabinet, AreaItem, AreaCountertop } from '../types';
 
 interface ProjectChartsProps {
@@ -33,13 +34,13 @@ export function ProjectCharts({ areas }: ProjectChartsProps) {
       const cabinetsTotal = (area.cabinets || []).reduce((sum, c) => sum + c.subtotal, 0);
       const itemsTotal = (area.items || []).reduce((sum, i) => sum + i.subtotal, 0);
       const countertopsTotal = (area.countertops || []).reduce((sum, ct) => sum + ct.subtotal, 0);
-      const cabinetsCount = (area.cabinets || []).reduce((sum, c) => sum + c.quantity, 0);
+      const cabinetsCount = countActualCabinets(area.cabinets || []);
       return {
         name: area.name,
         total: cabinetsTotal + itemsTotal + countertopsTotal,
         taxes: calculateTaxesForArea(area.cabinets || []),
         cabinets: cabinetsCount,
-        cabinetEntries: (area.cabinets || []).length,
+        cabinetEntries: countCabinetEntries(area.cabinets || []),
         items: (area.items || []).length,
         countertops: (area.countertops || []).length,
       };
@@ -84,8 +85,8 @@ export function ProjectCharts({ areas }: ProjectChartsProps) {
     const maxAreaCost = Math.max(...areasCosts.map((a) => a.total), 1);
     const maxMaterialCost = Math.max(...materialsBreakdown.map((m) => m.cost), 1);
 
-    const totalCabinets = allCabinets.reduce((sum, c) => sum + c.quantity, 0);
-    const totalCabinetEntries = allCabinets.length;
+    const totalCabinets = countActualCabinets(allCabinets);
+    const totalCabinetEntries = countCabinetEntries(allCabinets);
     const totalSKUs = new Set(allCabinets.map((c) => c.product_sku)).size;
     const cabinetsCost = allCabinets.reduce((sum, c) => sum + c.subtotal, 0);
     const avgCostPerCabinet = totalCabinets > 0 ? cabinetsCost / totalCabinets : 0;

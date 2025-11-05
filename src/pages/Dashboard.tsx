@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/calculations';
 import { seedSampleData } from '../utils/seedData';
 import { Button } from '../components/Button';
+import { isAccessoryPanel } from '../lib/cabinetFilters';
 
 interface DashboardStats {
   totalProjects: number;
@@ -274,7 +275,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
         const sku = cabinet.product_sku;
         if (!sku) return;
 
-        if (sku.includes('460')) return;
+        if (isAccessoryPanel(sku)) return;
 
         if (!cabinetMap.has(sku)) {
           cabinetMap.set(sku, {
@@ -333,7 +334,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
 
       if (!cabinets) return;
 
-      const filteredCabinets = cabinets.filter(c => !c.product_sku?.includes('460'));
+      const filteredCabinets = cabinets.filter(c => !isAccessoryPanel(c.product_sku));
 
       const materialIds = [...new Set(filteredCabinets.map(c => c.doors_material_id).filter(Boolean))];
 
@@ -405,7 +406,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
 
       if (!cabinets) return;
 
-      const filteredCabinets = cabinets.filter(c => !c.product_sku?.includes('460'));
+      const filteredCabinets = cabinets.filter(c => !isAccessoryPanel(c.product_sku));
 
       const materialIds = [...new Set(filteredCabinets.map(c => c.box_material_id).filter(Boolean))];
 
@@ -477,7 +478,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
 
       if (!cabinets) return;
 
-      const filteredCabinets = cabinets.filter(c => !c.product_sku?.includes('460'));
+      const filteredCabinets = cabinets.filter(c => !isAccessoryPanel(c.product_sku));
 
       const hardwareIds = new Set<string>();
       filteredCabinets.forEach(cabinet => {

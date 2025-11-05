@@ -24,6 +24,7 @@ import { VersionManager } from '../components/VersionManager';
 import { VersionComparison } from '../components/VersionComparison';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
 import { createTemplateFromCabinet } from '../lib/templateManager';
+import { countActualCabinets, countCabinetEntries } from '../lib/cabinetFilters';
 import {
   getCurrentVersion,
   getVersionData,
@@ -803,7 +804,10 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                   <div className="flex-1">
                     <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{area.name}</h2>
                     <p className="mt-1 text-xs sm:text-sm text-slate-600">
-                      {area.cabinets.reduce((sum, c) => sum + c.quantity, 0)} cabinet{area.cabinets.reduce((sum, c) => sum + c.quantity, 0) !== 1 ? 's' : ''} ({area.cabinets.length} {area.cabinets.length !== 1 ? 'entries' : 'entry'})
+                      {countActualCabinets(area.cabinets)} cabinet{countActualCabinets(area.cabinets) !== 1 ? 's' : ''} ({countCabinetEntries(area.cabinets)} {countCabinetEntries(area.cabinets) !== 1 ? 'entries' : 'entry'})
+                      {area.cabinets.length !== countCabinetEntries(area.cabinets) && (
+                        <span className="ml-2 text-purple-600">+ {area.cabinets.length - countCabinetEntries(area.cabinets)} accessories</span>
+                      )}
                     </p>
                   </div>
 
