@@ -12,6 +12,7 @@ import { CountertopForm } from '../components/CountertopForm';
 import { CabinetCard } from '../components/CabinetCard';
 import { MaterialBreakdown } from '../components/MaterialBreakdown';
 import { MaterialBreakdownByArea } from '../components/MaterialBreakdownByArea';
+import { AreaMaterialBreakdown } from '../components/AreaMaterialBreakdown';
 import { ProjectCharts } from '../components/ProjectCharts';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { printQuotation } from '../utils/printQuotation';
@@ -63,6 +64,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [compareVersions, setCompareVersions] = useState<{ v1: string; v2: string } | null>(null);
   const [savingTemplateCabinet, setSavingTemplateCabinet] = useState<AreaCabinet | null>(null);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
+  const [areaMaterialsVisible, setAreaMaterialsVisible] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadCurrentVersion();
@@ -827,6 +829,14 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setAreaMaterialsVisible(prev => ({ ...prev, [area.id]: !prev[area.id] }))}
+                        title={areaMaterialsVisible[area.id] ? 'Hide Materials' : 'Show Materials'}
+                      >
+                        <Calculator className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleAddCabinet(area.id)}
                       >
                         <Plus className="h-4 w-4" />
@@ -882,6 +892,10 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                           products={products}
                           areaName={`${area.name} - Shipping Summary`}
                         />
+
+                        {areaMaterialsVisible[area.id] && (
+                          <AreaMaterialBreakdown areaId={area.id} />
+                        )}
 
                         {area.cabinets.map((cabinet) => (
                           <CabinetCard
