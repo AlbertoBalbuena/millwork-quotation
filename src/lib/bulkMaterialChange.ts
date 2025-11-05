@@ -14,7 +14,8 @@ export type MaterialChangeType =
   | 'doors_material'
   | 'doors_edgeband'
   | 'box_interior_finish'
-  | 'doors_interior_finish';
+  | 'doors_interior_finish'
+  | 'hardware';
 
 export type ChangeScope = 'area' | 'selected_areas' | 'project';
 

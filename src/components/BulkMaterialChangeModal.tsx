@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, AlertTriangle, CheckCircle, RefreshCw, ArrowRight } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { AutocompleteSelect } from './AutocompleteSelect';
@@ -15,6 +15,14 @@ import {
   type MaterialUsageInfo,
   type BulkChangePreview,
 } from '../lib/bulkMaterialChange';
+import {
+  getHardwareInUse,
+  previewBulkHardwareChange,
+  executeBulkHardwareChange,
+  validateHardwareReplacement,
+  type HardwareUsageInfo,
+  type BulkHardwareChangePreview,
+} from '../lib/bulkHardwareChange';
 import type { ProjectArea, PriceListItem } from '../types';
 
 interface BulkMaterialChangeModalProps {
@@ -40,11 +48,13 @@ export function BulkMaterialChangeModal({
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(preselectedAreaId ? [preselectedAreaId] : []);
   const [changeType, setChangeType] = useState<MaterialChangeType>('box_material');
   const [materialsInUse, setMaterialsInUse] = useState<MaterialUsageInfo[]>([]);
+  const [hardwareInUse, setHardwareInUse] = useState<HardwareUsageInfo[]>([]);
   const [allMaterials, setAllMaterials] = useState<PriceListItem[]>([]);
   const [oldMaterialId, setOldMaterialId] = useState('');
   const [newMaterialId, setNewMaterialId] = useState('');
+  const [operationType, setOperationType] = useState<'replace' | 'remove'>('replace');
   const [updateMatchingInteriorFinish, setUpdateMatchingInteriorFinish] = useState(false);
-  const [preview, setPreview] = useState<BulkChangePreview | null>(null);
+  const [preview, setPreview] = useState<BulkChangePreview | BulkHardwareChangePreview | null>(null);
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -54,7 +64,11 @@ export function BulkMaterialChangeModal({
     if (isOpen) {
       loadAllMaterials();
       if (scope && changeType) {
-        loadMaterialsInUse();
+        if (changeType === 'hardware') {
+          loadHardwareInUse();
+        } else {
+          loadMaterialsInUse();
+        }
       }
     }
   }, [isOpen, scope, selectedAreaIds, changeType, versionId]);
@@ -63,6 +77,7 @@ export function BulkMaterialChangeModal({
     setPreview(null);
     setOldMaterialId('');
     setNewMaterialId('');
+    setOperationType('replace');
     setValidationError('');
   }, [scope, selectedAreaIds, changeType]);
 
@@ -89,6 +104,19 @@ export function BulkMaterialChangeModal({
       setMaterialsInUse(materials);
     } catch (error) {
       console.error('Error loading materials:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadHardwareInUse() {
+    try {
+      setLoading(true);
+      const areaIds = scope === 'project' ? [] : selectedAreaIds;
+      const hardware = await getHardwareInUse(projectId, areaIds, versionId);
+      setHardwareInUse(hardware);
+    } catch (error) {
+      console.error('Error loading hardware:', error);
     } finally {
       setLoading(false);
     }
@@ -121,6 +149,8 @@ export function BulkMaterialChangeModal({
         case 'box_edgeband':
         case 'doors_edgeband':
           return isEdgeband(materialType);
+        case 'hardware':
+          return isHardware(materialType);
         default:
           return true;
       }
@@ -128,8 +158,13 @@ export function BulkMaterialChangeModal({
   }
 
   async function handlePreview() {
-    if (!oldMaterialId || !newMaterialId) {
-      setValidationError('Please select both current and new materials');
+    if (!oldMaterialId) {
+      setValidationError('Please select current ' + (changeType === 'hardware' ? 'hardware' : 'material'));
+      return;
+    }
+
+    if (operationType === 'replace' && !newMaterialId) {
+      setValidationError('Please select new ' + (changeType === 'hardware' ? 'hardware' : 'material'));
       return;
     }
 
@@ -137,27 +172,58 @@ export function BulkMaterialChangeModal({
     setLoading(true);
 
     try {
-      const validation = await validateMaterialReplacement(oldMaterialId, newMaterialId);
-      if (!validation.valid) {
-        setValidationError(validation.error || 'Invalid material replacement');
-        setLoading(false);
-        return;
+      if (changeType === 'hardware') {
+        if (operationType === 'replace' && newMaterialId) {
+          const validation = await validateHardwareReplacement(oldMaterialId, newMaterialId);
+          if (!validation.valid) {
+            setValidationError(validation.error || 'Invalid hardware replacement');
+            setLoading(false);
+            return;
+          }
+        }
+
+        const areaIds = scope === 'project' ? [] : selectedAreaIds;
+        const previewData = await previewBulkHardwareChange({
+          projectId,
+          scope,
+          areaIds,
+          oldHardwareId: oldMaterialId,
+          newHardwareId: operationType === 'replace' ? newMaterialId : undefined,
+          operationType,
+          versionId,
+        });
+
+        setPreview(previewData);
+        setStep('preview');
+      } else {
+        if (!newMaterialId) {
+          setValidationError('Please select new material');
+          setLoading(false);
+          return;
+        }
+
+        const validation = await validateMaterialReplacement(oldMaterialId, newMaterialId);
+        if (!validation.valid) {
+          setValidationError(validation.error || 'Invalid material replacement');
+          setLoading(false);
+          return;
+        }
+
+        const areaIds = scope === 'project' ? [] : selectedAreaIds;
+        const previewData = await previewBulkMaterialChange({
+          projectId,
+          scope,
+          areaIds,
+          changeType,
+          oldMaterialId,
+          newMaterialId,
+          updateMatchingInteriorFinish,
+          versionId,
+        });
+
+        setPreview(previewData);
+        setStep('preview');
       }
-
-      const areaIds = scope === 'project' ? [] : selectedAreaIds;
-      const previewData = await previewBulkMaterialChange({
-        projectId,
-        scope,
-        areaIds,
-        changeType,
-        oldMaterialId,
-        newMaterialId,
-        updateMatchingInteriorFinish,
-        versionId,
-      });
-
-      setPreview(previewData);
-      setStep('preview');
     } catch (error: any) {
       console.error('Error generating preview:', error);
       setValidationError(error.message || 'Failed to generate preview');
@@ -169,9 +235,17 @@ export function BulkMaterialChangeModal({
   async function handleExecute() {
     if (!preview) return;
 
-    if (preview.percentageChange > 20) {
+    if (Math.abs(preview.percentageChange) > 20) {
+      const changeWord = preview.percentageChange > 0 ? 'increase' : 'decrease';
       const confirmed = window.confirm(
-        `This change will increase costs by ${preview.percentageChange.toFixed(1)}%. Are you sure you want to continue?`
+        `This change will ${changeWord} costs by ${Math.abs(preview.percentageChange).toFixed(1)}%. Are you sure you want to continue?`
+      );
+      if (!confirmed) return;
+    }
+
+    if (changeType === 'hardware' && operationType === 'remove') {
+      const confirmed = window.confirm(
+        `You are about to remove hardware from ${preview.totalCabinets} cabinets. This action cannot be undone. Continue?`
       );
       if (!confirmed) return;
     }
@@ -180,16 +254,30 @@ export function BulkMaterialChangeModal({
 
     try {
       const areaIds = scope === 'project' ? [] : selectedAreaIds;
-      const result = await executeBulkMaterialChange({
-        projectId,
-        scope,
-        areaIds,
-        changeType,
-        oldMaterialId,
-        newMaterialId,
-        updateMatchingInteriorFinish,
-        versionId,
-      });
+      let result;
+
+      if (changeType === 'hardware') {
+        result = await executeBulkHardwareChange({
+          projectId,
+          scope,
+          areaIds,
+          oldHardwareId: oldMaterialId,
+          newHardwareId: operationType === 'replace' ? newMaterialId : undefined,
+          operationType,
+          versionId,
+        });
+      } else {
+        result = await executeBulkMaterialChange({
+          projectId,
+          scope,
+          areaIds,
+          changeType,
+          oldMaterialId,
+          newMaterialId,
+          updateMatchingInteriorFinish,
+          versionId,
+        });
+      }
 
       if (result.success) {
         const costDiff = preview.costDifference;
@@ -197,8 +285,12 @@ export function BulkMaterialChangeModal({
           ? `increase of ${formatCurrency(Math.abs(costDiff))}`
           : `reduction of ${formatCurrency(Math.abs(costDiff))}`;
 
+        const operationText = changeType === 'hardware' && operationType === 'remove'
+          ? 'Hardware removed successfully'
+          : 'Updated successfully';
+
         alert(
-          `✓ ${result.updatedCount} cabinets updated successfully.\n\nCost changed from ${formatCurrency(preview.costBefore)} to ${formatCurrency(preview.costAfter)} (${diffText}, ${preview.percentageChange.toFixed(1)}%)`
+          `✓ ${result.updatedCount} cabinets ${operationText}.\n\nCost changed from ${formatCurrency(preview.costBefore)} to ${formatCurrency(preview.costAfter)} (${diffText}, ${preview.percentageChange.toFixed(1)}%)`
         );
         onSuccess();
         handleClose();
@@ -220,15 +312,19 @@ export function BulkMaterialChangeModal({
     setChangeType('box_material');
     setOldMaterialId('');
     setNewMaterialId('');
+    setOperationType('replace');
     setPreview(null);
     setValidationError('');
     setUpdateMatchingInteriorFinish(false);
     onClose();
   }
 
-  const canPreview = oldMaterialId && newMaterialId && (scope === 'project' || selectedAreaIds.length > 0);
+  const canPreview = oldMaterialId &&
+    (operationType === 'remove' || newMaterialId) &&
+    (scope === 'project' || selectedAreaIds.length > 0);
 
-  const showInteriorFinishOption = (changeType === 'box_material' || changeType === 'doors_material') && oldMaterialId;
+  const showInteriorFinishOption = (changeType === 'box_material' || changeType === 'doors_material') && oldMaterialId && operationType === 'replace';
+  const isHardwareChange = changeType === 'hardware';
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Bulk Material Change" size="xl">
@@ -338,48 +434,91 @@ export function BulkMaterialChangeModal({
               <option value="doors_edgeband">Doors Edgeband</option>
               <option value="box_interior_finish">Box Interior Finish</option>
               <option value="doors_interior_finish">Doors Interior Finish</option>
+              <option value="hardware">Hardware</option>
             </select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Current Material</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Current {isHardwareChange ? 'Hardware' : 'Material'}
+              </label>
               <select
                 value={oldMaterialId}
                 onChange={(e) => setOldMaterialId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={loading}
               >
-                <option value="">Select current material...</option>
-                {materialsInUse.map((mat) => (
-                  <option key={mat.materialId} value={mat.materialId}>
-                    {mat.materialName} ({mat.cabinetCount} cabinet{mat.cabinetCount !== 1 ? 's' : ''})
-                  </option>
-                ))}
+                <option value="">Select current {isHardwareChange ? 'hardware' : 'material'}...</option>
+                {isHardwareChange
+                  ? hardwareInUse.map((hw) => (
+                      <option key={hw.hardwareId} value={hw.hardwareId}>
+                        {hw.hardwareName} ({hw.cabinetCount} cabinet{hw.cabinetCount !== 1 ? 's' : ''})
+                      </option>
+                    ))
+                  : materialsInUse.map((mat) => (
+                      <option key={mat.materialId} value={mat.materialId}>
+                        {mat.materialName} ({mat.cabinetCount} cabinet{mat.cabinetCount !== 1 ? 's' : ''})
+                      </option>
+                    ))
+                }
               </select>
               {oldMaterialId && (
                 <div className="mt-2 text-xs text-slate-600">
-                  {materialsInUse.find(m => m.materialId === oldMaterialId)?.cabinetCount || 0} cabinets use this material
+                  {isHardwareChange
+                    ? `${hardwareInUse.find(h => h.hardwareId === oldMaterialId)?.cabinetCount || 0} cabinets use this hardware`
+                    : `${materialsInUse.find(m => m.materialId === oldMaterialId)?.cabinetCount || 0} cabinets use this material`
+                  }
                 </div>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">New Material</label>
-              <AutocompleteSelect
-                value={newMaterialId}
-                onChange={setNewMaterialId}
-                options={getCompatibleMaterials()
-                  .filter(m => m.id !== oldMaterialId)
-                  .map((mat) => ({
-                    value: mat.id,
-                    label: `${mat.concept_description} - ${mat.dimensions || ''} - ${formatCurrency(mat.price)}/${mat.unit}`,
-                  }))}
-                placeholder="Search for new material..."
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                {getCompatibleMaterials().length} compatible materials available
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  New {isHardwareChange ? 'Hardware' : 'Material'}
+                </label>
+                {isHardwareChange && (
+                  <Button
+                    variant={operationType === 'remove' ? 'primary' : 'ghost'}
+                    size="sm"
+                    onClick={() => {
+                      setOperationType(operationType === 'remove' ? 'replace' : 'remove');
+                      if (operationType === 'replace') {
+                        setNewMaterialId('');
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {operationType === 'remove' ? 'Removing' : 'Remove Instead'}
+                  </Button>
+                )}
+              </div>
+              {operationType === 'replace' ? (
+                <>
+                  <AutocompleteSelect
+                    value={newMaterialId}
+                    onChange={setNewMaterialId}
+                    options={getCompatibleMaterials()
+                      .filter(m => m.id !== oldMaterialId)
+                      .map((mat) => ({
+                        value: mat.id,
+                        label: `${mat.concept_description} - ${mat.dimensions || ''} - ${formatCurrency(mat.price)}/${mat.unit}`,
+                      }))}
+                    placeholder={`Search for new ${isHardwareChange ? 'hardware' : 'material'}...`}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    {getCompatibleMaterials().length} compatible {isHardwareChange ? 'hardware items' : 'materials'} available
+                  </p>
+                </>
+              ) : (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-900 font-medium">Hardware will be removed</p>
+                  <p className="text-xs text-red-700 mt-1">
+                    The selected hardware will be deleted from all affected cabinets. This is useful when clients provide their own hardware.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
