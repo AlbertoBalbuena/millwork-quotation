@@ -368,10 +368,10 @@ function CreateVersionModal({ projectId, versions, onClose, onCreated }: CreateV
                 onChange={(e) => setSourceVersionId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="" disabled>Select a version...</option>
+                {!sourceVersionId && <option value="">Select a version...</option>}
                 {versions.map((version) => (
                   <option key={version.id} value={version.id}>
-                    {version.version_number} - {version.version_name} ({formatCurrency(version.total_amount || 0)})
+                    {version.version_number} - {version.version_name}{version.is_current ? ' (Current)' : ''} ({formatCurrency(version.total_amount || 0)})
                   </option>
                 ))}
               </select>

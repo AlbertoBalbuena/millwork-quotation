@@ -41,7 +41,6 @@ export function CountertopForm({ areaId, countertop, onClose, versionId }: Count
 
       if (error) throw error;
       setPriceList(data || []);
-      console.log('Countertop price list loaded:', data?.length || 0, 'items');
     } catch (error) {
       console.error('Error loading countertop price list:', error);
     } finally {

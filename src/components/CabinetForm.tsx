@@ -236,7 +236,6 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
       const tableName = versionId ? 'version_area_cabinets' : 'area_cabinets';
 
       if (cabinet) {
-        console.log('Updating cabinet with data:', cabinetData);
         const { data, error } = await supabase
           .from(tableName)
           .update(cabinetData)
@@ -247,16 +246,13 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
           console.error('Update error details:', error);
           throw error;
         }
-        console.log('Update successful:', data);
       } else {
-        console.log('Inserting cabinet with data:', cabinetData);
         const { data, error } = await supabase.from(tableName).insert([cabinetData]).select();
 
         if (error) {
           console.error('Insert error details:', error);
           throw error;
         }
-        console.log('Insert successful:', data);
 
         if (loadedTemplateId && data && data.length > 0) {
           const cabinetId = data[0].id;

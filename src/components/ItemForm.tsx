@@ -39,7 +39,6 @@ export function ItemForm({ areaId, item, onClose, versionId }: ItemFormProps) {
 
       if (error) throw error;
       setPriceList(data || []);
-      console.log('Price list loaded:', data?.length || 0, 'items');
     } catch (error) {
       console.error('Error loading price list:', error);
     } finally {
