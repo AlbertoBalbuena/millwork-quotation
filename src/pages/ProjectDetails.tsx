@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -68,6 +68,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [areaMaterialsVisible, setAreaMaterialsVisible] = useState<Record<string, boolean>>({});
   const [isBulkMaterialChangeOpen, setIsBulkMaterialChangeOpen] = useState(false);
   const [bulkChangePreselectedAreaId, setBulkChangePreselectedAreaId] = useState<string | undefined>();
+  const [areaSearchQuery, setAreaSearchQuery] = useState('');
 
   useEffect(() => {
     loadCurrentVersion();
@@ -835,7 +836,57 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
             <Button onClick={() => setIsAreaModalOpen(true)}>Add First Area</Button>
           </div>
         ) : (
-          areas.map((area) => (
+          <>
+            {areas.length > 3 && (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={areaSearchQuery}
+                    onChange={(e) => setAreaSearchQuery(e.target.value)}
+                    placeholder="Search areas by name..."
+                    className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  {areaSearchQuery && (
+                    <button
+                      onClick={() => setAreaSearchQuery('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+                {areaSearchQuery && (
+                  <p className="mt-2 text-xs text-slate-600">
+                    Found {areas.filter(area => area.name.toLowerCase().includes(areaSearchQuery.toLowerCase())).length} area(s) matching "{areaSearchQuery}"
+                  </p>
+                )}
+              </div>
+            )}
+            {(() => {
+              const filteredAreas = areas.filter(area =>
+                area.name.toLowerCase().includes(areaSearchQuery.toLowerCase())
+              );
+
+              if (filteredAreas.length === 0 && areaSearchQuery) {
+                return (
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+                    <Search className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-600 mb-2">
+                      No areas found matching "{areaSearchQuery}"
+                    </p>
+                    <button
+                      onClick={() => setAreaSearchQuery('')}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    >
+                      Clear search
+                    </button>
+                  </div>
+                );
+              }
+
+              return filteredAreas.map((area) => (
             <div key={area.id} className="bg-white rounded-lg shadow-sm border border-slate-200">
               <div className="border-b border-slate-200 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -1087,7 +1138,9 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
                 )}
               </div>
             </div>
-          ))
+          ));
+            })()}
+          </>
         )}
       </div>
 
