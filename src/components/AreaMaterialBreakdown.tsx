@@ -15,24 +15,47 @@ interface MaterialData {
 
 interface AreaMaterialBreakdownProps {
   areaId: string;
+  isVersion?: boolean;
 }
 
 const SHEET_SIZE_SF = 32;
 const ROLL_LENGTH_METERS = 100;
 
-export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
+export function AreaMaterialBreakdown({ areaId, isVersion = false }: AreaMaterialBreakdownProps) {
   const [data, setData] = useState<MaterialData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadMaterialData();
-  }, [areaId]);
+  }, [areaId, isVersion]);
 
   async function loadMaterialData() {
     try {
-      const { data: cabinets, error: cabinetsError } = await supabase
-        .from('area_cabinets')
-        .select(`
+      const cabinetsTable = isVersion ? 'version_area_cabinets' : 'area_cabinets';
+      const countertopsTable = isVersion ? 'version_area_countertops' : 'area_countertops';
+
+      const cabinetsSelect = isVersion
+        ? `
+          quantity,
+          product_sku,
+          box_material_id,
+          box_edgeband_id,
+          doors_material_id,
+          doors_edgeband_id,
+          box_material_cost,
+          box_edgeband_cost,
+          doors_material_cost,
+          doors_edgeband_cost,
+          hardware_cost,
+          hardware,
+          subtotal,
+          box_sf,
+          doors_fronts_sf,
+          total_edgeband,
+          box_edgeband,
+          doors_fronts_edgeband
+        `
+        : `
           quantity,
           product_sku,
           box_material_id,
@@ -46,13 +69,17 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
           hardware_cost,
           hardware,
           subtotal
-        `)
+        `;
+
+      const { data: cabinets, error: cabinetsError } = await supabase
+        .from(cabinetsTable)
+        .select(cabinetsSelect)
         .eq('area_id', areaId);
 
       if (cabinetsError) throw cabinetsError;
 
       const { data: countertops, error: countertopsError } = await supabase
-        .from('area_countertops')
+        .from(countertopsTable)
         .select(`
           item_name,
           quantity,
@@ -68,14 +95,18 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
 
       if (priceListError) throw priceListError;
 
-      const { data: products, error: productsError } = await supabase
-        .from('products_catalog')
-        .select('sku, box_sf, doors_fronts_sf, total_edgeband, box_edgeband');
+      let productsMap = new Map();
 
-      if (productsError) throw productsError;
+      if (!isVersion) {
+        const { data: products, error: productsError } = await supabase
+          .from('products_catalog')
+          .select('sku, box_sf, doors_fronts_sf, total_edgeband, box_edgeband');
+
+        if (productsError) throw productsError;
+        productsMap = new Map(products?.map(p => [p.sku, p]) || []);
+      }
 
       const priceListMap = new Map(priceList?.map(p => [p.id, p.concept_description]) || []);
-      const productsMap = new Map(products?.map(p => [p.sku, p]) || []);
 
       const boxMaterialSheets = new Map<string, { sheetsNeeded: number; totalSF: number; cost: number }>();
       const doorsMaterialSheets = new Map<string, { sheetsNeeded: number; totalSF: number; cost: number }>();
@@ -87,12 +118,28 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
       let totalCost = 0;
 
       cabinets?.forEach(cabinet => {
-        const product = productsMap.get(cabinet.product_sku || '');
         const qty = cabinet.quantity || 1;
+        let boxSf, doorsSf, totalEdgeband, boxEdgeband, doorsEdgeband;
 
-        if (cabinet.box_material_id && product) {
+        if (isVersion) {
+          boxSf = (cabinet as any).box_sf || 0;
+          doorsSf = (cabinet as any).doors_fronts_sf || 0;
+          totalEdgeband = (cabinet as any).total_edgeband || 0;
+          boxEdgeband = (cabinet as any).box_edgeband || 0;
+          doorsEdgeband = (cabinet as any).doors_fronts_edgeband || 0;
+        } else {
+          const product = productsMap.get(cabinet.product_sku || '');
+          if (!product) return;
+          boxSf = product.box_sf || 0;
+          doorsSf = product.doors_fronts_sf || 0;
+          totalEdgeband = product.total_edgeband || 0;
+          boxEdgeband = product.box_edgeband || 0;
+          doorsEdgeband = product.doors_fronts_edgeband || 0;
+        }
+
+        if (cabinet.box_material_id && boxSf > 0) {
           const name = priceListMap.get(cabinet.box_material_id) || 'Unknown Box Material';
-          const totalSF = product.box_sf * qty;
+          const totalSF = boxSf * qty;
           const existing = boxMaterialSheets.get(name) || { sheetsNeeded: 0, totalSF: 0, cost: 0 };
           boxMaterialSheets.set(name, {
             sheetsNeeded: existing.sheetsNeeded + Math.ceil(totalSF / SHEET_SIZE_SF),
@@ -101,9 +148,9 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
           });
         }
 
-        if (cabinet.doors_material_id && product) {
+        if (cabinet.doors_material_id && doorsSf > 0) {
           const name = priceListMap.get(cabinet.doors_material_id) || 'Unknown Doors Material';
-          const totalSF = product.doors_fronts_sf * qty;
+          const totalSF = doorsSf * qty;
           const existing = doorsMaterialSheets.get(name) || { sheetsNeeded: 0, totalSF: 0, cost: 0 };
           doorsMaterialSheets.set(name, {
             sheetsNeeded: existing.sheetsNeeded + Math.ceil(totalSF / SHEET_SIZE_SF),
@@ -112,9 +159,9 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
           });
         }
 
-        if (cabinet.box_edgeband_id && product) {
+        if (cabinet.box_edgeband_id && boxEdgeband > 0) {
           const name = priceListMap.get(cabinet.box_edgeband_id) || 'Unknown Box Edgeband';
-          const totalMeters = (product.box_edgeband || 0) * qty;
+          const totalMeters = boxEdgeband * qty;
           const existing = boxEdgebandRolls.get(name) || { rollsNeeded: 0, totalMeters: 0, cost: 0 };
           boxEdgebandRolls.set(name, {
             rollsNeeded: existing.rollsNeeded + Math.ceil(totalMeters / ROLL_LENGTH_METERS),
@@ -123,9 +170,9 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
           });
         }
 
-        if (cabinet.doors_edgeband_id && product) {
+        if (cabinet.doors_edgeband_id && doorsEdgeband > 0) {
           const name = priceListMap.get(cabinet.doors_edgeband_id) || 'Unknown Doors Edgeband';
-          const totalMeters = product.total_edgeband * qty - ((product.box_edgeband || 0) * qty);
+          const totalMeters = doorsEdgeband * qty;
           const existing = doorsEdgebandRolls.get(name) || { rollsNeeded: 0, totalMeters: 0, cost: 0 };
           doorsEdgebandRolls.set(name, {
             rollsNeeded: existing.rollsNeeded + Math.ceil(totalMeters / ROLL_LENGTH_METERS),

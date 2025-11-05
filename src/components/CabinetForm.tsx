@@ -238,6 +238,8 @@ export function CabinetForm({ areaId, cabinet, onClose, versionId }: CabinetForm
       cabinetData.box_sf = selectedProduct.box_sf;
       cabinetData.doors_fronts_sf = selectedProduct.doors_fronts_sf;
       cabinetData.total_edgeband = selectedProduct.total_edgeband;
+      cabinetData.box_edgeband = selectedProduct.box_edgeband || 0;
+      cabinetData.doors_fronts_edgeband = selectedProduct.doors_fronts_edgeband || 0;
       cabinetData.has_drawers = selectedProduct.description.toLowerCase().includes('drawer');
 
       const boxMaterial = priceList.find(p => p.id === boxMaterialId);
