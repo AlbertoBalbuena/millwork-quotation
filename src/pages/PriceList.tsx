@@ -95,9 +95,22 @@ export function PriceList() {
   async function handleSaveItem(item: PriceListInsert) {
     try {
       if (editingItem) {
+        // For updates, only send the fields that can be updated
+        const updateData = {
+          sku_code: item.sku_code,
+          concept_description: item.concept_description,
+          type: item.type,
+          material: item.material,
+          dimensions: item.dimensions,
+          unit: item.unit,
+          price: item.price,
+          sf_per_sheet: item.sf_per_sheet,
+          updated_at: new Date().toISOString(),
+        };
+
         const { error } = await supabase
           .from('price_list')
-          .update(item)
+          .update(updateData)
           .eq('id', editingItem.id);
 
         if (error) throw error;
@@ -109,9 +122,9 @@ export function PriceList() {
 
       loadPriceList();
       handleCloseModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving item:', error);
-      alert('Failed to save item');
+      alert(`Failed to save item: ${error.message || 'Unknown error'}`);
     }
   }
 
