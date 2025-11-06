@@ -101,6 +101,12 @@ export async function createTemplateFromCabinet(
     use_doors_interior_finish: !!cabinet.doors_interior_finish_id,
     hardware: Array.isArray(cabinet.hardware) ? cabinet.hardware : [],
     is_rta: cabinet.is_rta,
+    original_box_material_price: boxMaterial?.price || null,
+    original_box_edgeband_price: boxEdgeband?.price || null,
+    original_box_interior_finish_price: boxInteriorFinish?.price || null,
+    original_doors_material_price: doorsMaterial?.price || null,
+    original_doors_edgeband_price: doorsEdgeband?.price || null,
+    original_doors_interior_finish_price: doorsInteriorFinish?.price || null,
   };
 
   const { data, error } = await supabase

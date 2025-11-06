@@ -208,6 +208,13 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       return;
     }
 
+    const boxMaterial = priceList.find(p => p.id === boxMaterialId);
+    const boxEdgeband = priceList.find(p => p.id === boxEdgebandId);
+    const boxInteriorFinish = useBoxInteriorFinish ? priceList.find(p => p.id === boxInteriorFinishId) : null;
+    const doorsMaterial = priceList.find(p => p.id === doorsMaterialId);
+    const doorsEdgeband = priceList.find(p => p.id === doorsEdgebandId);
+    const doorsInteriorFinish = useDoorsInteriorFinish ? priceList.find(p => p.id === doorsInteriorFinishId) : null;
+
     const cabinetData: any = {
       area_id: areaId,
       product_sku: selectedProduct.sku,
@@ -229,6 +236,12 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       hardware_cost: costs.hardwareCost,
       labor_cost: costs.laborCost,
       subtotal: costs.subtotal,
+      original_box_material_price: boxMaterial?.price || null,
+      original_box_edgeband_price: boxEdgeband?.price || null,
+      original_box_interior_finish_price: boxInteriorFinish?.price || null,
+      original_doors_material_price: doorsMaterial?.price || null,
+      original_doors_edgeband_price: doorsEdgeband?.price || null,
+      original_doors_interior_finish_price: doorsInteriorFinish?.price || null,
     };
 
 

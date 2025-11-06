@@ -194,11 +194,27 @@ async function checkMaterialChange(
   const material = priceList.find(p => p.id === materialId);
   if (!material) return;
 
-  const oldCost = cabinet[costField] as number;
-  const newCost = await calculateNewCost(cabinet, product, material, materialType, priceList, settings);
+  // Get the original price stored in the cabinet
+  const originalPriceField = getOriginalPriceField(materialType);
+  let originalPrice = (cabinet as any)[originalPriceField] as number | null;
 
-  // Skip if there's no difference (prices are already up to date)
-  if (Math.abs(newCost - oldCost) < 0.01) return;
+  // Fallback: If original price is not stored, calculate it from the stored cost
+  if (!originalPrice || originalPrice === 0) {
+    const oldCost = cabinet[costField] as number;
+    originalPrice = await calculateImplicitPrice(
+      cabinet,
+      product,
+      oldCost,
+      materialType,
+      settings
+    );
+  }
+
+  const currentPrice = material.price;
+
+  // Compare UNIT PRICES, not calculated costs
+  // Skip if the unit price hasn't changed (allow for small floating point differences)
+  if (Math.abs(currentPrice - originalPrice) < 0.01) return;
 
   // Get the most recent price change after project creation
   const { data: latestChange } = await supabase
@@ -210,26 +226,21 @@ async function checkMaterialChange(
     .limit(1)
     .maybeSingle();
 
+  // Calculate what the costs would be with old vs new unit prices
+  const oldCost = cabinet[costField] as number;
+  const newCost = await calculateNewCost(cabinet, product, material, materialType, priceList, settings);
+
+  const priceChangePercentage = originalPrice > 0
+    ? ((currentPrice - originalPrice) / originalPrice) * 100
+    : 0;
+
   if (!materialImpactMap.has(materialId)) {
-    // Calculate the implicit old price by reverse-engineering from stored cost
-    const implicitOldPrice = await calculateImplicitPrice(
-      cabinet,
-      product,
-      oldCost,
-      materialType,
-      settings
-    );
-
-    const priceChangePercentage = implicitOldPrice > 0
-      ? ((material.price - implicitOldPrice) / implicitOldPrice) * 100
-      : 0;
-
     materialImpactMap.set(materialId, {
       materialId,
       materialName: material.concept_description,
       materialType,
-      oldPrice: implicitOldPrice,
-      currentPrice: material.price,
+      oldPrice: originalPrice,
+      currentPrice: currentPrice,
       priceChangeDate: latestChange?.changed_at || projectCreatedAt,
       priceChangePercentage,
       affectedCabinetsCount: 0,
@@ -256,6 +267,19 @@ async function checkMaterialChange(
   }
 
   affectedCabinetsSet.add(cabinet.id);
+}
+
+function getOriginalPriceField(materialType: MaterialImpact['materialType']): string {
+  const fieldMap: Record<MaterialImpact['materialType'], string> = {
+    'box_material': 'original_box_material_price',
+    'box_edgeband': 'original_box_edgeband_price',
+    'box_interior_finish': 'original_box_interior_finish_price',
+    'doors_material': 'original_doors_material_price',
+    'doors_edgeband': 'original_doors_edgeband_price',
+    'doors_interior_finish': 'original_doors_interior_finish_price',
+    'hardware': '',
+  };
+  return fieldMap[materialType];
 }
 
 async function calculateImplicitPrice(

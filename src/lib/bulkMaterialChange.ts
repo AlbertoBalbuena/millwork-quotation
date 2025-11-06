@@ -314,7 +314,7 @@ export async function executeBulkMaterialChange(
     const tableName = versionId ? 'version_area_cabinets' : 'area_cabinets';
     const [{ data: oldMaterial }, { data: newMaterial }] = await Promise.all([
       supabase.from('price_list').select('concept_description').eq('id', oldMaterialId).single(),
-      supabase.from('price_list').select('concept_description').eq('id', newMaterialId).single(),
+      supabase.from('price_list').select('concept_description, price').eq('id', newMaterialId).single(),
     ]);
 
     let updatePromises: Promise<any>[] = [];
@@ -326,6 +326,7 @@ export async function executeBulkMaterialChange(
         case 'box_material':
           updates.box_material_id = newMaterialId;
           updates.box_material_cost = cabinet.newCost;
+          updates.original_box_material_price = newMaterial?.price || null;
           if (updateMatchingInteriorFinish) {
             const { data: currentCabinet } = await supabase
               .from(tableName)
@@ -335,16 +336,19 @@ export async function executeBulkMaterialChange(
 
             if (currentCabinet?.box_interior_finish_id === oldMaterialId) {
               updates.box_interior_finish_id = newMaterialId;
+              updates.original_box_interior_finish_price = newMaterial?.price || null;
             }
           }
           break;
         case 'box_edgeband':
           updates.box_edgeband_id = newMaterialId;
           updates.box_edgeband_cost = cabinet.newCost;
+          updates.original_box_edgeband_price = newMaterial?.price || null;
           break;
         case 'doors_material':
           updates.doors_material_id = newMaterialId;
           updates.doors_material_cost = cabinet.newCost;
+          updates.original_doors_material_price = newMaterial?.price || null;
           if (updateMatchingInteriorFinish) {
             const { data: currentCabinet } = await supabase
               .from(tableName)
@@ -354,20 +358,24 @@ export async function executeBulkMaterialChange(
 
             if (currentCabinet?.doors_interior_finish_id === oldMaterialId) {
               updates.doors_interior_finish_id = newMaterialId;
+              updates.original_doors_interior_finish_price = newMaterial?.price || null;
             }
           }
           break;
         case 'doors_edgeband':
           updates.doors_edgeband_id = newMaterialId;
           updates.doors_edgeband_cost = cabinet.newCost;
+          updates.original_doors_edgeband_price = newMaterial?.price || null;
           break;
         case 'box_interior_finish':
           updates.box_interior_finish_id = newMaterialId;
           updates.box_interior_finish_cost = cabinet.newCost;
+          updates.original_box_interior_finish_price = newMaterial?.price || null;
           break;
         case 'doors_interior_finish':
           updates.doors_interior_finish_id = newMaterialId;
           updates.doors_interior_finish_cost = cabinet.newCost;
+          updates.original_doors_interior_finish_price = newMaterial?.price || null;
           break;
       }
 
