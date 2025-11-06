@@ -47,32 +47,12 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
     throw new Error('Project not found');
   }
 
-  // Get all price changes that happened AFTER project creation
-  const { data: priceChanges } = await supabase
-    .from('price_change_log')
-    .select('*')
-    .gte('changed_at', project.created_at)
-    .order('changed_at', { ascending: false });
-
-  if (!priceChanges || priceChanges.length === 0) {
-    return {
-      projectId,
-      projectCreatedAt: project.created_at,
-      materials: [],
-      totalDifference: 0,
-      affectedCabinetsCount: 0,
-    };
-  }
-
-  // Get materials from price list that had changes
-  const changedMaterialIds = [...new Set(priceChanges.map(pc => pc.price_list_item_id))];
-
   const [areasResult, priceListResult, productsResult, settingsData] = await Promise.all([
     supabase
       .from('project_areas')
       .select('id, name')
       .eq('project_id', projectId),
-    supabase.from('price_list').select('*').eq('is_active', true).in('id', changedMaterialIds),
+    supabase.from('price_list').select('*').eq('is_active', true),
     supabase.from('products_catalog').select('*'),
     getSettings(),
   ]);
@@ -80,21 +60,6 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
   const areas = areasResult.data || [];
   const priceList = priceListResult.data || [];
   const products = productsResult.data || [];
-
-  // Create a map of material prices before changes (most recent old price for each material)
-  const materialOldPriceMap = new Map<string, { oldPrice: number; newPrice: number; changedAt: string }>();
-
-  for (const material of priceList) {
-    // Get the most recent price change for this material
-    const latestChange = priceChanges.find(pc => pc.price_list_item_id === material.id);
-    if (latestChange) {
-      materialOldPriceMap.set(material.id, {
-        oldPrice: parseFloat(latestChange.old_price),
-        newPrice: parseFloat(latestChange.new_price),
-        changedAt: latestChange.changed_at,
-      });
-    }
-  }
 
   const materialImpactMap = new Map<string, MaterialImpact>();
   const affectedCabinetsSet = new Set<string>();
@@ -120,10 +85,10 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         'box_material',
         area.name,
         priceList,
-        materialOldPriceMap,
         materialImpactMap,
         affectedCabinetsSet,
-        settingsData
+        settingsData,
+        project.created_at
       );
 
       await checkMaterialChange(
@@ -134,10 +99,10 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         'box_edgeband',
         area.name,
         priceList,
-        materialOldPriceMap,
         materialImpactMap,
         affectedCabinetsSet,
-        settingsData
+        settingsData,
+        project.created_at
       );
 
       await checkMaterialChange(
@@ -148,10 +113,10 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         'box_interior_finish',
         area.name,
         priceList,
-        materialOldPriceMap,
         materialImpactMap,
         affectedCabinetsSet,
-        settingsData
+        settingsData,
+        project.created_at
       );
 
       await checkMaterialChange(
@@ -162,10 +127,10 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         'doors_material',
         area.name,
         priceList,
-        materialOldPriceMap,
         materialImpactMap,
         affectedCabinetsSet,
-        settingsData
+        settingsData,
+        project.created_at
       );
 
       await checkMaterialChange(
@@ -176,10 +141,10 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         'doors_edgeband',
         area.name,
         priceList,
-        materialOldPriceMap,
         materialImpactMap,
         affectedCabinetsSet,
-        settingsData
+        settingsData,
+        project.created_at
       );
 
       await checkMaterialChange(
@@ -190,10 +155,10 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         'doors_interior_finish',
         area.name,
         priceList,
-        materialOldPriceMap,
         materialImpactMap,
         affectedCabinetsSet,
-        settingsData
+        settingsData,
+        project.created_at
       );
     }
   }
@@ -218,17 +183,13 @@ async function checkMaterialChange(
   materialType: MaterialImpact['materialType'],
   areaName: string,
   priceList: PriceListItem[],
-  materialOldPriceMap: Map<string, { oldPrice: number; newPrice: number; changedAt: string }>,
   materialImpactMap: Map<string, MaterialImpact>,
   affectedCabinetsSet: Set<string>,
-  settings: any
+  settings: any,
+  projectCreatedAt: string
 ) {
   const materialId = cabinet[materialIdField] as string | null;
   if (!materialId) return;
-
-  // Only process if this material had a price change
-  const priceChange = materialOldPriceMap.get(materialId);
-  if (!priceChange) return;
 
   const material = priceList.find(p => p.id === materialId);
   if (!material) return;
@@ -236,16 +197,40 @@ async function checkMaterialChange(
   const oldCost = cabinet[costField] as number;
   const newCost = await calculateNewCost(cabinet, product, material, materialType, priceList, settings);
 
+  // Skip if there's no difference (prices are already up to date)
+  if (Math.abs(newCost - oldCost) < 0.01) return;
+
+  // Get the most recent price change after project creation
+  const { data: latestChange } = await supabase
+    .from('price_change_log')
+    .select('changed_at')
+    .eq('price_list_item_id', materialId)
+    .gte('changed_at', projectCreatedAt)
+    .order('changed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   if (!materialImpactMap.has(materialId)) {
-    const priceChangePercentage = ((priceChange.newPrice - priceChange.oldPrice) / priceChange.oldPrice) * 100;
+    // Calculate the implicit old price by reverse-engineering from stored cost
+    const implicitOldPrice = await calculateImplicitPrice(
+      cabinet,
+      product,
+      oldCost,
+      materialType,
+      settings
+    );
+
+    const priceChangePercentage = implicitOldPrice > 0
+      ? ((material.price - implicitOldPrice) / implicitOldPrice) * 100
+      : 0;
 
     materialImpactMap.set(materialId, {
       materialId,
       materialName: material.concept_description,
       materialType,
-      oldPrice: priceChange.oldPrice,
-      currentPrice: priceChange.newPrice,
-      priceChangeDate: priceChange.changedAt,
+      oldPrice: implicitOldPrice,
+      currentPrice: material.price,
+      priceChangeDate: latestChange?.changed_at || projectCreatedAt,
       priceChangePercentage,
       affectedCabinetsCount: 0,
       totalOldCost: 0,
@@ -271,6 +256,68 @@ async function checkMaterialChange(
   }
 
   affectedCabinetsSet.add(cabinet.id);
+}
+
+async function calculateImplicitPrice(
+  cabinet: AreaCabinet,
+  product: Product,
+  storedCost: number,
+  materialType: MaterialImpact['materialType'],
+  settings: any
+): Promise<number> {
+  // Calculate how many square feet or linear feet this cabinet uses
+  let usageAmount = 0;
+
+  switch (materialType) {
+    case 'box_material':
+    case 'doors_material':
+      // For sheet materials, calculate sq ft used
+      const sqft = materialType === 'box_material'
+        ? product.box_sf || 0
+        : product.doors_fronts_sf || 0;
+      usageAmount = sqft * cabinet.quantity;
+      break;
+
+    case 'box_edgeband':
+    case 'doors_edgeband':
+      // For edgeband, calculate linear feet used
+      const lf = materialType === 'box_edgeband'
+        ? product.box_edgeband || 0
+        : product.doors_fronts_edgeband || 0;
+      usageAmount = lf * cabinet.quantity;
+      break;
+
+    case 'box_interior_finish':
+    case 'doors_interior_finish':
+      // For interior finish, calculate sq ft used (same as material)
+      const finishSqft = materialType === 'box_interior_finish'
+        ? product.box_sf || 0
+        : product.doors_fronts_sf || 0;
+      usageAmount = finishSqft * cabinet.quantity;
+      break;
+
+    default:
+      return 0;
+  }
+
+  if (usageAmount === 0) return 0;
+
+  // For sheet materials, the price is per sheet (32 sqft)
+  // storedCost = (pricePerSheet / 32) * sqftUsed
+  // pricePerSheet = (storedCost * 32) / sqftUsed
+
+  // For edgeband, the price is per linear foot
+  // storedCost = pricePerFoot * lfUsed
+  // pricePerFoot = storedCost / lfUsed
+
+  if (materialType === 'box_material' || materialType === 'doors_material' ||
+      materialType === 'box_interior_finish' || materialType === 'doors_interior_finish') {
+    // Sheet materials: return price per sheet
+    return (storedCost * 32) / usageAmount;
+  } else {
+    // Edgeband: return price per roll (assuming 328ft per roll)
+    return (storedCost * 328) / usageAmount;
+  }
 }
 
 async function calculateNewCost(
