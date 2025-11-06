@@ -65,7 +65,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
   }
 
   // Get materials from price list that had changes
-  const changedMaterialIds = [...new Set(priceChanges.map(pc => pc.price_list_id))];
+  const changedMaterialIds = [...new Set(priceChanges.map(pc => pc.price_list_item_id))];
 
   const [areasResult, priceListResult, productsResult, settingsData] = await Promise.all([
     supabase
@@ -86,7 +86,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
 
   for (const material of priceList) {
     // Get the most recent price change for this material
-    const latestChange = priceChanges.find(pc => pc.price_list_id === material.id);
+    const latestChange = priceChanges.find(pc => pc.price_list_item_id === material.id);
     if (latestChange) {
       materialOldPriceMap.set(material.id, {
         oldPrice: parseFloat(latestChange.old_price),
