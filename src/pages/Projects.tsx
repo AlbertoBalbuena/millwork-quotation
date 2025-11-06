@@ -22,7 +22,8 @@ import {
   Ban,
   Copy,
   Eye,
-  MoreVertical
+  MoreVertical,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
@@ -31,6 +32,7 @@ import { Modal } from '../components/Modal';
 import { formatCurrency } from '../lib/calculations';
 import { format } from 'date-fns';
 import type { Project, ProjectInsert, ProjectType, ProjectStatus } from '../types';
+import { getProjectsWithStalePrices } from '../lib/priceUpdateSystem';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc';
@@ -46,6 +48,7 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [staleProjectIds, setStaleProjectIds] = useState<string[]>([]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +61,13 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
 
   useEffect(() => {
     loadProjects();
+    loadStaleProjects();
   }, []);
+
+  async function loadStaleProjects() {
+    const ids = await getProjectsWithStalePrices();
+    setStaleProjectIds(ids);
+  }
 
   useEffect(() => {
     if (selectedProjectId && projects.length > 0) {
@@ -739,9 +748,16 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
 
       <div className="p-6 cursor-pointer" onClick={() => onView(project)}>
         <div className="flex justify-between items-start mb-3 pr-8">
-          <h3 className="text-lg font-semibold text-slate-900 line-clamp-2 flex-1 group-hover:text-blue-600 transition-colors">
-            {project.name}
-          </h3>
+          <div className="flex items-start gap-2 flex-1">
+            <h3 className="text-lg font-semibold text-slate-900 line-clamp-2 flex-1 group-hover:text-blue-600 transition-colors">
+              {project.name}
+            </h3>
+            {staleProjectIds.includes(project.id) && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700 border border-yellow-300" title="Price updates available">
+                <AlertTriangle className="h-3 w-3" />
+              </span>
+            )}
+          </div>
           <span
             className={`ml-3 inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full border ${statusConfig.color}`}
           >
@@ -850,6 +866,11 @@ function ProjectListItem({ project, onView, onEdit, onDelete }: ProjectCardProps
             <h3 className="text-base font-semibold text-slate-900 truncate hover:text-blue-600 transition-colors">
               {project.name}
             </h3>
+            {staleProjectIds.includes(project.id) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700 border border-yellow-300" title="Price updates available">
+                <AlertTriangle className="h-3 w-3" />
+              </span>
+            )}
             <span
               className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(
                 project.status

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -22,9 +22,11 @@ import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
 import { BulkMaterialChangeModal } from '../components/BulkMaterialChangeModal';
+import { BulkPriceUpdateModal } from '../components/BulkPriceUpdateModal';
 import { createTemplateFromCabinet } from '../lib/templateManager';
 import { countActualCabinets, countCabinetEntries } from '../lib/cabinetFilters';
 import { downloadAreasCSV, downloadDetailedAreasCSV } from '../utils/exportAreasCSV';
+import { checkProjectHasStalePrices } from '../lib/priceUpdateSystem';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -59,10 +61,18 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [areaSearchQuery, setAreaSearchQuery] = useState('');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
+  const [hasStalePrices, setHasStalePrices] = useState(false);
+  const [isBulkPriceUpdateOpen, setIsBulkPriceUpdateOpen] = useState(false);
 
   useEffect(() => {
     loadAreas();
+    checkStalePrices();
   }, [project.id]);
+
+  async function checkStalePrices() {
+    const stale = await checkProjectHasStalePrices(project.id);
+    setHasStalePrices(stale);
+  }
 
 
   async function loadAreas() {
@@ -509,6 +519,38 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         </div>
 
       </div>
+
+      {hasStalePrices && (
+        <div className="mb-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+          <div className="flex items-start">
+            <AlertTriangle className="h-6 w-6 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-yellow-900 mb-1">Price Updates Available</h3>
+              <p className="text-sm text-yellow-800 mb-3">
+                Some materials in this project have outdated prices. Your price list has been updated since these cabinets were created.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setIsBulkPriceUpdateOpen(true)}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Review & Update Prices
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setHasStalePrices(false)}
+                  className="text-yellow-800 hover:bg-yellow-100"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-2 sm:space-x-3 sm:gap-0">
@@ -1215,6 +1257,16 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         projectId={project.id}
         areas={areas}
         preselectedAreaId={bulkChangePreselectedAreaId}
+      />
+
+      <BulkPriceUpdateModal
+        isOpen={isBulkPriceUpdateOpen}
+        onClose={() => setIsBulkPriceUpdateOpen(false)}
+        projectId={project.id}
+        onSuccess={async () => {
+          await loadAreas();
+          await checkStalePrices();
+        }}
       />
     </div>
   );
