@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -27,6 +27,8 @@ import { createTemplateFromCabinet } from '../lib/templateManager';
 import { countActualCabinets, countCabinetEntries } from '../lib/cabinetFilters';
 import { downloadAreasCSV, downloadDetailedAreasCSV } from '../utils/exportAreasCSV';
 import { checkProjectHasStalePrices } from '../lib/priceUpdateSystem';
+import { getVersionHistory } from '../lib/versioningSystem';
+import { ProjectVersionHistory } from './ProjectVersionHistory';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -63,15 +65,27 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
   const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
   const [hasStalePrices, setHasStalePrices] = useState(false);
   const [isBulkPriceUpdateOpen, setIsBulkPriceUpdateOpen] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [versionCount, setVersionCount] = useState(0);
 
   useEffect(() => {
     loadAreas();
     checkStalePrices();
+    loadVersionCount();
   }, [project.id]);
 
   async function checkStalePrices() {
     const stale = await checkProjectHasStalePrices(project.id);
     setHasStalePrices(stale);
+  }
+
+  async function loadVersionCount() {
+    try {
+      const versions = await getVersionHistory(project.id);
+      setVersionCount(versions.length);
+    } catch (error) {
+      console.error('Error loading version count:', error);
+    }
   }
 
 
@@ -435,6 +449,19 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
     );
   }
 
+  if (showVersionHistory) {
+    return (
+      <ProjectVersionHistory
+        projectId={project.id}
+        projectName={project.name}
+        onBack={() => {
+          setShowVersionHistory(false);
+          loadVersionCount();
+        }}
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -576,6 +603,20 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
             <TrendingUp className="h-4 w-4 mr-2" />
             <span className="hidden md:inline">Recalculate Prices</span>
             <span className="md:hidden">Recalculate</span>
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setShowVersionHistory(true)}
+            className="w-full sm:w-auto relative"
+          >
+            <History className="h-4 w-4 mr-2" />
+            <span className="hidden md:inline">Version History</span>
+            <span className="md:hidden">History</span>
+            {versionCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 w-5 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                {versionCount}
+              </span>
+            )}
           </Button>
           <div className="relative w-full sm:w-auto">
             <Button
@@ -1263,6 +1304,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         }}
         onSuccess={async () => {
           await loadAreas();
+          await loadVersionCount();
         }}
         projectId={project.id}
         areas={areas}
@@ -1276,6 +1318,7 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
         onSuccess={async () => {
           await loadAreas();
           await checkStalePrices();
+          await loadVersionCount();
         }}
       />
     </div>
