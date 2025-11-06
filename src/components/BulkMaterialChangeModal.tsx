@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
-import { X, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Trash2 } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Trash2, Info } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { AutocompleteSelect } from './AutocompleteSelect';
 import { formatCurrency } from '../lib/calculations';
 import { supabase } from '../lib/supabase';
+import {
+  createProjectVersion,
+  recalculateAllCabinetPrices,
+  saveVersionDetails,
+} from '../lib/versioningSystem';
+import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
+import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import {
   getMaterialsInUse,
   previewBulkMaterialChange,
@@ -57,6 +64,15 @@ export function BulkMaterialChangeModal({
   const [executing, setExecuting] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [step, setStep] = useState<'setup' | 'preview'>('setup');
+  const [autoRecalculate, setAutoRecalculate] = useState(true);
+  const [versionName, setVersionName] = useState('');
+  const [notes, setNotes] = useState('');
+  const [recalculateProgress, setRecalculateProgress] = useState({ current: 0, total: 0, message: '' });
+  const [showResults, setShowResults] = useState(false);
+  const [finalResults, setFinalResults] = useState<{
+    materialChange: { updated: number; costDifference: number };
+    priceRecalc?: { updated: number; areaChanges: any[]; totalDifference: number };
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -77,6 +93,14 @@ export function BulkMaterialChangeModal({
     setNewMaterialId('');
     setOperationType('replace');
     setValidationError('');
+    const defaultName = `Material Change - ${new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`;
+    setVersionName(defaultName);
   }, [scope, selectedAreaIds, changeType]);
 
   async function loadAllMaterials() {
@@ -247,9 +271,20 @@ export function BulkMaterialChangeModal({
     }
 
     setExecuting(true);
+    setShowResults(false);
 
     try {
       const areaIds = scope === 'project' ? [] : selectedAreaIds;
+      const affectedAreas = scope === 'project' ? areas.map(a => a.id) : selectedAreaIds;
+
+      const version = await createProjectVersion(
+        projectId,
+        versionName,
+        'material_change',
+        affectedAreas,
+        notes || undefined
+      );
+
       let result;
 
       if (changeType === 'hardware') {
@@ -273,33 +308,109 @@ export function BulkMaterialChangeModal({
         });
       }
 
-      if (result.success) {
-        const costDiff = preview.costDifference;
-        const diffText = costDiff > 0
-          ? `increase of ${formatCurrency(Math.abs(costDiff))}`
-          : `reduction of ${formatCurrency(Math.abs(costDiff))}`;
+      if (!result.success) {
+        setValidationError(result.error || 'Failed to update cabinets');
+        setExecuting(false);
+        return;
+      }
 
-        const operationText = changeType === 'hardware' && operationType === 'remove'
-          ? 'Hardware removed successfully'
-          : 'Updated successfully';
+      const materialResult = {
+        updated: result.updatedCount,
+        costDifference: preview.costDifference,
+      };
 
-        alert(
-          `✓ ${result.updatedCount} cabinets ${operationText}.\n\nCost changed from ${formatCurrency(preview.costBefore)} to ${formatCurrency(preview.costAfter)} (${diffText}, ${preview.percentageChange.toFixed(1)}%)`
+      let priceRecalcResult = undefined;
+
+      if (autoRecalculate) {
+        const recalcResult = await recalculateAllCabinetPrices(
+          projectId,
+          affectedAreas,
+          (message, current, total) => {
+            setRecalculateProgress({ message, current, total });
+          }
         );
+
+        for (const areaId of affectedAreas) {
+          await recalculateAreaSheetMaterialCosts(areaId);
+          await recalculateAreaEdgebandCosts(areaId);
+        }
+
+        const areaChangesArray = [];
+        for (const [areaId, change] of recalcResult.areaChanges.entries()) {
+          const area = areas.find(a => a.id === areaId);
+          const difference = change.new - change.previous;
+          areaChangesArray.push({
+            areaName: area?.name || 'Unknown Area',
+            previous: change.previous,
+            new: change.new,
+            difference,
+          });
+        }
+
+        const totalDifference = areaChangesArray.reduce((sum, a) => sum + a.difference, 0);
+
+        priceRecalcResult = {
+          updated: recalcResult.updated,
+          areaChanges: areaChangesArray,
+          totalDifference,
+        };
+
+        await saveVersionDetails(
+          version.id,
+          recalcResult.areaChanges,
+          'both',
+          {
+            changeType,
+            oldMaterialId,
+            newMaterialId,
+            operationType,
+          },
+          { recalculated_at: new Date().toISOString() }
+        );
+      } else {
+        const basicChanges = new Map();
+        for (const areaId of affectedAreas) {
+          const { data: area } = await supabase
+            .from('project_areas')
+            .select('subtotal')
+            .eq('id', areaId)
+            .single();
+          basicChanges.set(areaId, { previous: area?.subtotal || 0, new: area?.subtotal || 0 });
+        }
+
+        await saveVersionDetails(
+          version.id,
+          basicChanges,
+          'material_change',
+          {
+            changeType,
+            oldMaterialId,
+            newMaterialId,
+            operationType,
+          },
+          undefined
+        );
+      }
+
+      setFinalResults({
+        materialChange: materialResult,
+        priceRecalc: priceRecalcResult,
+      });
+      setShowResults(true);
+
+      setTimeout(() => {
         onSuccess();
         handleClose();
-      } else {
-        setValidationError(result.error || 'Failed to update cabinets');
-      }
+      }, 4000);
     } catch (error: any) {
       console.error('Error executing change:', error);
       setValidationError(error.message || 'Failed to execute bulk change');
-    } finally {
       setExecuting(false);
     }
   }
 
   function handleClose() {
+    if (executing) return;
     setStep('setup');
     setScope(preselectedAreaId ? 'area' : 'project');
     setSelectedAreaIds(preselectedAreaId ? [preselectedAreaId] : []);
@@ -310,6 +421,11 @@ export function BulkMaterialChangeModal({
     setPreview(null);
     setValidationError('');
     setUpdateMatchingInteriorFinish(false);
+    setAutoRecalculate(true);
+    setVersionName('');
+    setNotes('');
+    setShowResults(false);
+    setFinalResults(null);
     onClose();
   }
 
@@ -537,6 +653,58 @@ export function BulkMaterialChangeModal({
             </div>
           )}
 
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <label className="flex items-start space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoRecalculate}
+                onChange={(e) => setAutoRecalculate(e.target.checked)}
+                className="mt-0.5 w-4 h-4 text-green-600 focus:ring-green-500 rounded"
+              />
+              <div className="flex-1">
+                <div className="flex items-center">
+                  <span className="text-sm font-medium text-green-900">
+                    Automatically recalculate prices after material change
+                  </span>
+                  <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                    Recommended
+                  </span>
+                </div>
+                <p className="text-xs text-green-700 mt-1">
+                  After changing materials, all affected cabinets will be recalculated using current price list values. This ensures costs are always up to date.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Version Name <span className="text-slate-500 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                value={versionName}
+                onChange={(e) => setVersionName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="e.g., Switch to Premium Melamine"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Notes <span className="text-slate-500 font-normal">(Optional)</span>
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Add any notes about this material change..."
+              />
+            </div>
+          </div>
+
           {validationError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
               <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -655,29 +823,110 @@ export function BulkMaterialChangeModal({
             </div>
           )}
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-200">
-            <Button variant="ghost" onClick={() => setStep('setup')} disabled={executing}>
-              Back to Setup
-            </Button>
-            <div className="flex space-x-3">
-              <Button variant="secondary" onClick={handleClose} disabled={executing}>
-                Cancel
+          {!executing && !showResults && (
+            <div className="flex justify-between items-center pt-4 border-t border-slate-200">
+              <Button variant="ghost" onClick={() => setStep('setup')}>
+                Back to Setup
               </Button>
-              <Button onClick={handleExecute} disabled={executing}>
-                {executing ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Apply Changes
-                  </>
-                )}
-              </Button>
+              <div className="flex space-x-3">
+                <Button variant="secondary" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button onClick={handleExecute}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Apply Changes
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {executing && !showResults && (
+            <div className="text-center py-8">
+              <RefreshCw className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                {autoRecalculate ? 'Applying Changes & Recalculating Prices...' : 'Applying Material Changes...'}
+              </h3>
+              {autoRecalculate && recalculateProgress.total > 0 && (
+                <>
+                  <p className="text-slate-600 mb-4">{recalculateProgress.message}</p>
+                  <div className="max-w-md mx-auto">
+                    <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-blue-600 h-full transition-all duration-300"
+                        style={{ width: `${(recalculateProgress.current / recalculateProgress.total) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-slate-600 mt-2">
+                      {recalculateProgress.current} of {recalculateProgress.total} cabinets
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {showResults && finalResults && (
+            <div className="space-y-6">
+              <div className="text-center py-6">
+                <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Changes Applied Successfully</h3>
+                <p className="text-slate-600">
+                  {autoRecalculate
+                    ? 'Materials changed and prices recalculated'
+                    : 'Materials changed successfully'}
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-3">Material Change</h4>
+                <div className="text-sm text-blue-800">
+                  <div>Updated {finalResults.materialChange.updated} cabinet{finalResults.materialChange.updated !== 1 ? 's' : ''}</div>
+                  <div className="mt-1">
+                    Cost impact: <span className={`font-semibold ${
+                      finalResults.materialChange.costDifference >= 0 ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                      {finalResults.materialChange.costDifference >= 0 ? '+' : ''}
+                      {formatCurrency(finalResults.materialChange.costDifference)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {finalResults.priceRecalc && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-green-900 mb-3">Price Recalculation</h4>
+                  <div className="text-sm text-green-800 space-y-2">
+                    <div>Recalculated {finalResults.priceRecalc.updated} cabinet{finalResults.priceRecalc.updated !== 1 ? 's' : ''}</div>
+
+                    {finalResults.priceRecalc.areaChanges.map((change, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-t border-green-200">
+                        <span className="font-medium">{change.areaName}</span>
+                        <span className={`font-semibold ${
+                          change.difference >= 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {change.difference >= 0 ? '+' : ''}{formatCurrency(change.difference)}
+                        </span>
+                      </div>
+                    ))}
+
+                    <div className="pt-2 border-t-2 border-green-300 flex justify-between items-center">
+                      <span className="font-semibold">Total Change:</span>
+                      <span className={`text-lg font-bold ${
+                        finalResults.priceRecalc.totalDifference >= 0 ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {finalResults.priceRecalc.totalDifference >= 0 ? '+' : ''}
+                        {formatCurrency(finalResults.priceRecalc.totalDifference)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <Button onClick={handleClose}>Close</Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Modal>

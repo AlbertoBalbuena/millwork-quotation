@@ -574,8 +574,8 @@ export function ProjectDetails({ project, onBack }: ProjectDetailsProps) {
             disabled={areas.length === 0}
           >
             <TrendingUp className="h-4 w-4 mr-2" />
-            <span className="hidden md:inline">Update Prices</span>
-            <span className="md:hidden">Prices</span>
+            <span className="hidden md:inline">Recalculate Prices</span>
+            <span className="md:hidden">Recalculate</span>
           </Button>
           <div className="relative w-full sm:w-auto">
             <Button
