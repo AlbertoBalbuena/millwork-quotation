@@ -121,6 +121,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
 
           if (cabinet.box_material_id && product) {
             const name = priceListMap.get(cabinet.box_material_id) || 'Unknown Box Material';
+            if (name.toLowerCase().includes('not apply')) return;
             const totalSF = product.box_sf * qty;
             const existing = boxMaterialSheets.get(name) || { sheetsNeeded: 0, totalSF: 0, cost: 0 };
             boxMaterialSheets.set(name, {
@@ -132,6 +133,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
 
           if (cabinet.doors_material_id && product) {
             const name = priceListMap.get(cabinet.doors_material_id) || 'Unknown Doors Material';
+            if (name.toLowerCase().includes('not apply')) return;
             const totalSF = product.doors_fronts_sf * qty;
             const existing = doorsMaterialSheets.get(name) || { sheetsNeeded: 0, totalSF: 0, cost: 0 };
             doorsMaterialSheets.set(name, {
@@ -143,6 +145,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
 
           if (cabinet.box_edgeband_id && product) {
             const name = priceListMap.get(cabinet.box_edgeband_id) || 'Unknown Box Edgeband';
+            if (name.toLowerCase().includes('not apply')) return;
             const totalMeters = (product.box_edgeband || 0) * qty;
             const existing = boxEdgebandRolls.get(name) || { rollsNeeded: 0, totalMeters: 0, cost: 0 };
             boxEdgebandRolls.set(name, {
@@ -154,6 +157,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
 
           if (cabinet.doors_edgeband_id && product) {
             const name = priceListMap.get(cabinet.doors_edgeband_id) || 'Unknown Doors Edgeband';
+            if (name.toLowerCase().includes('not apply')) return;
             const totalMeters = product.total_edgeband * qty - ((product.box_edgeband || 0) * qty);
             const existing = doorsEdgebandRolls.get(name) || { rollsNeeded: 0, totalMeters: 0, cost: 0 };
             doorsEdgebandRolls.set(name, {
@@ -174,6 +178,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
               if (!hardwareId || quantityPerCabinet === 0) return;
 
               const name = priceListMap.get(hardwareId) || 'Unknown Hardware';
+              if (name.toLowerCase().includes('not apply')) return;
               const hwQty = quantityPerCabinet * qty;
               const proportionalCost = totalHardwareItems > 0
                 ? (quantityPerCabinet / totalHardwareItems) * totalHardwareCost

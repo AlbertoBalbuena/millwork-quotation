@@ -108,6 +108,10 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
           if (!hardwareId || quantityPerCabinet === 0) return;
 
           const name = priceListMap.get(hardwareId) || 'Unknown Hardware';
+
+          // Skip if "not apply"
+          if (name.toLowerCase().includes('not apply')) return;
+
           const hwQty = quantityPerCabinet * qty;
           const proportionalCost = totalHardwareItems > 0
             ? (quantityPerCabinet / totalHardwareItems) * totalHardwareCost

@@ -78,7 +78,7 @@ export async function calculateAreaEdgebandRolls(
     // Process box edgeband
     if (cabinet.box_edgeband_id && boxMeters > 0) {
       const edgeband = priceList.find((p) => p.id === cabinet.box_edgeband_id);
-      if (edgeband) {
+      if (edgeband && !edgeband.concept_description.toLowerCase().includes('not apply')) {
         if (!edgebandMap.has(edgeband.id)) {
           edgebandMap.set(edgeband.id, {
             edgeband,
@@ -109,7 +109,7 @@ export async function calculateAreaEdgebandRolls(
     // Process doors edgeband
     if (cabinet.doors_edgeband_id && doorsMeters > 0) {
       const edgeband = priceList.find((p) => p.id === cabinet.doors_edgeband_id);
-      if (edgeband) {
+      if (edgeband && !edgeband.concept_description.toLowerCase().includes('not apply')) {
         if (!edgebandMap.has(edgeband.id)) {
           edgebandMap.set(edgeband.id, {
             edgeband,

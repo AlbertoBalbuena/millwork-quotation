@@ -93,7 +93,7 @@ export async function calculateAreaSheetMaterials(
 
     if (cabinet.box_material_id) {
       const material = priceList.find((p) => p.id === cabinet.box_material_id);
-      if (material && isSheetMaterial(material.type)) {
+      if (material && isSheetMaterial(material.type) && !material.concept_description.toLowerCase().includes('not apply')) {
         const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
         const sfNeeded = product.box_sf * cabinet.quantity;
 
@@ -118,7 +118,7 @@ export async function calculateAreaSheetMaterials(
 
     if (cabinet.doors_material_id) {
       const material = priceList.find((p) => p.id === cabinet.doors_material_id);
-      if (material && isSheetMaterial(material.type)) {
+      if (material && isSheetMaterial(material.type) && !material.concept_description.toLowerCase().includes('not apply')) {
         const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
         const sfNeeded = product.doors_fronts_sf * cabinet.quantity;
 
