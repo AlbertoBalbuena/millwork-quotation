@@ -24,7 +24,8 @@ import {
   Eye,
   MoreVertical,
   AlertTriangle,
-  Send
+  Send,
+  User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
@@ -808,7 +809,7 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
 
         {project.customer && (
           <div className="flex items-center text-sm text-slate-600 mb-2">
-            <Tag className="h-4 w-4 mr-1.5 flex-shrink-0 text-slate-400" />
+            <User className="h-4 w-4 mr-1.5 flex-shrink-0 text-slate-400" />
             <span className="font-medium line-clamp-1">{project.customer}</span>
           </div>
         )}
@@ -935,7 +936,7 @@ function ProjectListItem({ project, onView, onEdit, onDelete, staleProjectIds }:
           <div className="flex items-center gap-4 text-sm text-slate-600">
             {project.customer && (
               <div className="flex items-center">
-                <Tag className="h-3.5 w-3.5 mr-1 text-slate-400" />
+                <User className="h-3.5 w-3.5 mr-1 text-slate-400" />
                 <span className="font-medium truncate max-w-xs">{project.customer}</span>
               </div>
             )}
