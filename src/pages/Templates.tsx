@@ -13,6 +13,7 @@ import {
   getTemplateAnalytics,
   getRecentlyUsedTemplates,
   generateUniqueTemplateName,
+  updateTemplate,
 } from '../lib/templateManager';
 import type { CabinetTemplate, TemplateAnalytics, TemplateCategory } from '../types';
 
@@ -36,6 +37,7 @@ export function Templates() {
   const [analytics, setAnalytics] = useState<TemplateAnalytics | null>(null);
   const [recentTemplates, setRecentTemplates] = useState<CabinetTemplate[]>([]);
   const [previewTemplate, setPreviewTemplate] = useState<CabinetTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<CabinetTemplate | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<CabinetTemplate | null>(null);
 
   useEffect(() => {
@@ -301,7 +303,7 @@ export function Templates() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setPreviewTemplate(template)}
+                        onClick={() => setEditingTemplate(template)}
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -332,6 +334,24 @@ export function Templates() {
         <TemplatePreviewModal
           template={previewTemplate}
           onClose={() => setPreviewTemplate(null)}
+        />
+      )}
+
+      {editingTemplate && (
+        <TemplateEditModal
+          template={editingTemplate}
+          onClose={() => setEditingTemplate(null)}
+          onSave={async (updates) => {
+            try {
+              await updateTemplate(editingTemplate.id, updates);
+              await loadTemplates();
+              setEditingTemplate(null);
+              alert('Template updated successfully');
+            } catch (error: any) {
+              console.error('Error updating template:', error);
+              alert(error.message || 'Failed to update template');
+            }
+          }}
         />
       )}
 
@@ -488,6 +508,98 @@ function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) 
 
         <div className="flex justify-end pt-4">
           <Button onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+interface TemplateEditModalProps {
+  template: CabinetTemplate;
+  onClose: () => void;
+  onSave: (updates: Partial<CabinetTemplate>) => Promise<void>;
+}
+
+function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps) {
+  const [name, setName] = useState(template.name);
+  const [description, setDescription] = useState(template.description || '');
+  const [category, setCategory] = useState<TemplateCategory>(template.category);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!name.trim()) {
+      alert('Template name is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave({
+        name: name.trim(),
+        description: description.trim() || null,
+        category,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Edit Template" size="md">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Template Name <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Enter template name"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Description
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Enter template description (optional)"
+            rows={3}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Category <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as TemplateCategory)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {TEMPLATE_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Only the name, description, and category can be edited.
+            To change materials or hardware, create a new template from a cabinet.
+          </p>
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
       </div>
     </Modal>
