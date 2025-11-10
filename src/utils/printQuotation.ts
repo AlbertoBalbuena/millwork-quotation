@@ -308,27 +308,27 @@ export async function printQuotation(
         }
 
         .project-details {
-          margin-top: 35px;
+          margin-top: 20px;
+          margin-bottom: 20px;
           page-break-inside: avoid;
         }
 
         .project-details h3 {
-          font-size: 11pt;
+          font-size: 10pt;
           font-weight: 700;
-          margin-bottom: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+          margin-bottom: 8px;
         }
 
         .project-details ul {
           list-style: disc;
-          padding-left: 20px;
+          padding-left: 18px;
+          margin: 0;
         }
 
         .project-details li {
-          margin: 6px 0;
+          margin: 4px 0;
           font-size: 9pt;
-          line-height: 1.6;
+          line-height: 1.5;
         }
 
         .project-details li strong {
@@ -385,16 +385,14 @@ export async function printQuotation(
         </div>
       </div>
 
-      <div class="section-title">Pricing per Area</div>
+      <div class="section-title">Pricing MXN</div>
 
       <table class="pricing-table">
         <thead>
           <tr>
-            <th>Area</th>
+            <th>Totem Style</th>
             <th class="center">Boxes</th>
-            <th class="center">Pallets</th>
-            <th class="center">SF Fillers & Panels</th>
-            <th class="right">MXN Price</th>
+            <th class="right">Price</th>
           </tr>
         </thead>
         <tbody>
@@ -402,66 +400,37 @@ export async function printQuotation(
             <tr>
               <td>${area.name}</td>
               <td class="center">${area.boxes}</td>
-              <td class="center">${area.pallets}</td>
-              <td class="center">${area.sf}</td>
               <td class="right">${formatCurrency(area.total)}</td>
             </tr>
           `).join('')}
         </tbody>
         <tfoot>
           <tr>
-            <td><strong>TOTAL</strong></td>
-            <td class="center">${totalBoxes}</td>
-            <td class="center">${totalPallets}</td>
-            <td class="center">${totalSF.toFixed(2)}</td>
+            <td><strong>Total</strong></td>
+            <td class="center"></td>
             <td class="right">${formatCurrency(materialsSubtotal)}</td>
           </tr>
         </tfoot>
       </table>
 
-      ${project.notes ? `
+      ${totalPallets > 0 ? `
         <div class="notes-box">
-          <div class="notes-box-number">2</div>
-          <div>${project.notes}</div>
+          <div class="notes-box-number">${totalPallets}</div>
+          <div>Pallets approx. everything assembled</div>
         </div>
       ` : ''}
 
-      <div class="summary-section">
-        <div class="summary-row subtotal">
-          <span class="summary-label">Materials Subtotal</span>
-          <span class="summary-value">${formatCurrency(materialsSubtotal)}</span>
-        </div>
-        ${otherExpenses > 0 ? `
-          <div class="summary-row">
-            <span class="summary-label">Other Expenses</span>
-            <span class="summary-value">${formatCurrency(otherExpenses)}</span>
-          </div>
-        ` : ''}
-        ${taxesAmount > 0 ? `
-          <div class="summary-row">
-            <span class="summary-label">Taxes (${taxesPercentage}%)</span>
-            <span class="summary-value">${formatCurrency(taxesAmount)}</span>
-          </div>
-        ` : ''}
-        ${installDelivery > 0 ? `
-          <div class="summary-row">
-            <span class="summary-label">Install & Delivery</span>
-            <span class="summary-value">${formatCurrency(installDelivery)}</span>
-          </div>
-        ` : ''}
-        <div class="summary-row total">
-          <span class="summary-label">GRAND TOTAL</span>
-          <span class="summary-value">${formatCurrency(projectTotal)}</span>
-        </div>
-      </div>
-
-      ${project.project_details ? `
+      ${project.project_brief ? `
         <div class="project-details">
-          <h3>Project Details</h3>
+          <h3>Project Brief</h3>
           <ul>
-            ${project.project_details.split('\n').filter(line => line.trim()).map(line => {
+            ${project.project_brief.split('\n').filter(line => line.trim()).map(line => {
               const trimmed = line.trim();
-              if (trimmed.match(/^[A-Z][a-z\s&]+:/)) {
+              if (trimmed.startsWith('•')) {
+                return `<li>${trimmed.substring(1).trim()}</li>`;
+              } else if (trimmed.startsWith('-')) {
+                return `<li>${trimmed.substring(1).trim()}</li>`;
+              } else if (trimmed.match(/^[A-Z][a-z\s&/()]+:/)) {
                 const [label, ...rest] = trimmed.split(':');
                 return `<li><strong>${label}:</strong>${rest.join(':')}</li>`;
               }
