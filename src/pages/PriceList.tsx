@@ -74,11 +74,10 @@ export function PriceList() {
     if (!confirm(`Delete ${item.concept_description}?`)) return;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('price_list')
         .update({ is_active: false })
-        .eq('id', item.id)
-        .select();
+        .eq('id', item.id);
 
       if (error) {
         console.error('Supabase error:', error);
@@ -86,7 +85,6 @@ export function PriceList() {
         return;
       }
 
-      console.log('Delete successful:', data);
       loadPriceList();
     } catch (error) {
       console.error('Error deleting item:', error);
