@@ -54,9 +54,9 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   const [currencyDisplay, setCurrencyDisplay] = useState<'USD' | 'MXN' | 'BOTH'>('MXN');
   const [exchangeRate, setExchangeRate] = useState(18);
   const [otherExpenses, setOtherExpenses] = useState(project.other_expenses || 0);
-  const [tariffPercentage, setTariffPercentage] = useState(project.tariff_percentage || 0);
-  const [profitPercentage, setProfitPercentage] = useState(project.profit_percentage || 0);
-  const [taxesPercentage, setTaxesPercentage] = useState(project.taxes_percentage || 0);
+  const [profitMultiplier, setProfitMultiplier] = useState(project.profit_multiplier || 0);
+  const [tariffMultiplier, setTariffMultiplier] = useState(project.tariff_multiplier || 0);
+  const [taxMultiplier, setTaxMultiplier] = useState(project.tax_multiplier || 0);
   const [installDelivery, setInstallDelivery] = useState(project.install_delivery || 0);
   const [savingTemplateCabinet, setSavingTemplateCabinet] = useState<AreaCabinet | null>(null);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
@@ -419,13 +419,11 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
 
   const materialsSubtotal = cabinetsSubtotal + itemsSubtotal + countertopsSubtotal;
 
-  const subtotalBeforeTariff = materialsSubtotal + otherExpenses + installDelivery;
-  const tariffAmount = (subtotalBeforeTariff * tariffPercentage) / 100;
-  const subtotalWithTariff = subtotalBeforeTariff + tariffAmount;
-  const profitAmount = (subtotalWithTariff * profitPercentage) / 100;
-  const subtotalWithProfit = subtotalWithTariff + profitAmount;
-  const taxesAmount = (subtotalWithProfit * taxesPercentage) / 100;
-  const projectTotal = subtotalWithProfit + taxesAmount;
+  const profitAmount = materialsSubtotal * profitMultiplier;
+  const price = materialsSubtotal + profitAmount;
+  const tariffAmount = price * tariffMultiplier;
+  const taxAmount = (price + tariffAmount) * taxMultiplier;
+  const projectTotal = price + tariffAmount + taxAmount + otherExpenses + installDelivery;
 
   const formatPrice = (amount: number) => {
     const amountInUSD = amount / exchangeRate;
@@ -453,9 +451,9 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
         .from('projects')
         .update({
           other_expenses: otherExpenses,
-          tariff_percentage: tariffPercentage,
-          profit_percentage: profitPercentage,
-          taxes_percentage: taxesPercentage,
+          profit_multiplier: profitMultiplier,
+          tariff_multiplier: tariffMultiplier,
+          tax_multiplier: taxMultiplier,
           install_delivery: installDelivery,
           total_amount: projectTotal,
         })
@@ -760,61 +758,58 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tariff (%)
+                Profit Multiplier
               </label>
               <input
                 type="number"
                 min="0"
-                max="100"
-                step="0.01"
-                value={tariffPercentage}
-                onChange={(e) => setTariffPercentage(parseFloat(e.target.value) || 0)}
+                step="0.001"
+                value={profitMultiplier}
+                onChange={(e) => setProfitMultiplier(parseFloat(e.target.value) || 0)}
                 onBlur={updateProjectCosts}
                 className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
+                placeholder="0.50"
               />
               <p className="mt-1 text-xs text-slate-500">
-                {tariffPercentage > 0 ? formatPrice(tariffAmount) : 'Percentage of subtotal'}
+                {profitMultiplier > 0 ? `${formatPrice(profitAmount)} (${(profitMultiplier * 100).toFixed(1)}%)` : 'e.g., 0.5 = 50% markup'}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Profit (%)
+                Tariff Multiplier
               </label>
               <input
                 type="number"
                 min="0"
-                max="100"
-                step="0.01"
-                value={profitPercentage}
-                onChange={(e) => setProfitPercentage(parseFloat(e.target.value) || 0)}
+                step="0.001"
+                value={tariffMultiplier}
+                onChange={(e) => setTariffMultiplier(parseFloat(e.target.value) || 0)}
                 onBlur={updateProjectCosts}
                 className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
+                placeholder="0.11"
               />
               <p className="mt-1 text-xs text-slate-500">
-                {profitPercentage > 0 ? formatPrice(profitAmount) : 'Percentage of subtotal + tariff'}
+                {tariffMultiplier > 0 ? `${formatPrice(tariffAmount)} (${(tariffMultiplier * 100).toFixed(2)}%)` : 'e.g., 0.11 = 11% of price'}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Taxes (%)
+                Tax Multiplier
               </label>
               <input
                 type="number"
                 min="0"
-                max="100"
-                step="0.01"
-                value={taxesPercentage}
-                onChange={(e) => setTaxesPercentage(parseFloat(e.target.value) || 0)}
+                step="0.0001"
+                value={taxMultiplier}
+                onChange={(e) => setTaxMultiplier(parseFloat(e.target.value) || 0)}
                 onBlur={updateProjectCosts}
                 className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
+                placeholder="0.0825"
               />
               <p className="mt-1 text-xs text-slate-500">
-                {taxesPercentage > 0 ? formatPrice(taxesAmount) : 'Percentage of subtotal + tariff + profit'}
+                {taxMultiplier > 0 ? `${formatPrice(taxAmount)} (${(taxMultiplier * 100).toFixed(2)}%)` : 'e.g., 0.0825 = 8.25% tax'}
               </p>
             </div>
           </div>
@@ -826,24 +821,26 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 <p className="text-sm text-slate-600">Countertops Subtotal:</p>
                 <p className="text-sm text-slate-600">Individual Items Subtotal:</p>
                 <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-300">Materials Subtotal:</p>
+                {profitMultiplier > 0 && <p className="text-sm text-slate-600">Profit ({(profitMultiplier * 100).toFixed(1)}%):</p>}
+                <p className="text-sm font-semibold text-slate-900 mt-2 pt-2 border-t border-slate-300">Price:</p>
+                {tariffMultiplier > 0 && <p className="text-sm text-slate-600">Tariff ({(tariffMultiplier * 100).toFixed(2)}%):</p>}
+                {taxMultiplier > 0 && <p className="text-sm text-slate-600">Tax ({(taxMultiplier * 100).toFixed(2)}%):</p>}
                 <p className="text-sm text-slate-600">Other Expenses:</p>
                 <p className="text-sm text-slate-600">Install & Delivery:</p>
-                {tariffPercentage > 0 && <p className="text-sm text-slate-600">Tariff ({tariffPercentage}%):</p>}
-                {profitPercentage > 0 && <p className="text-sm text-slate-600">Profit ({profitPercentage}%):</p>}
-                <p className="text-sm text-slate-600">Taxes ({taxesPercentage}%):</p>
-                <p className="text-base font-semibold text-slate-900 mt-2">Total:</p>
+                <p className="text-base font-semibold text-slate-900 mt-2 pt-2 border-t border-slate-300">Total:</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-slate-700">{formatPrice(cabinetsSubtotal)}</p>
                 <p className="text-sm font-medium text-slate-700">{formatPrice(countertopsSubtotal)}</p>
                 <p className="text-sm font-medium text-slate-700">{formatPrice(itemsSubtotal)}</p>
                 <p className="text-sm font-semibold text-slate-900 mt-2 pt-2 border-t border-slate-300">{formatPrice(materialsSubtotal)}</p>
+                {profitMultiplier > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(profitAmount)}</p>}
+                <p className="text-sm font-bold text-blue-900 mt-2 pt-2 border-t border-slate-300">{formatPrice(price)}</p>
+                {tariffMultiplier > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(tariffAmount)}</p>}
+                {taxMultiplier > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(taxAmount)}</p>}
                 <p className="text-sm font-medium text-slate-700">{formatPrice(otherExpenses)}</p>
                 <p className="text-sm font-medium text-slate-700">{formatPrice(installDelivery)}</p>
-                {tariffPercentage > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(tariffAmount)}</p>}
-                {profitPercentage > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(profitAmount)}</p>}
-                <p className="text-sm font-medium text-slate-700">{formatPrice(taxesAmount)}</p>
-                <p className="text-base font-bold text-slate-900 mt-2">{formatPrice(projectTotal)}</p>
+                <p className="text-base font-bold text-slate-900 mt-2 pt-2 border-t border-slate-300">{formatPrice(projectTotal)}</p>
               </div>
             </div>
           </div>

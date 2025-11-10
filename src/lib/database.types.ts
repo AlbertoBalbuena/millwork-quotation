@@ -111,9 +111,9 @@ export interface Database {
           status: string;
           project_type: string;
           other_expenses: number;
-          tariff_percentage: number;
-          profit_percentage: number;
-          taxes_percentage: number;
+          tariff_multiplier: number;
+          profit_multiplier: number;
+          tax_multiplier: number;
           install_delivery: number;
           project_details: string | null;
           project_brief: string | null;
@@ -130,9 +130,9 @@ export interface Database {
           status?: string;
           project_type?: string;
           other_expenses?: number;
-          tariff_percentage?: number;
-          profit_percentage?: number;
-          taxes_percentage?: number;
+          tariff_multiplier?: number;
+          profit_multiplier?: number;
+          tax_multiplier?: number;
           install_delivery?: number;
           project_details?: string | null;
           project_brief?: string | null;
@@ -149,9 +149,9 @@ export interface Database {
           status?: string;
           project_type?: string;
           other_expenses?: number;
-          tariff_percentage?: number;
-          profit_percentage?: number;
-          taxes_percentage?: number;
+          tariff_multiplier?: number;
+          profit_multiplier?: number;
+          tax_multiplier?: number;
           install_delivery?: number;
           project_details?: string | null;
           project_brief?: string | null;

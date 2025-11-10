@@ -25,10 +25,8 @@ export async function printQuotation(
 
   const materialsSubtotal = cabinetsSubtotal + itemsSubtotal + countertopsSubtotal;
   const otherExpenses = project.other_expenses || 0;
-  const taxesPercentage = project.taxes_percentage || 0;
-  const taxesAmount = (materialsSubtotal * taxesPercentage) / 100;
   const installDelivery = project.install_delivery || 0;
-  const projectTotal = materialsSubtotal + otherExpenses + taxesAmount + installDelivery;
+  const projectTotal = materialsSubtotal + otherExpenses + installDelivery;
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -495,20 +493,21 @@ export async function printQuotationUSD(
     }).format(amountInUSD);
   };
 
-  const tariffPercentage = project.tariff_percentage || 0;
-  const profitPercentage = project.profit_percentage || 0;
-  const taxesPercentage = project.taxes_percentage || 0;
+  const profitMultiplier = project.profit_multiplier || 0;
+  const tariffMultiplier = project.tariff_multiplier || 0;
+  const taxMultiplier = project.tax_multiplier || 0;
 
   const areaBreakdown = areas.map(area => {
     const areaCabinetsTotal = area.cabinets.reduce((sum, c) => sum + c.subtotal, 0);
     const areaItemsTotal = area.items.reduce((sum, i) => sum + i.subtotal, 0);
     const areaCountertopsTotal = area.countertops.reduce((sum, ct) => sum + ct.subtotal, 0);
-    const areaPrice = areaCabinetsTotal + areaItemsTotal + areaCountertopsTotal;
+    const areaMaterialsSubtotal = areaCabinetsTotal + areaItemsTotal + areaCountertopsTotal;
 
-    const areaTariff = (areaPrice * tariffPercentage) / 100;
-    const areaProfit = ((areaPrice + areaTariff) * profitPercentage) / 100;
-    const areaTax = ((areaPrice + areaTariff + areaProfit) * taxesPercentage) / 100;
-    const areaTotal = areaPrice + areaTariff + areaProfit + areaTax;
+    const areaProfit = areaMaterialsSubtotal * profitMultiplier;
+    const areaPrice = areaMaterialsSubtotal + areaProfit;
+    const areaTariff = areaPrice * tariffMultiplier;
+    const areaTax = (areaPrice + areaTariff) * taxMultiplier;
+    const areaTotal = areaPrice + areaTariff + areaTax;
 
     return {
       name: area.name,
@@ -522,7 +521,6 @@ export async function printQuotationUSD(
 
   const totalPrice = areaBreakdown.reduce((sum, a) => sum + a.price, 0);
   const totalTariff = areaBreakdown.reduce((sum, a) => sum + a.tariff, 0);
-  const totalProfit = areaBreakdown.reduce((sum, a) => sum + a.profit, 0);
   const totalTax = areaBreakdown.reduce((sum, a) => sum + a.tax, 0);
   const grandTotal = areaBreakdown.reduce((sum, a) => sum + a.total, 0);
 
