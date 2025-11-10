@@ -68,6 +68,8 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   const [isBulkPriceUpdateOpen, setIsBulkPriceUpdateOpen] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [versionCount, setVersionCount] = useState(0);
+  const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   useEffect(() => {
     setProject(initialProject);
@@ -518,6 +520,106 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
 
           <div className="border-t border-slate-200 pt-4 mt-4">
             <div className="flex flex-col lg:flex-row items-start gap-4">
+              {areas.length > 0 && (
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                  <div className="relative">
+                    <Button
+                      onClick={() => setIsPrintMenuOpen(!isPrintMenuOpen)}
+                      className="w-full sm:w-auto"
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print
+                    </Button>
+                    {isPrintMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30"
+                          onClick={() => setIsPrintMenuOpen(false)}
+                        />
+                        <div className="absolute top-full left-0 mt-2 w-72 rounded-lg shadow-xl bg-white border border-slate-200 z-40">
+                          <div className="py-1">
+                            <button
+                              onClick={() => {
+                                handlePrint();
+                                setIsPrintMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                            >
+                              <Printer className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium">Standard PDF</div>
+                                <div className="text-xs text-slate-500">MXN with all details</div>
+                              </div>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handlePrintUSD();
+                                setIsPrintMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                            >
+                              <DollarSign className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium">USD Summary PDF</div>
+                                <div className="text-xs text-slate-500">Price, tariff, profit & tax by area</div>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <Button
+                      onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                      className="w-full sm:w-auto"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      CSV
+                    </Button>
+                    {isExportMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30"
+                          onClick={() => setIsExportMenuOpen(false)}
+                        />
+                        <div className="absolute top-full left-0 mt-2 w-72 rounded-lg shadow-xl bg-white border border-slate-200 z-40">
+                          <div className="py-1">
+                            <button
+                              onClick={() => {
+                                handleExportAreasCSV();
+                                setIsExportMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                            >
+                              <Download className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium">Areas Summary</div>
+                                <div className="text-xs text-slate-500">Export area totals</div>
+                              </div>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleExportDetailedAreasCSV();
+                                setIsExportMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                            >
+                              <FileSpreadsheet className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium">Detailed Report</div>
+                                <div className="text-xs text-slate-500">Export all items & details</div>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white border border-slate-200 rounded-lg p-4 w-full lg:w-auto lg:min-w-[200px] lg:ml-auto">
                 <div className="text-xs text-slate-600 mb-2 font-medium">Display Currency</div>
                 <div className="flex items-center space-x-2">
@@ -1215,10 +1317,6 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
         }}
         onRecalculatePrices={() => setIsBulkPriceUpdateOpen(true)}
         onVersionHistory={() => setShowVersionHistory(true)}
-        onPrintMXN={handlePrint}
-        onPrintUSD={handlePrintUSD}
-        onExportAreasSummary={handleExportAreasCSV}
-        onExportDetailed={handleExportDetailedAreasCSV}
         onSaveChanges={handleSaveChanges}
         onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
         showAnalytics={showAnalytics}
