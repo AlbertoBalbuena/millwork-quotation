@@ -369,6 +369,14 @@ export async function printQuotation(
           <span class="project-label">Address</span>
           <span style="font-size: 9pt;">${project.address || '-'}</span>
         </div>
+        <div style="text-align: right;">
+          <span class="project-label">Date</span>
+          <div style="font-size: 10pt; font-weight: 600; margin-top: 2px;">${new Date(project.quote_date).toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric'
+          })}</div>
+        </div>
       </div>
 
       <div class="section-title">Pricing MXN</div>
@@ -745,6 +753,14 @@ export async function printQuotationUSD(
           <div class="project-name">${project.name}</div>
           <span class="project-label">Address</span>
           <span style="font-size: 9pt;">${project.address || '-'}</span>
+        </div>
+        <div style="text-align: right;">
+          <span class="project-label">Date</span>
+          <div style="font-size: 10pt; font-weight: 600; margin-top: 2px;">${new Date(project.quote_date).toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric'
+          })}</div>
         </div>
       </div>
 
