@@ -197,10 +197,10 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                             <Package className="h-3 w-3 text-blue-700" />
                             <span className="text-xs font-semibold text-blue-900">Box Material</span>
                           </div>
-                          <div className="text-xs text-slate-700 truncate mb-1">{materialSummary.boxMaterial.name}</div>
-                          <div className="flex justify-between text-xs text-slate-600">
-                            <span><Ruler className="h-3 w-3 inline mr-1" />{materialSummary.boxMaterial.totalSF.toFixed(2)} SF</span>
-                            <span className="font-semibold text-blue-700">{formatCurrency(materialSummary.boxMaterial.cost)}</span>
+                          <div className="text-xs text-slate-700 mb-1">{materialSummary.boxMaterial.name}</div>
+                          <div className="flex items-center text-xs text-slate-600">
+                            <Ruler className="h-3 w-3 inline mr-1" />
+                            <span>{materialSummary.boxMaterial.totalSF.toFixed(2)} SF</span>
                           </div>
                         </div>
                       )}
@@ -211,10 +211,10 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                             <Layers className="h-3 w-3 text-blue-800" />
                             <span className="text-xs font-semibold text-blue-900">Box Interior Finish</span>
                           </div>
-                          <div className="text-xs text-slate-700 truncate mb-1">{materialSummary.boxInteriorFinish.name}</div>
-                          <div className="flex justify-between text-xs text-slate-600">
-                            <span><Ruler className="h-3 w-3 inline mr-1" />{materialSummary.boxInteriorFinish.totalSF.toFixed(2)} SF</span>
-                            <span className="font-semibold text-blue-800">{formatCurrency(materialSummary.boxInteriorFinish.cost)}</span>
+                          <div className="text-xs text-slate-700 mb-1">{materialSummary.boxInteriorFinish.name}</div>
+                          <div className="flex items-center text-xs text-slate-600">
+                            <Ruler className="h-3 w-3 inline mr-1" />
+                            <span>{materialSummary.boxInteriorFinish.totalSF.toFixed(2)} SF</span>
                           </div>
                         </div>
                       )}
@@ -225,10 +225,9 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                             <Ruler className="h-3 w-3 text-amber-700" />
                             <span className="text-xs font-semibold text-amber-900">Box Edgeband</span>
                           </div>
-                          <div className="text-xs text-slate-700 truncate mb-1">{materialSummary.boxEdgeband.name}</div>
-                          <div className="flex justify-between text-xs text-slate-600">
-                            <span>{materialSummary.boxEdgeband.totalMeters.toFixed(1)}m</span>
-                            <span className="font-semibold text-amber-700">{formatCurrency(materialSummary.boxEdgeband.cost)}</span>
+                          <div className="text-xs text-slate-700 mb-1">{materialSummary.boxEdgeband.name}</div>
+                          <div className="flex items-center text-xs text-slate-600">
+                            <span>{materialSummary.boxEdgeband.totalMeters.toFixed(1)} meters</span>
                           </div>
                         </div>
                       )}
@@ -239,10 +238,10 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                             <Package className="h-3 w-3 text-green-700" />
                             <span className="text-xs font-semibold text-green-900">Doors Material</span>
                           </div>
-                          <div className="text-xs text-slate-700 truncate mb-1">{materialSummary.doorsMaterial.name}</div>
-                          <div className="flex justify-between text-xs text-slate-600">
-                            <span><Ruler className="h-3 w-3 inline mr-1" />{materialSummary.doorsMaterial.totalSF.toFixed(2)} SF</span>
-                            <span className="font-semibold text-green-700">{formatCurrency(materialSummary.doorsMaterial.cost)}</span>
+                          <div className="text-xs text-slate-700 mb-1">{materialSummary.doorsMaterial.name}</div>
+                          <div className="flex items-center text-xs text-slate-600">
+                            <Ruler className="h-3 w-3 inline mr-1" />
+                            <span>{materialSummary.doorsMaterial.totalSF.toFixed(2)} SF</span>
                           </div>
                         </div>
                       )}
@@ -253,10 +252,10 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                             <Layers className="h-3 w-3 text-green-800" />
                             <span className="text-xs font-semibold text-green-900">Doors Interior Finish</span>
                           </div>
-                          <div className="text-xs text-slate-700 truncate mb-1">{materialSummary.doorsInteriorFinish.name}</div>
-                          <div className="flex justify-between text-xs text-slate-600">
-                            <span><Ruler className="h-3 w-3 inline mr-1" />{materialSummary.doorsInteriorFinish.totalSF.toFixed(2)} SF</span>
-                            <span className="font-semibold text-green-800">{formatCurrency(materialSummary.doorsInteriorFinish.cost)}</span>
+                          <div className="text-xs text-slate-700 mb-1">{materialSummary.doorsInteriorFinish.name}</div>
+                          <div className="flex items-center text-xs text-slate-600">
+                            <Ruler className="h-3 w-3 inline mr-1" />
+                            <span>{materialSummary.doorsInteriorFinish.totalSF.toFixed(2)} SF</span>
                           </div>
                         </div>
                       )}
@@ -267,10 +266,9 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                             <Ruler className="h-3 w-3 text-amber-700" />
                             <span className="text-xs font-semibold text-amber-900">Doors Edgeband</span>
                           </div>
-                          <div className="text-xs text-slate-700 truncate mb-1">{materialSummary.doorsEdgeband.name}</div>
-                          <div className="flex justify-between text-xs text-slate-600">
-                            <span>{materialSummary.doorsEdgeband.totalMeters.toFixed(1)}m</span>
-                            <span className="font-semibold text-amber-700">{formatCurrency(materialSummary.doorsEdgeband.cost)}</span>
+                          <div className="text-xs text-slate-700 mb-1">{materialSummary.doorsEdgeband.name}</div>
+                          <div className="flex items-center text-xs text-slate-600">
+                            <span>{materialSummary.doorsEdgeband.totalMeters.toFixed(1)} meters</span>
                           </div>
                         </div>
                       )}
@@ -284,10 +282,10 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                           <div className="space-y-1">
                             {materialSummary.hardware.map((hw, idx) => (
                               <div key={idx} className="bg-white rounded p-1.5 text-xs">
-                                <div className="text-slate-700 truncate mb-0.5">{hw.name}</div>
-                                <div className="flex justify-between text-slate-600">
-                                  <span><Hash className="h-3 w-3 inline mr-1" />{hw.quantity} pcs</span>
-                                  <span className="font-semibold text-slate-700">{formatCurrency(hw.cost)}</span>
+                                <div className="text-slate-700 mb-0.5">{hw.name}</div>
+                                <div className="flex items-center text-slate-600">
+                                  <Hash className="h-3 w-3 inline mr-1" />
+                                  <span>{hw.quantity} pcs</span>
                                 </div>
                               </div>
                             ))}
@@ -304,10 +302,10 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                           <div className="space-y-1">
                             {materialSummary.accessories.map((acc, idx) => (
                               <div key={idx} className="bg-white rounded p-1.5 text-xs">
-                                <div className="text-slate-700 truncate mb-0.5">{acc.name}</div>
-                                <div className="flex justify-between text-slate-600">
-                                  <span><Hash className="h-3 w-3 inline mr-1" />{acc.quantity} pcs</span>
-                                  <span className="font-semibold text-purple-700">{formatCurrency(acc.cost)}</span>
+                                <div className="text-slate-700 mb-0.5">{acc.name}</div>
+                                <div className="flex items-center text-slate-600">
+                                  <Hash className="h-3 w-3 inline mr-1" />
+                                  <span>{acc.quantity} pcs</span>
                                 </div>
                               </div>
                             ))}
@@ -315,14 +313,6 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
                         </div>
                       )}
 
-                      {materialSummary.laborCost > 0 && (
-                        <div className="bg-teal-50 rounded-lg p-2 border border-teal-100">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-semibold text-teal-900">Labor Cost</span>
-                            <span className="text-xs font-bold text-teal-700">{formatCurrency(materialSummary.laborCost)}</span>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div className="text-center py-4 text-sm text-slate-500">
