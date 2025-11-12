@@ -823,7 +823,7 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
 
         <div className="flex items-center text-sm text-slate-600 mb-2">
           <Calendar className="h-4 w-4 mr-1.5 flex-shrink-0 text-slate-400" />
-          <span>{format(new Date(project.quote_date), 'MMM dd, yyyy')}</span>
+          <span>{format(new Date(project.quote_date + 'T00:00:00'), 'MMM dd, yyyy')}</span>
         </div>
 
         <div className="flex items-center text-sm text-slate-600 mb-4">
@@ -948,7 +948,7 @@ function ProjectListItem({ project, onView, onEdit, onDelete, staleProjectIds }:
             )}
             <div className="flex items-center">
               <Calendar className="h-3.5 w-3.5 mr-1 text-slate-400" />
-              <span>{format(new Date(project.quote_date), 'MMM dd, yyyy')}</span>
+              <span>{format(new Date(project.quote_date + 'T00:00:00'), 'MMM dd, yyyy')}</span>
             </div>
           </div>
         </div>

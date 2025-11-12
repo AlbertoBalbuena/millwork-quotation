@@ -580,12 +580,15 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-xs sm:text-sm text-slate-500">
-                      Quote Date: {new Date(project.quote_date).toLocaleDateString()}
+                      Quote Date: {new Date(project.quote_date + 'T00:00:00').toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric'
+                      })}
                     </p>
                     <button
                       onClick={async () => {
                         const today = new Date().toISOString().split('T')[0];
-                        setEditedQuoteDate(today);
                         try {
                           const { error } = await supabase
                             .from('projects')
@@ -595,11 +598,12 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                             })
                             .eq('id', project.id);
                           if (error) throw error;
-                          await loadProject();
-                          alert('Quote date updated to today!');
+
+                          // Force complete reload to ensure all components refresh
+                          window.location.reload();
                         } catch (error) {
                           console.error('Error updating date:', error);
-                          alert('Failed to update date');
+                          alert('Failed to update date: ' + error.message);
                         }
                       }}
                       className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded font-medium"
