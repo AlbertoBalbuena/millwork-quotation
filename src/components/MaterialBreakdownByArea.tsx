@@ -14,6 +14,7 @@ interface AreaMaterialBreakdown {
   boxEdgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>;
   doorsEdgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>;
   hardware: Map<string, { quantity: number; cost: number }>;
+  accessories: Map<string, { quantity: number; cost: number }>;
   countertops: Map<string, { quantity: number; cost: number }>;
   totalCost: number;
   cabinetCount: number;
@@ -68,6 +69,8 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
           doors_edgeband_cost,
           hardware_cost,
           hardware,
+          accessories_cost,
+          accessories,
           subtotal
         `);
 
@@ -113,6 +116,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
         const boxEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>();
         const doorsEdgebandRolls = new Map<string, { rollsNeeded: number; totalMeters: number; cost: number }>();
         const hardware = new Map<string, { quantity: number; cost: number }>();
+        const accessories = new Map<string, { quantity: number; cost: number }>();
         const countertopsMap = new Map<string, { quantity: number; cost: number }>();
 
         let totalCost = 0;
@@ -194,6 +198,31 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
             });
           }
 
+          if (cabinet.accessories && Array.isArray(cabinet.accessories) && cabinet.accessories.length > 0) {
+            const totalAccessoriesCost = cabinet.accessories_cost || 0;
+            const totalAccessoryItems = cabinet.accessories.reduce((sum: number, acc: any) => sum + (acc.quantity_per_cabinet || 0), 0);
+
+            (cabinet.accessories as any[]).forEach((acc: any) => {
+              const accessoryId = acc.accessory_id;
+              const quantityPerCabinet = acc.quantity_per_cabinet || 0;
+
+              if (!accessoryId || quantityPerCabinet === 0) return;
+
+              const name = priceListMap.get(accessoryId) || 'Unknown Accessory';
+              if (name.toLowerCase().includes('not apply')) return;
+              const accQty = quantityPerCabinet * qty;
+              const proportionalCost = totalAccessoryItems > 0
+                ? (quantityPerCabinet / totalAccessoryItems) * totalAccessoriesCost
+                : 0;
+
+              const existing = accessories.get(name) || { quantity: 0, cost: 0 };
+              accessories.set(name, {
+                quantity: existing.quantity + accQty,
+                cost: existing.cost + proportionalCost,
+              });
+            });
+          }
+
           totalCost += cabinet.subtotal || 0;
         });
 
@@ -228,6 +257,7 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
           boxEdgebandRolls,
           doorsEdgebandRolls,
           hardware,
+          accessories,
           countertops: countertopsMap,
           totalCost,
           cabinetCount: areaCabinets.length,
@@ -397,6 +427,26 @@ export function MaterialBreakdownByArea({ projectId }: MaterialBreakdownByAreaPr
                         <div className="flex justify-between text-slate-600">
                           <span><Hash className="h-3 w-3 inline mr-1" />{data.quantity} pcs</span>
                           <span className="font-semibold text-slate-700">{formatCurrency(data.cost)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {area.accessories.size > 0 && (
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 lg:col-span-2">
+                  <div className="flex items-center mb-3">
+                    <Package className="h-4 w-4 text-purple-700 mr-2" />
+                    <h4 className="text-sm font-semibold text-purple-900">Accessories</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {Array.from(area.accessories.entries()).map(([name, data]) => (
+                      <div key={name} className="bg-white rounded p-2 text-xs">
+                        <div className="font-medium text-slate-900 truncate mb-1">{name}</div>
+                        <div className="flex justify-between text-slate-600">
+                          <span><Hash className="h-3 w-3 inline mr-1" />{data.quantity} pcs</span>
+                          <span className="font-semibold text-purple-700">{formatCurrency(data.cost)}</span>
                         </div>
                       </div>
                     ))}

@@ -118,6 +118,12 @@ export function CabinetCard({ cabinet, onEdit, onDelete, onDuplicate, onSaveAsTe
               </span>
             </div>
             <div>
+              <span className="text-slate-600">Accessories Cost:</span>
+              <span className="float-right font-medium">
+                {formatCurrency(cabinet.accessories_cost || 0)}
+              </span>
+            </div>
+            <div>
               <span className="text-slate-600">Labor Cost:</span>
               <span className="float-right font-medium">
                 {formatCurrency(cabinet.labor_cost)}

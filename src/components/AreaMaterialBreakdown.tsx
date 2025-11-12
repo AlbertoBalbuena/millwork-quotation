@@ -12,6 +12,7 @@ interface MaterialData {
   doorsInteriorFinishSheets: Map<string, { sheetsNeeded: number; totalSF: number; cost: number; sfPerSheet: number }>;
   edgebandRolls: Map<string, { rollsNeeded: number; totalMeters: number; cost: number; totalMetersRounded: number }>;
   hardware: Map<string, { quantity: number; cost: number }>;
+  accessories: Map<string, { quantity: number; cost: number }>;
   countertops: Map<string, { quantity: number; cost: number }>;
   totalCost: number;
 }
@@ -83,7 +84,7 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
       });
     });
 
-    const { hardware, countertops, totalCost } = await loadHardwareAndCountertops();
+    const { hardware, accessories, countertops, totalCost } = await loadHardwareAndCountertops();
 
     setData({
       boxMaterialSheets,
@@ -92,6 +93,7 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
       doorsInteriorFinishSheets,
       edgebandRolls,
       hardware,
+      accessories,
       countertops,
       totalCost,
     });
@@ -105,7 +107,7 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
   async function loadHardwareAndCountertops() {
     const { data: cabinets } = await supabase
       .from('area_cabinets')
-      .select('quantity, hardware, hardware_cost, subtotal')
+      .select('quantity, hardware, hardware_cost, accessories, accessories_cost, subtotal')
       .eq('area_id', areaId);
 
     const { data: countertops } = await supabase
@@ -120,6 +122,7 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
     const priceListMap = new Map(priceList?.map(p => [p.id, p.concept_description]) || []);
 
     const hardware = new Map<string, { quantity: number; cost: number }>();
+    const accessories = new Map<string, { quantity: number; cost: number }>();
     let totalCost = 0;
 
     cabinets?.forEach(cabinet => {
@@ -137,7 +140,6 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
 
           const name = priceListMap.get(hardwareId) || 'Unknown Hardware';
 
-          // Skip if "not apply"
           if (name.toLowerCase().includes('not apply')) return;
 
           const hwQty = quantityPerCabinet * qty;
@@ -148,6 +150,33 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
           const existing = hardware.get(name) || { quantity: 0, cost: 0 };
           hardware.set(name, {
             quantity: existing.quantity + hwQty,
+            cost: existing.cost + proportionalCost,
+          });
+        });
+      }
+
+      if (cabinet.accessories && Array.isArray(cabinet.accessories) && cabinet.accessories.length > 0) {
+        const totalAccessoriesCost = cabinet.accessories_cost || 0;
+        const totalAccessoryItems = cabinet.accessories.reduce((sum: number, acc: any) => sum + (acc.quantity_per_cabinet || 0), 0);
+
+        (cabinet.accessories as any[]).forEach((acc: any) => {
+          const accessoryId = acc.accessory_id;
+          const quantityPerCabinet = acc.quantity_per_cabinet || 0;
+
+          if (!accessoryId || quantityPerCabinet === 0) return;
+
+          const name = priceListMap.get(accessoryId) || 'Unknown Accessory';
+
+          if (name.toLowerCase().includes('not apply')) return;
+
+          const accQty = quantityPerCabinet * qty;
+          const proportionalCost = totalAccessoryItems > 0
+            ? (quantityPerCabinet / totalAccessoryItems) * totalAccessoriesCost
+            : 0;
+
+          const existing = accessories.get(name) || { quantity: 0, cost: 0 };
+          accessories.set(name, {
+            quantity: existing.quantity + accQty,
             cost: existing.cost + proportionalCost,
           });
         });
@@ -172,7 +201,7 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
       totalCost += cost;
     });
 
-    return { hardware, countertops: countertopsMap, totalCost };
+    return { hardware, accessories, countertops: countertopsMap, totalCost };
   }
 
   if (loading) {
@@ -192,6 +221,7 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
     data.doorsInteriorFinishSheets.size === 0 &&
     data.edgebandRolls.size === 0 &&
     data.hardware.size === 0 &&
+    data.accessories.size === 0 &&
     data.countertops.size === 0
   )) {
     return (
@@ -340,6 +370,26 @@ export function AreaMaterialBreakdown({ areaId }: AreaMaterialBreakdownProps) {
                   <div className="flex justify-between text-slate-600">
                     <span><Hash className="h-3 w-3 inline mr-1" />{hwData.quantity} pcs</span>
                     <span className="font-semibold text-slate-700">{formatCurrency(hwData.cost)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.accessories.size > 0 && (
+          <div className="bg-purple-50 rounded-lg p-3 border border-purple-200 lg:col-span-2">
+            <div className="flex items-center mb-2">
+              <Package className="h-3 w-3 text-purple-700 mr-1.5" />
+              <h5 className="text-xs font-semibold text-purple-900">Accessories</h5>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+              {Array.from(data.accessories.entries()).map(([name, accData]) => (
+                <div key={name} className="bg-white rounded p-2 text-xs">
+                  <div className="font-medium text-slate-900 truncate mb-1">{name}</div>
+                  <div className="flex justify-between text-slate-600">
+                    <span><Hash className="h-3 w-3 inline mr-1" />{accData.quantity} pcs</span>
+                    <span className="font-semibold text-purple-700">{formatCurrency(accData.cost)}</span>
                   </div>
                 </div>
               ))}

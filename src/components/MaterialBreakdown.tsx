@@ -36,6 +36,12 @@ interface HardwareDetail {
   cost: number;
 }
 
+interface AccessoryDetail {
+  name: string;
+  quantity: number;
+  cost: number;
+}
+
 export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBreakdownProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
@@ -73,6 +79,7 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
     const boxEdgebandMap = new Map<string, EdgebandDetail>();
     const doorsEdgebandMap = new Map<string, EdgebandDetail>();
     const hardwareMap = new Map<string, HardwareDetail>();
+    const accessoriesMap = new Map<string, AccessoryDetail>();
 
     let totalLaborCost = 0;
 
@@ -246,6 +253,32 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
         });
       }
 
+      if (cabinet.accessories && Array.isArray(cabinet.accessories)) {
+        cabinet.accessories.forEach((acc: any) => {
+          const accessoryId = acc.accessory_id;
+          if (accessoryId) {
+            const accessoryItem = priceList.find((p) => p.id === accessoryId);
+            if (accessoryItem) {
+              const accQuantity = (acc.quantity_per_cabinet || 1) * cabinet.quantity;
+              const accCost = accessoryItem.price * accQuantity;
+              const key = accessoryId;
+
+              if (!accessoriesMap.has(key)) {
+                accessoriesMap.set(key, {
+                  name: accessoryItem.concept_description,
+                  quantity: accQuantity,
+                  cost: accCost,
+                });
+              } else {
+                const existing = accessoriesMap.get(key)!;
+                existing.quantity += accQuantity;
+                existing.cost += accCost;
+              }
+            }
+          }
+        });
+      }
+
       totalLaborCost += cabinet.labor_cost;
     });
 
@@ -268,11 +301,15 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
     const hardware = Array.from(hardwareMap.values()).filter(
       (h) => h.cost > 0 && !h.name.toLowerCase().includes('not apply')
     );
+    const accessories = Array.from(accessoriesMap.values()).filter(
+      (a) => a.cost > 0 && !a.name.toLowerCase().includes('not apply')
+    );
 
     const totalBoxCost = boxMaterials.reduce((sum, m) => sum + m.cost, 0) + boxInteriorFinishes.reduce((sum, m) => sum + m.cost, 0);
     const totalDoorsCost = doorsMaterials.reduce((sum, m) => sum + m.cost, 0) + doorsInteriorFinishes.reduce((sum, m) => sum + m.cost, 0);
     const totalEdgebandCost = allEdgebands.reduce((sum, e) => sum + e.cost, 0);
     const totalHardwareCost = hardware.reduce((sum, h) => sum + h.cost, 0);
+    const totalAccessoriesCost = accessories.reduce((sum, a) => sum + a.cost, 0);
 
     const ROLL_LENGTH_METERS = 150;
     const mergedEdgebands = new Map<string, EdgebandDetail>();
@@ -298,13 +335,15 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
       doorsInteriorFinishes,
       edgebands: Array.from(mergedEdgebands.values()),
       hardware,
+      accessories,
       totals: {
         box: totalBoxCost,
         doors: totalDoorsCost,
         edgeband: totalEdgebandCost,
         hardware: totalHardwareCost,
+        accessories: totalAccessoriesCost,
         labor: totalLaborCost,
-        total: totalBoxCost + totalDoorsCost + totalEdgebandCost + totalHardwareCost + totalLaborCost,
+        total: totalBoxCost + totalDoorsCost + totalEdgebandCost + totalHardwareCost + totalAccessoriesCost + totalLaborCost,
       },
     };
   }, [cabinets, products, priceList, loading]);
@@ -533,6 +572,32 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
               </div>
             </div>
           </div>
+
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h4 className="font-medium text-purple-900 mb-3 flex items-center">
+              <Package className="h-4 w-4 mr-1" />
+              Accessories
+            </h4>
+            <div className="space-y-2">
+              {breakdown.accessories && breakdown.accessories.length > 0 ? (
+                breakdown.accessories.map((acc, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-purple-800 font-medium">{acc.name}</span>
+                      <span className="font-medium text-purple-900">{formatCurrency(acc.cost)}</span>
+                    </div>
+                    <div className="text-xs text-purple-600">{acc.quantity} units</div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-purple-600">No accessories</p>
+              )}
+              <div className="pt-2 border-t border-purple-300 flex justify-between font-semibold text-purple-900">
+                <span>Total</span>
+                <span>{formatCurrency(breakdown.totals.accessories || 0)}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -618,6 +683,10 @@ export function MaterialBreakdown({ cabinets, items, countertops }: MaterialBrea
           <div>
             <div className="text-sm text-slate-300">Hardware</div>
             <div className="text-xl font-bold">{formatCurrency(breakdown.totals.hardware)}</div>
+          </div>
+          <div>
+            <div className="text-sm text-slate-300">Accessories</div>
+            <div className="text-xl font-bold">{formatCurrency(breakdown.totals.accessories || 0)}</div>
           </div>
           <div>
             <div className="text-sm text-slate-300 flex items-center">

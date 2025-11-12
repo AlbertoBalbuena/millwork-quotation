@@ -7,13 +7,14 @@ import {
   calculateDoorsEdgebandCost,
   calculateInteriorFinishCost,
   calculateHardwareCost,
+  calculateAccessoriesCost,
   calculateLaborCost,
 } from './calculations';
 import { getSettings } from './settingsStore';
 import { recalculateAreaSheetMaterialCosts } from './sheetMaterials';
 
 export interface MaterialChange {
-  materialType: 'box_material' | 'box_edgeband' | 'box_interior_finish' | 'doors_material' | 'doors_edgeband' | 'doors_interior_finish' | 'hardware';
+  materialType: 'box_material' | 'box_edgeband' | 'box_interior_finish' | 'doors_material' | 'doors_edgeband' | 'doors_interior_finish' | 'hardware' | 'accessories';
   materialId: string;
   materialName: string;
   oldCost: number;
@@ -200,6 +201,21 @@ export async function analyzeProjectPriceChanges(projectId: string): Promise<Pro
         }
       }
 
+      if (hasSignificantDifference(costs.accessoriesCost, cabinet.accessories_cost || 0)) {
+        const accessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
+        if (accessories.length > 0) {
+          materialChanges.push({
+            materialType: 'accessories',
+            materialId: 'accessories_combined',
+            materialName: 'Accessories (combined)',
+            oldCost: cabinet.accessories_cost || 0,
+            newCost: costs.accessoriesCost,
+            difference: costs.accessoriesCost - (cabinet.accessories_cost || 0),
+            percentageChange: cabinet.accessories_cost > 0 ? ((costs.accessoriesCost - cabinet.accessories_cost) / cabinet.accessories_cost) * 100 : 0,
+          });
+        }
+      }
+
       if (materialChanges.length > 0) {
         const cabinetTotalDifference = materialChanges.reduce((sum, change) => sum + change.difference, 0);
         affectedCabinets.push({
@@ -269,6 +285,8 @@ async function recalculateCabinetCosts(
 
   const hardware = Array.isArray(cabinet.hardware) ? cabinet.hardware : [];
   const hardwareCost = calculateHardwareCost(hardware, cabinet.quantity, priceList);
+  const accessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
+  const accessoriesCost = calculateAccessoriesCost(accessories, cabinet.quantity, priceList);
   const laborCost = calculateLaborCost(product, cabinet.quantity, settings.laborCostNoDrawers, settings.laborCostWithDrawers, settings.laborCostAccessories);
 
   return {
@@ -279,6 +297,7 @@ async function recalculateCabinetCosts(
     doorsEdgebandCost,
     doorsInteriorFinishCost,
     hardwareCost,
+    accessoriesCost,
     laborCost,
     subtotal:
       boxMaterialCost +
@@ -288,6 +307,7 @@ async function recalculateCabinetCosts(
       doorsEdgebandCost +
       doorsInteriorFinishCost +
       hardwareCost +
+      accessoriesCost +
       laborCost,
   };
 }
@@ -348,6 +368,7 @@ export async function updateCabinetPrices(
           doors_edgeband_cost: costs.doorsEdgebandCost,
           doors_interior_finish_cost: costs.doorsInteriorFinishCost,
           hardware_cost: costs.hardwareCost,
+          accessories_cost: costs.accessoriesCost,
           labor_cost: costs.laborCost,
           subtotal: costs.subtotal,
         })
