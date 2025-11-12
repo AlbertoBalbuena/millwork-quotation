@@ -220,6 +220,13 @@ export interface Database {
           subtotal: number;
           created_at: string;
           is_rta: boolean;
+          use_back_panel_material: boolean;
+          back_panel_material_id: string | null;
+          back_panel_width_inches: number | null;
+          back_panel_height_inches: number | null;
+          back_panel_sf: number;
+          back_panel_material_cost: number;
+          original_back_panel_material_price: number | null;
         };
         Insert: {
           id?: string;
@@ -246,6 +253,13 @@ export interface Database {
           subtotal?: number;
           created_at?: string;
           is_rta?: boolean;
+          use_back_panel_material?: boolean;
+          back_panel_material_id?: string | null;
+          back_panel_width_inches?: number | null;
+          back_panel_height_inches?: number | null;
+          back_panel_sf?: number;
+          back_panel_material_cost?: number;
+          original_back_panel_material_price?: number | null;
         };
         Update: {
           id?: string;
@@ -272,6 +286,13 @@ export interface Database {
           subtotal?: number;
           created_at?: string;
           is_rta?: boolean;
+          use_back_panel_material?: boolean;
+          back_panel_material_id?: string | null;
+          back_panel_width_inches?: number | null;
+          back_panel_height_inches?: number | null;
+          back_panel_sf?: number;
+          back_panel_material_cost?: number;
+          original_back_panel_material_price?: number | null;
         };
       };
     };

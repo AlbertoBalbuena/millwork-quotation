@@ -94,6 +94,7 @@ export interface CabinetCostBreakdown {
   hardwareCost: number;
   accessoriesCost: number;
   laborCost: number;
+  backPanelMaterialCost: number;
   subtotal: number;
 }
 
@@ -131,12 +132,18 @@ export interface CabinetTemplate {
   hardware: HardwareItem[];
   accessories: AccessoryItem[];
   is_rta: boolean;
+  use_back_panel_material: boolean;
+  back_panel_material_id: string | null;
+  back_panel_material_name: string | null;
+  back_panel_width_inches: number | null;
+  back_panel_height_inches: number | null;
   original_box_material_price: number | null;
   original_box_edgeband_price: number | null;
   original_box_interior_finish_price: number | null;
   original_doors_material_price: number | null;
   original_doors_edgeband_price: number | null;
   original_doors_interior_finish_price: number | null;
+  original_back_panel_material_price: number | null;
   usage_count: number;
   last_used_at: string | null;
   created_at: string;
@@ -166,12 +173,18 @@ export interface CabinetTemplateInsert {
   hardware: HardwareItem[];
   accessories: AccessoryItem[];
   is_rta: boolean;
+  use_back_panel_material: boolean;
+  back_panel_material_id?: string | null;
+  back_panel_material_name?: string | null;
+  back_panel_width_inches?: number | null;
+  back_panel_height_inches?: number | null;
   original_box_material_price?: number | null;
   original_box_edgeband_price?: number | null;
   original_box_interior_finish_price?: number | null;
   original_doors_material_price?: number | null;
   original_doors_edgeband_price?: number | null;
   original_doors_interior_finish_price?: number | null;
+  original_back_panel_material_price?: number | null;
 }
 
 export interface TemplateUsageLog {

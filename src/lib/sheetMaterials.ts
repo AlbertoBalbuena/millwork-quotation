@@ -5,7 +5,7 @@ import { parseDimensions } from './calculations';
 export interface SheetMaterialUsage {
   materialId: string;
   materialName: string;
-  materialType: 'box' | 'doors' | 'box_interior_finish' | 'doors_interior_finish';
+  materialType: 'box' | 'doors' | 'box_interior_finish' | 'doors_interior_finish' | 'back_panel';
   totalSF: number;
   sfPerSheet: number;
   sheetsNeeded: number;
@@ -20,6 +20,7 @@ export interface CabinetSheetMaterialCost {
   doorsMaterialCost: number;
   boxInteriorFinishCost: number;
   doorsInteriorFinishCost: number;
+  backPanelMaterialCost: number;
 }
 
 function isSheetMaterial(type: string): boolean {
@@ -89,15 +90,28 @@ export async function calculateAreaSheetMaterials(
     sfPerSheet: number;
   }>();
 
+  const backPanelMaterialsMap = new Map<string, {
+    material: PriceListItem;
+    cabinetsUsing: Array<{
+      cabinet: AreaCabinet;
+      product: Product;
+      sfNeeded: number;
+    }>;
+    totalSF: number;
+    sfPerSheet: number;
+  }>();
+
   cabinets.forEach((cabinet) => {
     const product = products.find((p) => p.sku === cabinet.product_sku);
     if (!product) return;
+
+    const backPanelSF = cabinet.use_back_panel_material ? (cabinet.back_panel_sf || 0) : 0;
 
     if (cabinet.box_material_id) {
       const material = priceList.find((p) => p.id === cabinet.box_material_id);
       if (material && isSheetMaterial(material.type) && !material.concept_description.toLowerCase().includes('not apply')) {
         const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
-        const sfNeeded = product.box_sf * cabinet.quantity;
+        const sfNeeded = Math.max(0, (product.box_sf * cabinet.quantity) - backPanelSF);
 
         if (!boxMaterialsMap.has(material.id)) {
           boxMaterialsMap.set(material.id, {
@@ -142,6 +156,31 @@ export async function calculateAreaSheetMaterials(
         entry.totalSF += sfNeeded;
       }
     }
+
+    if (cabinet.use_back_panel_material && cabinet.back_panel_material_id && cabinet.back_panel_sf) {
+      const material = priceList.find((p) => p.id === cabinet.back_panel_material_id);
+      if (material && isSheetMaterial(material.type) && !material.concept_description.toLowerCase().includes('not apply')) {
+        const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
+        const sfNeeded = cabinet.back_panel_sf;
+
+        if (!backPanelMaterialsMap.has(material.id)) {
+          backPanelMaterialsMap.set(material.id, {
+            material,
+            cabinetsUsing: [],
+            totalSF: 0,
+            sfPerSheet,
+          });
+        }
+
+        const entry = backPanelMaterialsMap.get(material.id)!;
+        entry.cabinetsUsing.push({
+          cabinet,
+          product,
+          sfNeeded,
+        });
+        entry.totalSF += sfNeeded;
+      }
+    }
   });
 
   const sheetUsages: SheetMaterialUsage[] = [];
@@ -177,6 +216,7 @@ export async function calculateAreaSheetMaterials(
           doorsMaterialCost: 0,
           boxInteriorFinishCost: 0,
           doorsInteriorFinishCost: 0,
+          backPanelMaterialCost: 0,
         });
       }
 
@@ -215,11 +255,51 @@ export async function calculateAreaSheetMaterials(
           doorsMaterialCost: 0,
           boxInteriorFinishCost: 0,
           doorsInteriorFinishCost: 0,
+          backPanelMaterialCost: 0,
         });
       }
 
       const cabinetCost = cabinetCostsMap.get(cabinet.id)!;
       cabinetCost.doorsMaterialCost += cost;
+    });
+  });
+
+  backPanelMaterialsMap.forEach((entry, materialId) => {
+    const sheetsNeeded = Math.ceil(entry.totalSF / entry.sfPerSheet);
+    const totalSFRounded = sheetsNeeded * entry.sfPerSheet;
+    const pricePerSheet = entry.material.price_with_tax || entry.material.price;
+    const totalCost = sheetsNeeded * pricePerSheet;
+
+    sheetUsages.push({
+      materialId,
+      materialName: entry.material.concept_description,
+      materialType: 'back_panel',
+      totalSF: entry.totalSF,
+      sfPerSheet: entry.sfPerSheet,
+      sheetsNeeded,
+      totalSFRounded,
+      pricePerSheet,
+      totalCost,
+    });
+
+    const costPerSF = totalCost / entry.totalSF;
+
+    entry.cabinetsUsing.forEach(({ cabinet, sfNeeded }) => {
+      const cost = sfNeeded * costPerSF;
+
+      if (!cabinetCostsMap.has(cabinet.id)) {
+        cabinetCostsMap.set(cabinet.id, {
+          cabinetId: cabinet.id,
+          boxMaterialCost: 0,
+          doorsMaterialCost: 0,
+          boxInteriorFinishCost: 0,
+          doorsInteriorFinishCost: 0,
+          backPanelMaterialCost: 0,
+        });
+      }
+
+      const cabinetCost = cabinetCostsMap.get(cabinet.id)!;
+      cabinetCost.backPanelMaterialCost += cost;
     });
   });
 
@@ -249,11 +329,13 @@ export async function calculateAreaSheetMaterials(
     const product = products.find((p) => p.sku === cabinet.product_sku);
     if (!product) return;
 
+    const backPanelSF = cabinet.use_back_panel_material ? (cabinet.back_panel_sf || 0) : 0;
+
     if (cabinet.box_interior_finish_id) {
       const material = priceList.find((p) => p.id === cabinet.box_interior_finish_id);
       if (material && isSheetMaterial(material.type) && !material.concept_description.toLowerCase().includes('not apply')) {
         const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
-        const sfNeeded = product.box_sf * cabinet.quantity;
+        const sfNeeded = Math.max(0, (product.box_sf * cabinet.quantity) - backPanelSF);
 
         if (!boxInteriorFinishMap.has(material.id)) {
           boxInteriorFinishMap.set(material.id, {
@@ -330,6 +412,7 @@ export async function calculateAreaSheetMaterials(
           doorsMaterialCost: 0,
           boxInteriorFinishCost: 0,
           doorsInteriorFinishCost: 0,
+          backPanelMaterialCost: 0,
         });
       }
 
@@ -368,6 +451,7 @@ export async function calculateAreaSheetMaterials(
           doorsMaterialCost: 0,
           boxInteriorFinishCost: 0,
           doorsInteriorFinishCost: 0,
+          backPanelMaterialCost: 0,
         });
       }
 
@@ -404,7 +488,9 @@ export async function recalculateAreaSheetMaterialCosts(areaId: string): Promise
         cost.doorsMaterialCost +
         cabinet.doors_edgeband_cost +
         cost.doorsInteriorFinishCost +
+        cost.backPanelMaterialCost +
         cabinet.hardware_cost +
+        cabinet.accessories_cost +
         cabinet.labor_cost;
 
       const { error: updateError } = await supabase
@@ -414,6 +500,7 @@ export async function recalculateAreaSheetMaterialCosts(areaId: string): Promise
           doors_material_cost: cost.doorsMaterialCost,
           box_interior_finish_cost: cost.boxInteriorFinishCost,
           doors_interior_finish_cost: cost.doorsInteriorFinishCost,
+          back_panel_material_cost: cost.backPanelMaterialCost,
           subtotal: newSubtotal,
         })
         .eq('id', cost.cabinetId);

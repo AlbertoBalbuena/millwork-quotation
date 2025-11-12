@@ -17,15 +17,33 @@ export function parseDimensions(dimensions: string | null | undefined): number {
   return 32;
 }
 
-export function calculateBoxMaterialCost(
-  product: Product,
-  material: PriceListItem,
-  quantity: number
+export function calculateBackPanelSF(
+  widthInches: number,
+  heightInches: number
+): number {
+  return (widthInches * heightInches) / 144;
+}
+
+export function calculateBackPanelMaterialCost(
+  backPanelSF: number,
+  material: PriceListItem
 ): number {
   const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
   const price = material.price_with_tax || material.price;
   const pricePerSF = price / sfPerSheet;
-  const totalSF = product.box_sf * quantity;
+  return backPanelSF * pricePerSF;
+}
+
+export function calculateBoxMaterialCost(
+  product: Product,
+  material: PriceListItem,
+  quantity: number,
+  backPanelSF: number = 0
+): number {
+  const sfPerSheet = material.sf_per_sheet || parseDimensions(material.dimensions);
+  const price = material.price_with_tax || material.price;
+  const pricePerSF = price / sfPerSheet;
+  const totalSF = Math.max(0, (product.box_sf * quantity) - backPanelSF);
   const cost = totalSF * pricePerSF;
   return cost;
 }
@@ -73,12 +91,14 @@ export function calculateInteriorFinishCost(
   product: Product,
   finish: PriceListItem,
   quantity: number,
-  isForBox: boolean
+  isForBox: boolean,
+  backPanelSF: number = 0
 ): number {
   const sfPerSheet = finish.sf_per_sheet || parseDimensions(finish.dimensions);
   const price = finish.price_with_tax || finish.price;
   const pricePerSF = price / sfPerSheet;
-  const totalSF = (isForBox ? product.box_sf : product.doors_fronts_sf) * quantity;
+  const baseSF = (isForBox ? product.box_sf : product.doors_fronts_sf) * quantity;
+  const totalSF = Math.max(0, baseSF - (isForBox ? backPanelSF : 0));
   return totalSF * pricePerSF;
 }
 
