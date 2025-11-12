@@ -97,6 +97,25 @@ export function calculateHardwareCost(
   }, 0);
 }
 
+export function calculateAccessoriesCost(
+  accessories: Array<{ accessory_id: string; quantity_per_cabinet: number }>,
+  cabinetQuantity: number,
+  priceList: Array<{ id: string; price: number }>
+): number {
+  if (!Array.isArray(accessories) || accessories.length === 0) {
+    return 0;
+  }
+
+  return accessories.reduce((total, accessory) => {
+    const priceItem = priceList.find((p) => p.id === accessory.accessory_id);
+    if (!priceItem) {
+      console.warn(`Accessory with ID ${accessory.accessory_id} not found in price list`);
+      return total;
+    }
+    return total + priceItem.price * accessory.quantity_per_cabinet * cabinetQuantity;
+  }, 0);
+}
+
 export function calculateLaborCost(
   product: Product,
   quantity: number,

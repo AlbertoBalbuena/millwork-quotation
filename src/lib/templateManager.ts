@@ -100,6 +100,7 @@ export async function createTemplateFromCabinet(
     doors_interior_finish_name: doorsInteriorFinish?.concept_description || null,
     use_doors_interior_finish: !!cabinet.doors_interior_finish_id,
     hardware: Array.isArray(cabinet.hardware) ? cabinet.hardware : [],
+    accessories: Array.isArray(cabinet.accessories) ? cabinet.accessories : [],
     is_rta: cabinet.is_rta,
     original_box_material_price: boxMaterial?.price || null,
     original_box_edgeband_price: boxEdgeband?.price || null,
@@ -249,6 +250,15 @@ export async function validateTemplateAvailability(
       const hardware = priceList.find(p => p.id === hw.hardware_id);
       if (!hardware || !hardware.is_active) {
         missingMaterials.push(`Hardware item (ID: ${hw.hardware_id})`);
+      }
+    }
+  }
+
+  if (Array.isArray(template.accessories)) {
+    for (const acc of template.accessories) {
+      const accessory = priceList.find(p => p.id === acc.accessory_id);
+      if (!accessory || !accessory.is_active) {
+        missingMaterials.push(`Accessory item (ID: ${acc.accessory_id})`);
       }
     }
   }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, DollarSign, Info, Bookmark, Layers, AlertCircle } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, DollarSign, Info, Bookmark, Layers, AlertCircle, Package } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -16,6 +16,7 @@ import {
   calculateDoorsEdgebandCost,
   calculateInteriorFinishCost,
   calculateHardwareCost,
+  calculateAccessoriesCost,
   calculateLaborCost,
   formatCurrency,
   parseDimensions,
@@ -26,6 +27,7 @@ import type {
   AreaCabinet,
   AreaCabinetInsert,
   HardwareItem,
+  AccessoryItem,
 } from '../types';
 
 interface CabinetFormProps {
@@ -48,6 +50,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
   const [boxSectionExpanded, setBoxSectionExpanded] = useState(true);
   const [doorsSectionExpanded, setDoorsSectionExpanded] = useState(true);
   const [hardwareSectionExpanded, setHardwareSectionExpanded] = useState(false);
+  const [accessoriesSectionExpanded, setAccessoriesSectionExpanded] = useState(false);
 
   const [boxMaterialId, setBoxMaterialId] = useState(cabinet?.box_material_id || '');
   const [boxEdgebandId, setBoxEdgebandId] = useState(cabinet?.box_edgeband_id || '');
@@ -69,6 +72,10 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
 
   const [hardware, setHardware] = useState<HardwareItem[]>(
     cabinet?.hardware ? (JSON.parse(JSON.stringify(cabinet.hardware)) as HardwareItem[]) : []
+  );
+
+  const [accessories, setAccessories] = useState<AccessoryItem[]>(
+    cabinet?.accessories ? (JSON.parse(JSON.stringify(cabinet.accessories)) as AccessoryItem[]) : []
   );
 
   const [isRta, setIsRta] = useState(cabinet?.is_rta ?? true);
@@ -145,6 +152,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       : 0;
 
     const hardwareCost = calculateHardwareCost(hardware, quantity, priceList);
+    const accessoriesCost = calculateAccessoriesCost(accessories, quantity, priceList);
     const laborCost = calculateLaborCost(selectedProduct, quantity, settings.laborCostNoDrawers, settings.laborCostWithDrawers, settings.laborCostAccessories);
 
     const subtotal =
@@ -155,6 +163,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       doorsEdgebandCost +
       doorsInteriorFinishCost +
       hardwareCost +
+      accessoriesCost +
       laborCost;
 
     return {
@@ -165,6 +174,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       doorsEdgebandCost,
       doorsInteriorFinishCost,
       hardwareCost,
+      accessoriesCost,
       laborCost,
       subtotal,
     };
@@ -187,6 +197,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
     setUseDoorsInteriorFinish(template.use_doors_interior_finish);
 
     setHardware(Array.isArray(template.hardware) ? template.hardware : []);
+    setAccessories(Array.isArray(template.accessories) ? template.accessories : []);
     setIsRta(template.is_rta);
 
     setLoadedTemplateId(template.id);
@@ -226,6 +237,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       doors_edgeband_id: doorsEdgebandId,
       doors_interior_finish_id: useDoorsInteriorFinish ? doorsInteriorFinishId : null,
       hardware: hardware as any,
+      accessories: accessories as any,
       is_rta: isRta,
       box_material_cost: costs.boxMaterialCost,
       box_edgeband_cost: costs.boxEdgebandCost,
@@ -234,6 +246,7 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       doors_edgeband_cost: costs.doorsEdgebandCost,
       doors_interior_finish_cost: costs.doorsInteriorFinishCost,
       hardware_cost: costs.hardwareCost,
+      accessories_cost: costs.accessoriesCost,
       labor_cost: costs.laborCost,
       subtotal: costs.subtotal,
       original_box_material_price: boxMaterial?.price || null,
@@ -316,6 +329,19 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
       p.type.toLowerCase().includes('handle') ||
       p.type.toLowerCase().includes('hardware')
   );
+
+  const accessoryMaterials = priceList.filter((p) => {
+    const typeLower = p.type.toLowerCase();
+    const isSheetMaterial =
+      typeLower.includes('melamine') ||
+      typeLower.includes('mdf') ||
+      typeLower.includes('plywood') ||
+      typeLower.includes('laminate') ||
+      typeLower.includes('veneer');
+    const isEdgeband = typeLower.includes('edgeband');
+
+    return !isSheetMaterial && !isEdgeband;
+  });
 
   const costs = calculateCosts();
 
@@ -701,6 +727,110 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
               )}
             </div>
 
+            <div className="border border-slate-200 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setAccessoriesSectionExpanded(!accessoriesSectionExpanded)}
+                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {accessoriesSectionExpanded ? (
+                    <ChevronDown className="h-5 w-5 text-slate-600" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 text-slate-600" />
+                  )}
+                  <Package className="h-5 w-5 text-purple-600" />
+                  <h3 className="text-lg font-semibold text-slate-900">Accessories</h3>
+                  {costs && costs.accessoriesCost > 0 && (
+                    <span className="ml-2 text-sm font-medium text-purple-600">
+                      {formatCurrency(costs.accessoriesCost)}
+                    </span>
+                  )}
+                  <span className="ml-2 text-xs text-slate-500">({accessories.length} items)</span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAccessories([...accessories, { accessory_id: '', quantity_per_cabinet: 1 }]);
+                    setAccessoriesSectionExpanded(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </button>
+
+              {accessoriesSectionExpanded && (
+                <div className="p-4 pt-0 space-y-3">
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-purple-900">
+                        <p className="font-medium mb-1">Add accessories like glass, fabric, lighting, decorative items, etc.</p>
+                        <p className="text-purple-700">Accessories do not affect shipping or labor calculations.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {accessories.map((item, index) => (
+                    <div key={index} className="flex space-x-2 items-start">
+                      <div className="flex-1">
+                        <AutocompleteSelect
+                          placeholder="Select accessory..."
+                          value={item.accessory_id}
+                          onChange={(value) => {
+                            const newAccessories = [...accessories];
+                            newAccessories[index].accessory_id = value;
+                            setAccessories(newAccessories);
+                          }}
+                          options={accessoryMaterials.map((acc) => ({
+                            value: acc.id,
+                            label: `${acc.concept_description} - ${formatCurrency(acc.price)}/${acc.unit}`,
+                          }))}
+                        />
+                      </div>
+
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        value={item.quantity_per_cabinet}
+                        onChange={(e) => {
+                          const newAccessories = [...accessories];
+                          newAccessories[index].quantity_per_cabinet =
+                            parseFloat(e.target.value) || 1;
+                          setAccessories(newAccessories);
+                        }}
+                        className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="Qty"
+                      />
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newAccessories = accessories.filter((_, i) => i !== index);
+                          setAccessories(newAccessories);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  {accessories.length === 0 && (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                      No accessories added yet
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {costs && (
               <div className="border-t border-slate-200 pt-6 bg-slate-50 -mx-6 px-6 -mb-6 pb-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Cost Summary</h3>
@@ -746,6 +876,10 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
                   <div className="flex justify-between">
                     <span className="text-slate-600">Hardware:</span>
                     <span className="font-medium">{formatCurrency(costs.hardwareCost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Accessories:</span>
+                    <span className="font-medium">{formatCurrency(costs.accessoriesCost)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">

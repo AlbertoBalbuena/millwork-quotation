@@ -212,6 +212,41 @@ export async function generateProjectBrief(projectId: string): Promise<string> {
       sections.push(`HARDWARE:\n${hardwareParts.join('\n')}`);
     }
 
+    const cabinetAccessories = new Map<string, { name: string; totalQuantity: number }>();
+
+    allCabinets.forEach(cabinet => {
+      if (!isAccessoryPanel(cabinet.product_sku) && cabinet.accessories && Array.isArray(cabinet.accessories)) {
+        cabinet.accessories.forEach((acc: any) => {
+          if (acc.accessory_id) {
+            const item = priceListMap.get(acc.accessory_id);
+            if (item) {
+              const key = acc.accessory_id;
+              if (!cabinetAccessories.has(key)) {
+                cabinetAccessories.set(key, {
+                  name: item.concept_description,
+                  totalQuantity: 0,
+                });
+              }
+              const entry = cabinetAccessories.get(key)!;
+              entry.totalQuantity += acc.quantity_per_cabinet * (cabinet.quantity || 1);
+            }
+          }
+        });
+      }
+    });
+
+    if (cabinetAccessories.size > 0) {
+      const accessoryParts: string[] = [];
+      const sortedAccessories = Array.from(cabinetAccessories.entries())
+        .sort((a, b) => b[1].totalQuantity - a[1].totalQuantity);
+
+      sortedAccessories.forEach(([id, data]) => {
+        accessoryParts.push(`${data.name}: ${data.totalQuantity} units`);
+      });
+
+      sections.push(`CABINET ACCESSORIES:\n${accessoryParts.join('\n')}`);
+    }
+
     const cabinetTypes = new Map<string, { description: string; quantity: number }>();
 
     allCabinets.forEach(cabinet => {

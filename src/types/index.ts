@@ -75,6 +75,11 @@ export interface HardwareItem {
   quantity_per_cabinet: number;
 }
 
+export interface AccessoryItem {
+  accessory_id: string;
+  quantity_per_cabinet: number;
+}
+
 export interface CabinetCostBreakdown {
   boxMaterialCost: number;
   boxEdgebandCost: number;
@@ -83,6 +88,7 @@ export interface CabinetCostBreakdown {
   doorsEdgebandCost: number;
   doorsInteriorFinishCost: number;
   hardwareCost: number;
+  accessoriesCost: number;
   laborCost: number;
   subtotal: number;
 }
@@ -119,6 +125,7 @@ export interface CabinetTemplate {
   doors_interior_finish_name: string | null;
   use_doors_interior_finish: boolean;
   hardware: HardwareItem[];
+  accessories: AccessoryItem[];
   is_rta: boolean;
   original_box_material_price: number | null;
   original_box_edgeband_price: number | null;
@@ -153,6 +160,7 @@ export interface CabinetTemplateInsert {
   doors_interior_finish_name: string | null;
   use_doors_interior_finish: boolean;
   hardware: HardwareItem[];
+  accessories: AccessoryItem[];
   is_rta: boolean;
   original_box_material_price?: number | null;
   original_box_edgeband_price?: number | null;

@@ -198,6 +198,7 @@ export interface Database {
           doors_edgeband_id: string | null;
           doors_interior_finish_id: string | null;
           hardware: Json;
+          accessories: Json;
           box_material_cost: number;
           box_edgeband_cost: number;
           box_interior_finish_cost: number;
@@ -205,6 +206,7 @@ export interface Database {
           doors_edgeband_cost: number;
           doors_interior_finish_cost: number;
           hardware_cost: number;
+          accessories_cost: number;
           labor_cost: number;
           subtotal: number;
           created_at: string;
@@ -222,6 +224,7 @@ export interface Database {
           doors_edgeband_id?: string | null;
           doors_interior_finish_id?: string | null;
           hardware?: Json;
+          accessories?: Json;
           box_material_cost?: number;
           box_edgeband_cost?: number;
           box_interior_finish_cost?: number;
@@ -229,6 +232,7 @@ export interface Database {
           doors_edgeband_cost?: number;
           doors_interior_finish_cost?: number;
           hardware_cost?: number;
+          accessories_cost?: number;
           labor_cost?: number;
           subtotal?: number;
           created_at?: string;
@@ -246,6 +250,7 @@ export interface Database {
           doors_edgeband_id?: string | null;
           doors_interior_finish_id?: string | null;
           hardware?: Json;
+          accessories?: Json;
           box_material_cost?: number;
           box_edgeband_cost?: number;
           box_interior_finish_cost?: number;
@@ -253,6 +258,7 @@ export interface Database {
           doors_edgeband_cost?: number;
           doors_interior_finish_cost?: number;
           hardware_cost?: number;
+          accessories_cost?: number;
           labor_cost?: number;
           subtotal?: number;
           created_at?: string;
