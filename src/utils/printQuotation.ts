@@ -371,7 +371,7 @@ export async function printQuotation(
         </div>
         <div style="text-align: right;">
           <span class="project-label">Date</span>
-          <div style="font-size: 10pt; font-weight: 600; margin-top: 2px;">${new Date(project.quote_date).toLocaleDateString('en-US', {
+          <div style="font-size: 10pt; font-weight: 600; margin-top: 2px;">${new Date(project.quote_date + 'T00:00:00').toLocaleDateString('en-US', {
             month: '2-digit',
             day: '2-digit',
             year: 'numeric'
@@ -756,7 +756,7 @@ export async function printQuotationUSD(
         </div>
         <div style="text-align: right;">
           <span class="project-label">Date</span>
-          <div style="font-size: 10pt; font-weight: 600; margin-top: 2px;">${new Date(project.quote_date).toLocaleDateString('en-US', {
+          <div style="font-size: 10pt; font-weight: 600; margin-top: 2px;">${new Date(project.quote_date + 'T00:00:00').toLocaleDateString('en-US', {
             month: '2-digit',
             day: '2-digit',
             year: 'numeric'
