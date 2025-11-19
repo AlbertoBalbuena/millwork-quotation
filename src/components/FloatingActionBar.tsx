@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Menu, Plus, RefreshCw, TrendingUp, History, Save, BarChart3 } from 'lucide-react';
+import { X, Menu, Plus, RefreshCw, TrendingUp, History, Save, BarChart3, ArrowDownUp } from 'lucide-react';
 
 interface FloatingActionBarProps {
   onAddArea: () => void;
@@ -8,6 +8,9 @@ interface FloatingActionBarProps {
   onVersionHistory: () => void;
   onSaveChanges: () => void;
   onToggleAnalytics: () => void;
+  onSaveAreasOrder?: () => void;
+  hasAreasOrderChanged?: boolean;
+  savingAreasOrder?: boolean;
   showAnalytics: boolean;
   versionCount: number;
   areasEmpty: boolean;
@@ -20,6 +23,9 @@ export function FloatingActionBar({
   onVersionHistory,
   onSaveChanges,
   onToggleAnalytics,
+  onSaveAreasOrder,
+  hasAreasOrderChanged = false,
+  savingAreasOrder = false,
   showAnalytics,
   versionCount,
   areasEmpty,
@@ -108,6 +114,20 @@ export function FloatingActionBar({
               </button>
 
               <div className="h-8 w-px bg-slate-200 flex-shrink-0" />
+
+              {hasAreasOrderChanged && onSaveAreasOrder && (
+                <button
+                  onClick={() => {
+                    onSaveAreasOrder();
+                    setIsExpanded(false);
+                  }}
+                  disabled={savingAreasOrder}
+                  className="flex-shrink-0 h-10 px-4 rounded-full bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowDownUp className="h-4 w-4" />
+                  <span className="hidden sm:inline">{savingAreasOrder ? 'Saving...' : 'Save Order'}</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {

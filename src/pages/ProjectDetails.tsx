@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History, GripVertical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -72,6 +72,9 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editedQuoteDate, setEditedQuoteDate] = useState(project.quote_date);
+  const [draggedAreaIndex, setDraggedAreaIndex] = useState<number | null>(null);
+  const [hasAreasOrderChanged, setHasAreasOrderChanged] = useState(false);
+  const [savingAreasOrder, setSavingAreasOrder] = useState(false);
 
   useEffect(() => {
     setProject(initialProject);
@@ -437,6 +440,70 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
       return;
     }
     downloadDetailedAreasCSV(areas, project.name);
+  }
+
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>, index: number) {
+    setDraggedAreaIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+    e.currentTarget.style.opacity = '0.5';
+  }
+
+  function handleDragEnd(e: React.DragEvent<HTMLDivElement>) {
+    e.currentTarget.style.opacity = '1';
+    setDraggedAreaIndex(null);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, dropIndex: number) {
+    e.preventDefault();
+
+    if (draggedAreaIndex === null || draggedAreaIndex === dropIndex) {
+      return;
+    }
+
+    const newAreas = [...areas];
+    const draggedArea = newAreas[draggedAreaIndex];
+
+    newAreas.splice(draggedAreaIndex, 1);
+    newAreas.splice(dropIndex, 0, draggedArea);
+
+    setAreas(newAreas);
+    setHasAreasOrderChanged(true);
+    setDraggedAreaIndex(null);
+  }
+
+  async function saveAreasOrder() {
+    if (!hasAreasOrderChanged) return;
+
+    try {
+      setSavingAreasOrder(true);
+
+      for (let i = 0; i < areas.length; i++) {
+        const { error } = await supabase
+          .from('project_areas')
+          .update({
+            display_order: i,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', areas[i].id);
+
+        if (error) throw error;
+      }
+
+      setHasAreasOrderChanged(false);
+      await loadAreas();
+      alert('Areas order saved successfully!');
+    } catch (error) {
+      console.error('Error saving areas order:', error);
+      alert('Failed to save areas order');
+    } finally {
+      setSavingAreasOrder(false);
+    }
   }
 
   const cabinetsSubtotal = areas.reduce(
@@ -1083,18 +1150,36 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 );
               }
 
-              return filteredAreas.map((area) => (
-            <div key={area.id} className="bg-white rounded-lg shadow-sm border border-slate-200">
+              return filteredAreas.map((area, index) => (
+            <div
+              key={area.id}
+              className="bg-white rounded-lg shadow-sm border border-slate-200 transition-all duration-200"
+              draggable={areas.length > 1}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, index)}
+            >
               <div className="border-b border-slate-200 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                  <div className="flex-1">
-                    <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{area.name}</h2>
+                  <div className="flex items-start gap-2 flex-1">
+                    {areas.length > 1 && (
+                      <button
+                        className="cursor-grab active:cursor-grabbing mt-1 hover:bg-slate-100 rounded p-1 transition-colors"
+                        title="Drag to reorder"
+                      >
+                        <GripVertical className="h-5 w-5 text-slate-400" />
+                      </button>
+                    )}
+                    <div className="flex-1">
+                      <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{area.name}</h2>
                     <p className="mt-1 text-xs sm:text-sm text-slate-600">
                       {countActualCabinets(area.cabinets)} cabinet{countActualCabinets(area.cabinets) !== 1 ? 's' : ''} ({countCabinetEntries(area.cabinets)} {countCabinetEntries(area.cabinets) !== 1 ? 'entries' : 'entry'})
                       {area.cabinets.length !== countCabinetEntries(area.cabinets) && (
                         <span className="ml-2 text-purple-600">+ {area.cabinets.length - countCabinetEntries(area.cabinets)} accessories</span>
                       )}
                     </p>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:space-x-4 sm:gap-0">
@@ -1427,6 +1512,9 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
         onVersionHistory={() => setShowVersionHistory(true)}
         onSaveChanges={handleSaveChanges}
         onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
+        onSaveAreasOrder={saveAreasOrder}
+        hasAreasOrderChanged={hasAreasOrderChanged}
+        savingAreasOrder={savingAreasOrder}
         showAnalytics={showAnalytics}
         versionCount={versionCount}
         areasEmpty={areas.length === 0}
