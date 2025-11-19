@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -567,6 +567,26 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
     } finally {
       setSavingAreasOrder(false);
     }
+  }
+
+  function moveAreaUp(index: number) {
+    if (index === 0) return;
+
+    const newAreas = [...areas];
+    [newAreas[index - 1], newAreas[index]] = [newAreas[index], newAreas[index - 1]];
+
+    setAreas(newAreas);
+    setHasAreasOrderChanged(true);
+  }
+
+  function moveAreaDown(index: number) {
+    if (index === areas.length - 1) return;
+
+    const newAreas = [...areas];
+    [newAreas[index], newAreas[index + 1]] = [newAreas[index + 1], newAreas[index]];
+
+    setAreas(newAreas);
+    setHasAreasOrderChanged(true);
   }
 
   const cabinetsSubtotal = areas.reduce(
@@ -1233,12 +1253,40 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="flex items-start gap-2 flex-1">
                     {areas.length > 1 && (
-                      <button
-                        className="cursor-grab active:cursor-grabbing mt-1 hover:bg-slate-100 rounded p-1 transition-colors"
-                        title="Drag to reorder"
-                      >
-                        <GripVertical className="h-5 w-5 text-slate-400" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="cursor-grab active:cursor-grabbing hover:bg-slate-100 rounded p-1 transition-colors"
+                          title="Drag to reorder"
+                        >
+                          <GripVertical className="h-5 w-5 text-slate-400" />
+                        </button>
+                        <div className="flex flex-col gap-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveAreaUp(index);
+                            }}
+                            disabled={index === 0}
+                            className="p-0.5 hover:bg-slate-200 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            aria-label={`Move ${area.name} up`}
+                            title="Move area up"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5 text-slate-600" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveAreaDown(index);
+                            }}
+                            disabled={index === filteredAreas.length - 1}
+                            className="p-0.5 hover:bg-slate-200 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            aria-label={`Move ${area.name} down`}
+                            title="Move area down"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
+                          </button>
+                        </div>
+                      </div>
                     )}
                     <div className="flex-1">
                       <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{area.name}</h2>
