@@ -75,6 +75,9 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   const [draggedAreaIndex, setDraggedAreaIndex] = useState<number | null>(null);
   const [hasAreasOrderChanged, setHasAreasOrderChanged] = useState(false);
   const [savingAreasOrder, setSavingAreasOrder] = useState(false);
+  const [autoScrollInterval, setAutoScrollInterval] = useState<number | null>(null);
+  const [dropIndicatorPosition, setDropIndicatorPosition] = useState<'before' | 'after' | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setProject(initialProject);
@@ -86,6 +89,14 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
     checkStalePrices();
     loadVersionCount();
   }, [project.id]);
+
+  useEffect(() => {
+    return () => {
+      if (autoScrollInterval) {
+        cancelAnimationFrame(autoScrollInterval);
+      }
+    };
+  }, [autoScrollInterval]);
 
   async function loadProject() {
     try {
@@ -442,25 +453,77 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
     downloadDetailedAreasCSV(areas, project.name);
   }
 
+  function handleAutoScroll(clientY: number) {
+    const threshold = 100;
+    const viewportHeight = window.innerHeight;
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const maxScroll = scrollHeight - viewportHeight;
+
+    let scrollAmount = 0;
+
+    if (clientY < threshold && scrollTop > 0) {
+      const distance = threshold - clientY;
+      scrollAmount = -(distance / threshold) * 15;
+    } else if (clientY > viewportHeight - threshold && scrollTop < maxScroll) {
+      const distance = clientY - (viewportHeight - threshold);
+      scrollAmount = (distance / threshold) * 15;
+    }
+
+    if (scrollAmount !== 0) {
+      window.scrollBy({ top: scrollAmount, behavior: 'auto' });
+    }
+  }
+
+  function calculateDropPosition(e: React.DragEvent<HTMLDivElement>, targetElement: HTMLElement): 'before' | 'after' {
+    const rect = targetElement.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    return e.clientY < midpoint ? 'before' : 'after';
+  }
+
+  function cleanupDragState() {
+    if (autoScrollInterval) {
+      cancelAnimationFrame(autoScrollInterval);
+      setAutoScrollInterval(null);
+    }
+    setDropIndicatorPosition(null);
+    setDropTargetIndex(null);
+  }
+
   function handleDragStart(e: React.DragEvent<HTMLDivElement>, index: number) {
     setDraggedAreaIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
     e.currentTarget.style.opacity = '0.5';
+    e.currentTarget.style.transform = 'scale(0.95)';
+    e.currentTarget.classList.add('area-dragging');
   }
 
   function handleDragEnd(e: React.DragEvent<HTMLDivElement>) {
     e.currentTarget.style.opacity = '1';
+    e.currentTarget.style.transform = '';
+    e.currentTarget.classList.remove('area-dragging');
     setDraggedAreaIndex(null);
+    cleanupDragState();
   }
 
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>, index: number) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+
+    handleAutoScroll(e.clientY);
+
+    if (draggedAreaIndex !== null && draggedAreaIndex !== index) {
+      const position = calculateDropPosition(e, e.currentTarget);
+      setDropIndicatorPosition(position);
+      setDropTargetIndex(index);
+    }
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>, dropIndex: number) {
     e.preventDefault();
+
+    cleanupDragState();
 
     if (draggedAreaIndex === null || draggedAreaIndex === dropIndex) {
       return;
@@ -1153,13 +1216,19 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
               return filteredAreas.map((area, index) => (
             <div
               key={area.id}
-              className="bg-white rounded-lg shadow-sm border border-slate-200 transition-all duration-200"
+              className="bg-white rounded-lg shadow-sm border border-slate-200 transition-all duration-200 relative"
               draggable={areas.length > 1}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragEnd={handleDragEnd}
-              onDragOver={handleDragOver}
+              onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
             >
+              {dropTargetIndex === index && dropIndicatorPosition === 'before' && (
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-green-500 z-50 shadow-lg" style={{ marginTop: '-2px' }} />
+              )}
+              {dropTargetIndex === index && dropIndicatorPosition === 'after' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-green-500 z-50 shadow-lg" style={{ marginBottom: '-2px' }} />
+              )}
               <div className="border-b border-slate-200 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="flex items-start gap-2 flex-1">
