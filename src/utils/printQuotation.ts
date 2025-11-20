@@ -823,13 +823,16 @@ export async function printQuotationUSD(
         </tfoot>
       </table>
 
-      <div style="margin-top: 20px; padding: 12px; background-color: #f8f9fa; border-left: 4px solid #0066cc; font-size: 9pt; line-height: 1.6;">
-        <p style="margin: 0 0 8px 0; font-weight: 600;">Please note that the international tariff effective October 10 is 25%; however, only 11% of this tariff directly impacts the cost of this project.</p>
-      </div>
-
-      <div style="margin-top: 12px; padding: 16px; background-color: #ff9800; border: 3px solid #e65100; font-size: 10pt; font-weight: 700; text-align: center; color: #000;">
-        <p style="margin: 0;">GRAND TOTAL; INCLUDING DELIVERY COST & TAX, NOT INCLUDING UNLOADING NOR INSTALL</p>
-        <p style="margin: 4px 0 0 0; font-size: 8pt; font-weight: 600;">*PRICE IS VALID FOR 30 DAYS, SUBJECT TO CHANGE DUE TO INTERNATIONAL TAARIFF RATES</p>
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+        <p style="margin: 0 0 12px 0; font-size: 8pt; color: #666; line-height: 1.5;">
+          Please note that the international tariff effective October 10 is 25%; however, only 11% of this tariff directly impacts the cost of this project.
+        </p>
+        <p style="margin: 0; font-size: 8pt; color: #333; line-height: 1.5;">
+          <strong>Grand Total includes delivery cost and tax, but does not include unloading or installation services.</strong>
+        </p>
+        <p style="margin: 8px 0 0 0; font-size: 7pt; color: #999; font-style: italic;">
+          *Price is valid for 30 days and is subject to change due to international tariff rates.
+        </p>
       </div>
 
       ${project.project_brief ? `

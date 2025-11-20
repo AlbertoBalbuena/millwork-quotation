@@ -323,76 +323,114 @@ ${installDelivery > 0 ? `...línea Install & Delivery...` : ''}
 
 ---
 
-## Disclaimers Implementados
+## Disclaimers Implementados - Estilo Minimalista (v2)
 
-### Disclaimer 1: Tariff Information
+### Diseño Actualizado
 
-**Texto**:
-> Please note that the international tariff effective October 10 is 25%; however, only 11% of this tariff directly impacts the cost of this project.
+**Versión 2 - Minimalista y Profesional**
 
-**Propósito**:
-- Informar al cliente sobre el tariff real (25%)
-- Aclarar que solo 11% impacta este proyecto específicamente
-- Transparencia en costos internacionales
+Los disclaimers fueron rediseñados con un enfoque minimalista y elegante, eliminando colores llamativos y recuadros en favor de un diseño limpio basado en tipografía.
 
-**Ubicación**: Después de la tabla de pricing, antes del Grand Total banner
+**Estructura Visual**:
+```
+────────────────────────────────── (línea separadora sutil)
 
----
+Please note that the international tariff effective October 10 is 25%;
+however, only 11% of this tariff directly impacts the cost of this project.
 
-### Disclaimer 2: Grand Total + Price Validity
+Grand Total includes delivery cost and tax, but does not include
+unloading or installation services.
 
-**Texto Línea 1**:
-> GRAND TOTAL; INCLUDING DELIVERY COST & TAX, NOT INCLUDING UNLOADING NOR INSTALL
-
-**Texto Línea 2**:
-> *PRICE IS VALID FOR 30 DAYS, SUBJECT TO CHANGE DUE TO INTERNATIONAL TAARIFF RATES
-
-**Propósito**:
-- **Línea 1**: Clarifica qué INCLUYE el total (Delivery Cost, Tax)
-- **Línea 1**: Clarifica qué NO INCLUYE (Unloading, Install físico)
-- **Línea 2**: Validez del precio (30 días)
-- **Línea 2**: Advertencia de cambios por tariffs
-
-**Ubicación**: Después del Disclaimer 1, destacado en naranja
-
-**Diseño**:
-- Fondo naranja llamativo
-- Borde naranja oscuro
-- Texto centrado y bold
-- Imposible de ignorar
-
----
-
-## Formato de los Disclaimers
-
-### Visual Design
-
-**Disclaimer 1 (Informativo)**:
-```css
-background-color: #f8f9fa  /* Gris claro */
-border-left: 4px solid #0066cc  /* Borde azul */
-padding: 12px
-font-size: 9pt
-font-weight: 600
-line-height: 1.6
+*Price is valid for 30 days and is subject to change due to
+international tariff rates.
 ```
 
-**Efecto**: Sutil, profesional, fácil de leer
+---
+
+### Características del Diseño
+
+**1. Separación Limpia**:
+- Línea superior: 1px sólida, color #e0e0e0 (gris muy claro)
+- Margin top: 24px
+- Padding top: 16px
+- Sin recuadros ni fondos de colores
+
+**2. Jerarquía Tipográfica**:
+
+**Párrafo 1 - Tariff Information**:
+```css
+font-size: 8pt
+color: #666 (gris medio)
+line-height: 1.5
+font-weight: normal
+margin-bottom: 12px
+```
+- Tono informativo, no intrusivo
+- Legible pero discreto
+
+**Párrafo 2 - Grand Total Explanation**:
+```css
+font-size: 8pt
+color: #333 (gris oscuro)
+line-height: 1.5
+font-weight: bold
+margin-bottom: 8px
+```
+- Bold para destacar información importante
+- Color más oscuro para mayor énfasis
+- Redacción más natural y profesional
+
+**Párrafo 3 - Price Validity**:
+```css
+font-size: 7pt
+color: #999 (gris claro)
+line-height: 1.5
+font-style: italic
+```
+- Fuente más pequeña (7pt) para info secundaria
+- Itálica para indicar nota legal
+- Color claro para menor peso visual
 
 ---
 
-**Disclaimer 2 (Llamado a la Acción / Advertencia)**:
-```css
-background-color: #ff9800  /* Naranja */
-border: 3px solid #e65100  /* Naranja oscuro */
-padding: 16px
-font-size: 10pt
-font-weight: 700
-text-align: center
-color: #000
-```
+### Ventajas del Nuevo Diseño
 
-**Efecto**: Imposible de ignorar, llama la atención, profesional
+✅ **Profesional y Corporativo**
+- Diseño minimalista y limpio
+- Sin colores llamativos que distraigan
+- Fácil de imprimir (escala de grises)
+
+✅ **Jerarquía Clara**
+- 3 niveles de importancia visual
+- Información principal en bold
+- Notas secundarias en itálica
+
+✅ **Legibilidad**
+- Texto pequeño pero legible (8pt/7pt)
+- Line-height 1.5 para mejor lectura
+- Espaciado apropiado entre párrafos
+
+✅ **No Intrusivo**
+- No compite con la tabla de precios
+- Separado pero integrado
+- Tono serio y profesional
+
+---
+
+### Comparación v1 vs v2
+
+**Versión 1 (Original con colores)**:
+- ❌ Recuadros con fondos de colores (gris, naranja)
+- ❌ Bordes gruesos y llamativos
+- ❌ Texto en mayúsculas (gritón)
+- ❌ Centrado (menos profesional para disclaimers)
+
+**Versión 2 (Minimalista)**:
+- ✅ Sin recuadros ni fondos
+- ✅ Solo tipografía y espaciado
+- ✅ Texto en mayúsculas/minúsculas apropiadas
+- ✅ Alineación izquierda (más legible)
+- ✅ Escala de grises profesional
 
 ---
 
@@ -428,23 +466,22 @@ Install & Delivery:  $5,500.00 USD  ← ✅ AGREGADO
 Grand Total:         $81,780.76 USD  ← ✅ CORRECTO
 ```
 
-**Disclaimers después de tabla**:
+**Disclaimers después de tabla (v2 - Minimalista)**:
 ```
-┌─────────────────────────────────────────────────┐
-│ Please note that the international tariff      │
-│ effective October 10 is 25%; however, only     │
-│ 11% of this tariff directly impacts the cost   │
-│ of this project.                                │
-└─────────────────────────────────────────────────┘
+────────────────────────────────────────────────────
 
-┌═════════════════════════════════════════════════┐
-║ GRAND TOTAL; INCLUDING DELIVERY COST & TAX,     ║
-║ NOT INCLUDING UNLOADING NOR INSTALL             ║
-║                                                 ║
-║ *PRICE IS VALID FOR 30 DAYS, SUBJECT TO        ║
-║ CHANGE DUE TO INTERNATIONAL TAARIFF RATES       ║
-└═════════════════════════════════════════════════┘
+Please note that the international tariff effective
+October 10 is 25%; however, only 11% of this tariff
+directly impacts the cost of this project.
+
+Grand Total includes delivery cost and tax, but does
+not include unloading or installation services.
+
+*Price is valid for 30 days and is subject to change
+due to international tariff rates.
 ```
+
+**Estilo**: Sin recuadros, sin colores, jerarquía tipográfica clara
 
 **Mejoras**:
 - ✅ Total correcto
@@ -620,15 +657,28 @@ Grand Total: $82,780.76
 
 ## Notas Importantes
 
-### Typo Intencional
+### Actualización de Diseño (2025-11-20)
 
-**"TAARIFF"** (con doble A) en lugar de "TARIFF":
-- Presente en el texto solicitado
-- Mantenido tal cual en la implementación
-- Si debe corregirse, cambiar línea:
-```html
-*PRICE IS VALID FOR 30 DAYS, SUBJECT TO CHANGE DUE TO INTERNATIONAL TARIFF RATES
-```
+**Versión 2 - Diseño Minimalista**:
+- Los disclaimers fueron rediseñados a petición del usuario
+- Se eliminaron recuadros con colores llamativos
+- Se implementó diseño minimalista basado en tipografía
+- Escala de grises profesional (#666, #333, #999)
+- Sin fondos de colores ni bordes gruesos
+- Jerarquía visual clara mediante tamaños de fuente (8pt, 7pt)
+- Texto más limpio y profesional
+
+**Razón del Cambio**:
+> "No me gusta como se ven los disclaimer, dales un estilo más minimalista y estéticamente atractivos, con un texto quizá un poco más pequeño y limpio sin recuadros extraños, para que tenga un tono más profesional."
+
+---
+
+### Corrección Ortográfica
+
+**"TARIFF"** corregido:
+- Versión v1 tenía: "TAARIFF" (con doble A, error de typo)
+- Versión v2 corrige a: "tariff" (minúsculas, correcto)
+- Redacción más natural y profesional
 
 ---
 
@@ -691,11 +741,14 @@ const amountInUSD = amount / exchangeRate;
 - Install & Delivery correctamente incluido
 - Desglose transparente y claro
 
-✅ **Disclaimers Agregados**
-- Información de tariff
-- Explicación de Grand Total
-- Validez del precio
-- Advertencia de cambios
+✅ **Disclaimers Agregados (v2 - Minimalista)**
+- Información de tariff clara y concisa
+- Explicación de Grand Total profesional
+- Validez del precio (30 días)
+- Advertencia de cambios por tariffs
+- Diseño minimalista y estéticamente atractivo
+- Sin recuadros ni colores llamativos
+- Jerarquía tipográfica profesional
 
 ✅ **Sin Breaking Changes**
 - Código existente intacto
@@ -704,14 +757,15 @@ const amountInUSD = amount / exchangeRate;
 
 ✅ **Build Exitoso**
 - Sin errores de compilación
-- Bundle size mínimo (+1.34 kB)
+- Bundle size mínimo (+1.29 kB)
 - Performance sin impacto
 
-**Status**: ✅ Completado y Listo para Producción
+**Status**: ✅ Completado y Listo para Producción (v2)
 
 ---
 
 **Implementado por**: Claude Code Assistant
-**Fecha**: 2025-11-20
+**Fecha Inicial**: 2025-11-20 (v1 - con colores)
+**Fecha Actualización**: 2025-11-20 (v2 - minimalista)
 **Archivo Modificado**: `src/utils/printQuotation.ts`
-**Build**: Exitoso (689.96 kB)
+**Build**: Exitoso (689.91 kB)
