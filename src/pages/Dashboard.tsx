@@ -10,7 +10,9 @@ import {
   XCircle,
   BarChart3,
   Tag,
-  ArrowRight
+  ArrowRight,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/calculations';
@@ -51,6 +53,8 @@ interface ProjectTypeStats {
 interface MonthlyData {
   month: string;
   year: number;
+  monthNumber: number;
+  sortKey: string;
   totalProjects: number;
   wonProjects: number;
   totalValue: number;
@@ -102,6 +106,9 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
   const [boxMaterialTrends, setBoxMaterialTrends] = useState<MaterialTrend[]>([]);
   const [hardwareTrends, setHardwareTrends] = useState<HardwareTrend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
 
   useEffect(() => {
     loadStats();
@@ -122,8 +129,20 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const intervalId = setInterval(() => {
+      loadStats();
+      loadTrends();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [autoRefresh]);
+
   async function loadStats() {
     try {
+      setError(null);
       const [projectsRes, productsRes, pricesRes, recentRes] = await Promise.all([
         supabase.from('projects').select('status, total_amount, quote_date, project_type'),
         supabase.from('products_catalog').select('id', { count: 'exact', head: true }),
@@ -166,6 +185,8 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
           monthlyMap.set(monthKey, {
             month: monthName,
             year: date.getFullYear(),
+            monthNumber: date.getMonth() + 1,
+            sortKey: monthKey,
             totalProjects: 0,
             wonProjects: 0,
             totalValue: 0,
@@ -184,20 +205,30 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
       });
 
       const sortedMonthly = Array.from(monthlyMap.values())
-        .sort((a, b) => {
-          const dateA = new Date(a.month);
-          const dateB = new Date(b.month);
-          return dateA.getTime() - dateB.getTime();
-        })
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
         .slice(-6);
 
       setMonthlyData(sortedMonthly);
 
+      const projectTypesSet = new Set(
+        projects
+          .map(p => p.project_type)
+          .filter(type => type && type.trim() !== '')
+      );
+
+      const projectTypes = Array.from(projectTypesSet);
+
+      if (projectTypes.length === 0) {
+        projectTypes.push('Custom', 'Bids', 'Prefab', 'Stores');
+      }
+
       const typeStatsMap = new Map<string, ProjectTypeStats>();
-      const projectTypes = ['Custom', 'Bids', 'Prefab', 'Stores'];
 
       projectTypes.forEach(type => {
-        const typeProjects = projects.filter(p => p.project_type === type);
+        const typeProjects = projects.filter(p =>
+          p.project_type &&
+          p.project_type.trim() === type.trim()
+        );
         const typeWonProjects = typeProjects.filter(p => p.status === 'won');
         const typeTotalValue = typeProjects.reduce((sum, p) => sum + (p.total_amount || 0), 0);
         const typeWonValue = typeWonProjects.reduce((sum, p) => sum + (p.total_amount || 0), 0);
@@ -218,8 +249,10 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
       setProjectTypeStats(Array.from(typeStatsMap.values()).filter(stat => stat.totalProjects > 0));
 
       setRecentProjects(recentRes.data || []);
+      setLastRefreshTime(new Date());
     } catch (error) {
       console.error('Error loading stats:', error);
+      setError('Failed to load dashboard statistics. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -545,6 +578,26 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <p className="text-red-600 font-semibold mb-2">Error Loading Dashboard</p>
+        <p className="text-slate-600 mb-4">{error}</p>
+        <Button
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            loadStats();
+            loadTrends();
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   async function handleSeedData() {
     if (!confirm('This will add sample products and prices to test the system. Continue?')) return;
     const success = await seedSampleData();
@@ -564,13 +617,36 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
           <p className="mt-2 text-slate-600">
             Performance metrics and conversion analytics
           </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Last updated: {lastRefreshTime.toLocaleTimeString()}
+            {autoRefresh && ' • Auto-refresh enabled'}
+          </p>
         </div>
-        {stats.totalProducts === 0 && stats.totalPriceItems === 0 && (
-          <Button onClick={handleSeedData} variant="secondary">
-            <Database className="h-4 w-4 mr-2" />
-            Load Sample Data
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              loadStats();
+              loadTrends();
+            }}
+            variant="secondary"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
-        )}
+          <Button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            variant={autoRefresh ? 'secondary' : 'outline'}
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            {autoRefresh ? 'Auto-refresh On' : 'Auto-refresh Off'}
+          </Button>
+          {stats.totalProducts === 0 && stats.totalPriceItems === 0 && (
+            <Button onClick={handleSeedData} variant="secondary">
+              <Database className="h-4 w-4 mr-2" />
+              Load Sample Data
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mb-6 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
