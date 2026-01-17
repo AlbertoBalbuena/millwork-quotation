@@ -25,7 +25,8 @@ import {
   MoreVertical,
   AlertTriangle,
   Send,
-  User
+  User,
+  Upload
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
@@ -35,6 +36,7 @@ import { formatCurrency } from '../lib/calculations';
 import { format } from 'date-fns';
 import type { Project, ProjectInsert, ProjectType, ProjectStatus } from '../types';
 import { getProjectsWithStalePrices } from '../lib/priceUpdateSystem';
+import { ImportProjectModal } from '../components/ImportProjectModal';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc';
@@ -48,6 +50,7 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [staleProjectIds, setStaleProjectIds] = useState<string[]>([]);
@@ -208,6 +211,16 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
     setIsModalOpen(true);
   }
 
+  async function handleImportComplete(projectId: string) {
+    await loadProjects();
+    setTimeout(() => {
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        setSelectedProject(project);
+      }
+    }, 500);
+  }
+
   function handleEdit(project: Project) {
     setEditingProject(project);
     setIsModalOpen(true);
@@ -329,10 +342,16 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
             <h1 className="text-3xl font-bold text-slate-900">Projects</h1>
             <p className="mt-2 text-slate-600">Manage your millwork quotations</p>
           </div>
-          <Button onClick={handleAddNew} size="lg">
-            <Plus className="h-5 w-5 mr-2" />
-            New Project
-          </Button>
+          <div className="flex gap-3">
+            <Button onClick={() => setIsImportModalOpen(true)} size="lg" variant="secondary">
+              <Upload className="h-5 w-5 mr-2" />
+              Import Project
+            </Button>
+            <Button onClick={handleAddNew} size="lg">
+              <Plus className="h-5 w-5 mr-2" />
+              New Project
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -610,6 +629,12 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
           onClose={handleCloseModal}
         />
       )}
+
+      <ImportProjectModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 }

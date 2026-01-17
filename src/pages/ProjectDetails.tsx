@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Copy, Printer, BarChart3, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, TrendingUp, Save, Hammer, RefreshCw, Search, X, Download, FileSpreadsheet, AlertTriangle, History, GripVertical, ChevronUp, ChevronDown, FileJson } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -31,6 +31,7 @@ import { getVersionHistory } from '../lib/versioningSystem';
 import { updateProjectBrief } from '../lib/projectBrief';
 import { ProjectVersionHistory } from './ProjectVersionHistory';
 import { FloatingActionBar } from '../components/FloatingActionBar';
+import { exportProjectToJSON } from '../utils/projectExportImport';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -457,6 +458,20 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
     downloadDetailedAreasCSV(areas, project.name);
   }
 
+  async function handleExportJSON() {
+    if (areas.length === 0) {
+      alert('No areas to export. Please add areas to the project first.');
+      return;
+    }
+
+    try {
+      await exportProjectToJSON(project.id);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export project. Please try again.');
+    }
+  }
+
   function handleAutoScroll(clientY: number) {
     const threshold = 100;
     const viewportHeight = window.innerHeight;
@@ -880,6 +895,15 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                       </>
                     )}
                   </div>
+
+                  <Button
+                    onClick={handleExportJSON}
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                  >
+                    <FileJson className="h-4 w-4 mr-2" />
+                    Export JSON
+                  </Button>
                 </div>
               )}
 
