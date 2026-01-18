@@ -486,7 +486,7 @@ export async function printQuotationUSD(
   const taxPercentage = project.tax_percentage || 0;
   const referralRate = project.referral_currency_rate || 0;
 
-  // First pass: calculate base prices to determine total price
+  // First pass: calculate original prices, tariffs, and taxes (NOT inflated)
   const baseAreaData = areas.map(area => {
     const areaCabinetsTotal = area.cabinets.reduce((sum, c) => sum + c.subtotal, 0);
     const areaItemsTotal = area.items.reduce((sum, i) => sum + i.subtotal, 0);
@@ -497,10 +497,15 @@ export async function printQuotationUSD(
       ? areaMaterialsSubtotal / (1 - profitMultiplier)
       : areaMaterialsSubtotal;
 
+    // Calculate tariff and tax based on ORIGINAL price (not inflated)
+    const areaTariff = areaMaterialsSubtotal * tariffMultiplier;
+    const areaTax = (areaPrice + areaTariff) * (taxPercentage / 100);
+
     return {
       name: area.name,
-      materialsSubtotal: areaMaterialsSubtotal,
-      basePrice: areaPrice
+      basePrice: areaPrice,
+      tariff: areaTariff,
+      tax: areaTax
     };
   });
 
@@ -508,7 +513,8 @@ export async function printQuotationUSD(
   const installDelivery = project.install_delivery || 0;
   const totalReferralAmount = (totalBasePrice + installDelivery) * referralRate;
 
-  // Second pass: distribute referral fee proportionally and calculate final values
+  // Second pass: distribute referral fee proportionally for DISPLAY ONLY
+  // Tariff and tax remain unchanged (not recalculated)
   const areaBreakdown = baseAreaData.map(area => {
     // Calculate this area's weight (proportion of total price)
     const weight = totalBasePrice > 0 ? area.basePrice / totalBasePrice : 0;
@@ -519,16 +525,14 @@ export async function printQuotationUSD(
     // Display price includes the hidden referral fee
     const displayPrice = area.basePrice + referralPortionForArea;
 
-    // Calculate tariff, tax, and total based on inflated price
-    const areaTariff = area.materialsSubtotal * tariffMultiplier;
-    const areaTax = (displayPrice + areaTariff) * (taxPercentage / 100);
-    const areaTotal = displayPrice + areaTariff + areaTax;
+    // Use ORIGINAL tariff and tax (not recalculated on inflated price)
+    const areaTotal = displayPrice + area.tariff + area.tax;
 
     return {
       name: area.name,
       price: displayPrice,
-      tariff: areaTariff,
-      tax: areaTax,
+      tariff: area.tariff,
+      tax: area.tax,
       total: areaTotal
     };
   });
