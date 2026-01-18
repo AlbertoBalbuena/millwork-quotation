@@ -211,7 +211,7 @@ export async function performProjectImport(
     const projectInsert = {
       name: newProjectName,
       customer: project.customer,
-      location: project.location,
+      address: project.address,
       project_type: project.project_type,
       status: project.status,
       quote_date: project.quote_date,
