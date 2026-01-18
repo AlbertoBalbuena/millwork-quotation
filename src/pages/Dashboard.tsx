@@ -156,9 +156,9 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
 
       const projects = projectsRes.data || [];
 
-      const wonProjects = projects.filter(p => p.status === 'won');
-      const pendingProjects = projects.filter(p => p.status === 'pending');
-      const lostProjects = projects.filter(p => p.status === 'lost');
+      const wonProjects = projects.filter(p => p.status === 'Awarded');
+      const pendingProjects = projects.filter(p => p.status === 'Pending');
+      const lostProjects = projects.filter(p => p.status === 'Lost');
 
       const totalValue = projects.reduce((sum, p) => sum + (p.total_amount || 0), 0);
       const wonValue = wonProjects.reduce((sum, p) => sum + (p.total_amount || 0), 0);
@@ -198,7 +198,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
         monthData.totalProjects += 1;
         monthData.totalValue += project.total_amount || 0;
 
-        if (project.status === 'won') {
+        if (project.status === 'Awarded') {
           monthData.wonProjects += 1;
           monthData.wonValue += project.total_amount || 0;
         }
@@ -229,7 +229,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
           p.project_type &&
           p.project_type.trim() === type.trim()
         );
-        const typeWonProjects = typeProjects.filter(p => p.status === 'won');
+        const typeWonProjects = typeProjects.filter(p => p.status === 'Awarded');
         const typeTotalValue = typeProjects.reduce((sum, p) => sum + (p.total_amount || 0), 0);
         const typeWonValue = typeWonProjects.reduce((sum, p) => sum + (p.total_amount || 0), 0);
         const conversionRate = typeProjects.length > 0
@@ -666,10 +666,14 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
         {recentProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {recentProjects.map((project) => {
-              const statusColors = {
-                won: 'bg-green-100 text-green-700 border-green-200',
-                pending: 'bg-blue-100 text-blue-700 border-blue-200',
-                lost: 'bg-red-100 text-red-700 border-red-200',
+              const statusColors: Record<string, string> = {
+                'Awarded': 'bg-green-100 text-green-700 border-green-200',
+                'Pending': 'bg-blue-100 text-blue-700 border-blue-200',
+                'Estimating': 'bg-blue-100 text-blue-700 border-blue-200',
+                'Sent': 'bg-purple-100 text-purple-700 border-purple-200',
+                'Lost': 'bg-red-100 text-red-700 border-red-200',
+                'Disqualified': 'bg-orange-100 text-orange-700 border-orange-200',
+                'Cancelled': 'bg-gray-100 text-gray-700 border-gray-200',
               };
 
               return (
@@ -687,7 +691,7 @@ export function Dashboard({ onNavigate, onNavigateToProject }: DashboardProps) {
                   <div className="flex flex-wrap gap-2 mb-3">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium capitalize border ${
-                        statusColors[project.status as keyof typeof statusColors]
+                        statusColors[project.status] || 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
                       {project.status}
