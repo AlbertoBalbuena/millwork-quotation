@@ -220,6 +220,7 @@ export async function performProjectImport(
       tariff_multiplier: project.tariff_multiplier || 0,
       tax_percentage: project.tax_percentage || 0,
       install_delivery: project.install_delivery || 0,
+      referral_currency_rate: project.referral_currency_rate || 0,
       project_brief: project.project_brief,
       disclaimer_tariff_info: project.disclaimer_tariff_info,
       disclaimer_price_validity: project.disclaimer_price_validity,
