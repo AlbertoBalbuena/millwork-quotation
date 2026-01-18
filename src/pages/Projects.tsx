@@ -37,6 +37,9 @@ import { format } from 'date-fns';
 import type { Project, ProjectInsert, ProjectType, ProjectStatus } from '../types';
 import { getProjectsWithStalePrices } from '../lib/priceUpdateSystem';
 import { ImportProjectModal } from '../components/ImportProjectModal';
+import { groupProjectsByGroupId } from '../lib/projectGrouping';
+import { ProjectGroupCard } from '../components/ProjectGroupCard';
+import { ProjectGroupListItem } from '../components/ProjectGroupListItem';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc';
@@ -164,6 +167,10 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
     return filtered;
   }, [projects, searchQuery, statusFilter, typeFilter, customerFilter, monthFilter, yearFilter, sortBy]);
 
+  const projectGroups = useMemo(() => {
+    return groupProjectsByGroupId(filteredAndSortedProjects);
+  }, [filteredAndSortedProjects]);
+
   const stats = useMemo(() => {
     const total = projects.length;
     const pending = projects.filter((p) => p.status === 'Pending').length;
@@ -247,6 +254,7 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
       const { id, created_at, updated_at, ...projectData } = project;
       projectData.name = `${projectData.name} (Copy)`;
       projectData.status = 'Pending';
+      projectData.group_id = project.group_id || crypto.randomUUID();
 
       const { error } = await supabase.from('projects').insert([projectData]);
 
@@ -288,7 +296,11 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
 
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('projects').insert([project]);
+        const projectWithGroup = {
+          ...project,
+          group_id: crypto.randomUUID(),
+        };
+        const { error } = await supabase.from('projects').insert([projectWithGroup]);
 
         if (error) throw error;
       }
@@ -592,33 +604,61 @@ export function Projects({ selectedProjectId, onClearSelection }: ProjectsProps 
 
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onView={handleViewProject}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onDuplicate={handleDuplicate}
-              onStatusChange={handleQuickStatusChange}
-              staleProjectIds={staleProjectIds}
-            />
-          ))}
+          {projectGroups.map((group) =>
+            group.versionCount === 1 ? (
+              <ProjectCard
+                key={group.primaryProject.id}
+                project={group.primaryProject}
+                onView={handleViewProject}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+                onStatusChange={handleQuickStatusChange}
+                staleProjectIds={staleProjectIds}
+              />
+            ) : (
+              <ProjectGroupCard
+                key={group.groupId}
+                group={group}
+                allProjects={projects}
+                onView={handleViewProject}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+                onStatusChange={handleQuickStatusChange}
+                staleProjectIds={staleProjectIds}
+              />
+            )
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSortedProjects.map((project) => (
-            <ProjectListItem
-              key={project.id}
-              project={project}
-              onView={handleViewProject}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onDuplicate={handleDuplicate}
-              onStatusChange={handleQuickStatusChange}
-              staleProjectIds={staleProjectIds}
-            />
-          ))}
+          {projectGroups.map((group) =>
+            group.versionCount === 1 ? (
+              <ProjectListItem
+                key={group.primaryProject.id}
+                project={group.primaryProject}
+                onView={handleViewProject}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+                onStatusChange={handleQuickStatusChange}
+                staleProjectIds={staleProjectIds}
+              />
+            ) : (
+              <ProjectGroupListItem
+                key={group.groupId}
+                group={group}
+                allProjects={projects}
+                onView={handleViewProject}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+                onStatusChange={handleQuickStatusChange}
+                staleProjectIds={staleProjectIds}
+              />
+            )
+          )}
         </div>
       )}
 

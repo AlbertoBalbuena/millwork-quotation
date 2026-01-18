@@ -203,10 +203,31 @@ export async function validateProjectImport(
 
 export async function performProjectImport(
   projectData: ProjectExport,
-  newProjectName: string
+  newProjectName: string,
+  importMode: 'new' | 'version' = 'new'
 ): Promise<{ success: boolean; projectId: string; summary: ImportSummary; error?: string }> {
   try {
     const { project, areas } = projectData;
+
+    let groupId: string;
+
+    if (importMode === 'version') {
+      const baseName = project.name;
+      const { data: existingProjects } = await supabase
+        .from('projects')
+        .select('group_id')
+        .ilike('name', `${baseName}%`)
+        .not('group_id', 'is', null)
+        .limit(1);
+
+      if (existingProjects && existingProjects.length > 0 && existingProjects[0].group_id) {
+        groupId = existingProjects[0].group_id;
+      } else {
+        groupId = crypto.randomUUID();
+      }
+    } else {
+      groupId = crypto.randomUUID();
+    }
 
     const projectInsert = {
       name: newProjectName,
@@ -224,6 +245,7 @@ export async function performProjectImport(
       project_brief: project.project_brief,
       disclaimer_tariff_info: project.disclaimer_tariff_info,
       disclaimer_price_validity: project.disclaimer_price_validity,
+      group_id: groupId,
     };
 
     const { data: newProject, error: projectError } = await supabase

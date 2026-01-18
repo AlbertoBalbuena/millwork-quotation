@@ -138,6 +138,7 @@ export interface Database {
           project_brief: string | null;
           disclaimer_tariff_info: string | null;
           disclaimer_price_validity: string | null;
+          group_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -160,6 +161,7 @@ export interface Database {
           project_brief?: string | null;
           disclaimer_tariff_info?: string | null;
           disclaimer_price_validity?: string | null;
+          group_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -182,6 +184,7 @@ export interface Database {
           project_brief?: string | null;
           disclaimer_tariff_info?: string | null;
           disclaimer_price_validity?: string | null;
+          group_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

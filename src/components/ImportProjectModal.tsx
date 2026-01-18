@@ -106,7 +106,8 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
     try {
       const result = await performProjectImport(
         validationResult.projectData,
-        targetProjectName.trim()
+        targetProjectName.trim(),
+        importMode
       );
 
       if (result.success) {
