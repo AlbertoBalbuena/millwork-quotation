@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Upload, X, FileJson, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { Button } from './Button';
+import { Input } from './Input';
 import { formatCurrency } from '../lib/calculations';
 import { format } from 'date-fns';
 import {
@@ -22,6 +23,7 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
   const [isDragging, setIsDragging] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [importMode, setImportMode] = useState<'new' | 'version'>('new');
+  const [targetProjectName, setTargetProjectName] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +36,9 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
     try {
       const result = await validateProjectImport(file, importMode);
       setValidationResult(result);
+      if (result.isValid) {
+        setTargetProjectName(result.newProjectName);
+      }
     } catch (error) {
       console.error('Validation error:', error);
       setValidationResult({
@@ -82,6 +87,9 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
       try {
         const result = await validateProjectImport(selectedFile, mode);
         setValidationResult(result);
+        if (result.isValid) {
+          setTargetProjectName(result.newProjectName);
+        }
       } catch (error) {
         console.error('Validation error:', error);
       } finally {
@@ -91,14 +99,14 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
   };
 
   const handleImport = async () => {
-    if (!validationResult?.isValid || !validationResult.projectData) return;
+    if (!validationResult?.isValid || !validationResult.projectData || !targetProjectName.trim()) return;
 
     setIsImporting(true);
 
     try {
       const result = await performProjectImport(
         validationResult.projectData,
-        validationResult.newProjectName
+        targetProjectName.trim()
       );
 
       if (result.success) {
@@ -119,6 +127,7 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
     setSelectedFile(null);
     setValidationResult(null);
     setImportMode('new');
+    setTargetProjectName('');
     setIsValidating(false);
     setIsImporting(false);
     if (fileInputRef.current) {
@@ -130,6 +139,7 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
   const handleClearFile = () => {
     setSelectedFile(null);
     setValidationResult(null);
+    setTargetProjectName('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -295,46 +305,65 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
               </div>
             )}
 
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-slate-700">
-                Import Options
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="new"
-                    checked={importMode === 'new'}
-                    onChange={() => handleImportModeChange('new')}
-                    className="mt-0.5"
-                    disabled={isImporting}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900">Import as new project</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Creates a new project with name: "{validationResult.newProjectName}"
-                    </p>
-                  </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Import Options
                 </label>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="importMode"
+                      value="new"
+                      checked={importMode === 'new'}
+                      onChange={() => handleImportModeChange('new')}
+                      className="mt-0.5"
+                      disabled={isImporting}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-900">Import as new project</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Creates an independent copy of the project
+                      </p>
+                    </div>
+                  </label>
 
-                <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="version"
-                    checked={importMode === 'version'}
-                    onChange={() => handleImportModeChange('version')}
-                    className="mt-0.5"
-                    disabled={isImporting}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900">Import as version</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Creates a versioned project with name: "{validationResult.newProjectName}"
-                    </p>
-                  </div>
+                  <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="importMode"
+                      value="version"
+                      checked={importMode === 'version'}
+                      onChange={() => handleImportModeChange('version')}
+                      className="mt-0.5"
+                      disabled={isImporting}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-900">Import as version</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Creates a versioned copy (e.g., Project - v2, Project - v3)
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="targetProjectName" className="block text-sm font-medium text-slate-700 mb-2">
+                  Project Name
                 </label>
+                <Input
+                  id="targetProjectName"
+                  value={targetProjectName}
+                  onChange={(e) => setTargetProjectName(e.target.value)}
+                  placeholder="Enter project name"
+                  disabled={isImporting}
+                  className="w-full"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can customize the project name before importing
+                </p>
               </div>
             </div>
           </>
@@ -350,7 +379,7 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
           </Button>
           <Button
             onClick={handleImport}
-            disabled={!validationResult?.isValid || isImporting}
+            disabled={!validationResult?.isValid || !targetProjectName.trim() || isImporting}
           >
             {isImporting ? (
               <>
