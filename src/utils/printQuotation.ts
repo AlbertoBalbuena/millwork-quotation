@@ -484,6 +484,7 @@ export async function printQuotationUSD(
   const profitMultiplier = project.profit_multiplier || 0;
   const tariffMultiplier = project.tariff_multiplier || 0;
   const taxPercentage = project.tax_percentage || 0;
+  const referralRate = project.referral_currency_rate || 0;
 
   const areaBreakdown = areas.map(area => {
     const areaCabinetsTotal = area.cabinets.reduce((sum, c) => sum + c.subtotal, 0);
@@ -494,7 +495,7 @@ export async function printQuotationUSD(
     const areaPrice = profitMultiplier > 0 && profitMultiplier < 1
       ? areaMaterialsSubtotal / (1 - profitMultiplier)
       : areaMaterialsSubtotal;
-    const areaTariff = areaPrice * tariffMultiplier;
+    const areaTariff = areaMaterialsSubtotal * tariffMultiplier;
     const areaTax = (areaPrice + areaTariff) * (taxPercentage / 100);
     const areaTotal = areaPrice + areaTariff + areaTax;
 
@@ -514,7 +515,8 @@ export async function printQuotationUSD(
 
   const otherExpenses = project.other_expenses || 0;
   const installDelivery = project.install_delivery || 0;
-  const finalTotal = grandTotal + otherExpenses + installDelivery;
+  const referralAmount = (totalPrice + installDelivery) * referralRate;
+  const finalTotal = grandTotal + referralAmount + otherExpenses + installDelivery;
 
   let logoUrl = '';
   try {
@@ -795,15 +797,6 @@ export async function printQuotationUSD(
             <td class="right">${formatUSD(totalTax)}</td>
             <td class="right">${formatUSD(grandTotal)}</td>
           </tr>
-          ${otherExpenses > 0 ? `
-          <tr>
-            <td><strong>Other Expenses</strong></td>
-            <td class="right"></td>
-            <td class="right"></td>
-            <td class="right"></td>
-            <td class="right">${formatUSD(otherExpenses)}</td>
-          </tr>
-          ` : ''}
           ${installDelivery > 0 ? `
           <tr>
             <td><strong>Install & Delivery</strong></td>
@@ -811,6 +804,24 @@ export async function printQuotationUSD(
             <td class="right"></td>
             <td class="right"></td>
             <td class="right">${formatUSD(installDelivery)}</td>
+          </tr>
+          ` : ''}
+          ${referralRate > 0 ? `
+          <tr>
+            <td><strong>Referral Fee (${(referralRate * 100).toFixed(2)}%)</strong></td>
+            <td class="right"></td>
+            <td class="right"></td>
+            <td class="right"></td>
+            <td class="right">${formatUSD(referralAmount)}</td>
+          </tr>
+          ` : ''}
+          ${otherExpenses > 0 ? `
+          <tr>
+            <td><strong>Other Expenses</strong></td>
+            <td class="right"></td>
+            <td class="right"></td>
+            <td class="right"></td>
+            <td class="right">${formatUSD(otherExpenses)}</td>
           </tr>
           ` : ''}
           <tr style="border-top: 2px solid #333;">

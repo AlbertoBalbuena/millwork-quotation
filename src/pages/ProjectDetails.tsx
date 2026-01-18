@@ -59,6 +59,7 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   const [tariffMultiplier, setTariffMultiplier] = useState(project.tariff_multiplier || 0);
   const [taxPercentage, setTaxPercentage] = useState(project.tax_percentage || 0);
   const [installDelivery, setInstallDelivery] = useState(project.install_delivery || 0);
+  const [referralRate, setReferralRate] = useState(project.referral_currency_rate || 0);
   const [savingTemplateCabinet, setSavingTemplateCabinet] = useState<AreaCabinet | null>(null);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [areaMaterialsVisible, setAreaMaterialsVisible] = useState<Record<string, boolean>>({});
@@ -625,13 +626,23 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
 
   const materialsSubtotal = cabinetsSubtotal + itemsSubtotal + countertopsSubtotal;
 
+  // Price (Sale Price of Materials)
   const price = profitMultiplier > 0 && profitMultiplier < 1
     ? materialsSubtotal / (1 - profitMultiplier)
     : materialsSubtotal;
   const profitAmount = price - materialsSubtotal;
-  const tariffAmount = price * tariffMultiplier;
+
+  // Tariff - Calculated on Material Cost (not on Price)
+  const tariffAmount = materialsSubtotal * tariffMultiplier;
+
+  // Referral Fee - Applied to (Price + Install Cost)
+  const referralAmount = (price + installDelivery) * referralRate;
+
+  // Tax - Applied to (Price + Tariff)
   const taxAmount = (price + tariffAmount) * (taxPercentage / 100);
-  const projectTotal = price + tariffAmount + taxAmount + otherExpenses + installDelivery;
+
+  // Grand Total
+  const projectTotal = price + tariffAmount + referralAmount + taxAmount + installDelivery + otherExpenses;
 
   const formatPrice = (amount: number) => {
     const amountInUSD = amount / exchangeRate;
@@ -663,6 +674,7 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
           tariff_multiplier: tariffMultiplier,
           tax_percentage: taxPercentage,
           install_delivery: installDelivery,
+          referral_currency_rate: referralRate,
           total_amount: projectTotal,
           disclaimer_tariff_info: disclaimerTariffInfo,
           disclaimer_price_validity: disclaimerPriceValidity,
@@ -1079,7 +1091,7 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 placeholder="0.11"
               />
               <p className="mt-1 text-xs text-slate-500">
-                {tariffMultiplier > 0 ? `${formatPrice(tariffAmount)} (${(tariffMultiplier * 100).toFixed(2)}%)` : 'e.g., 0.11 = 11% of price'}
+                {tariffMultiplier > 0 ? `${formatPrice(tariffAmount)} (${(tariffMultiplier * 100).toFixed(2)}%)` : 'e.g., 0.11 = 11% of cost'}
               </p>
             </div>
 
@@ -1101,6 +1113,25 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 {taxPercentage > 0 ? formatPrice(taxAmount) : 'e.g., 8.25 for 8.25% tax'}
               </p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Referral %
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.001"
+                value={referralRate}
+                onChange={(e) => setReferralRate(parseFloat(e.target.value) || 0)}
+                onBlur={updateProjectCosts}
+                className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.06"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {referralRate > 0 ? `${formatPrice(referralAmount)} (${(referralRate * 100).toFixed(2)}%) on Price + Install` : 'e.g., 0.06 = 6% of (Price + Install)'}
+              </p>
+            </div>
           </div>
 
           <div className="mt-4 pt-4 border-t border-slate-200">
@@ -1113,9 +1144,10 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 {profitMultiplier > 0 && <p className="text-sm text-slate-600">Profit ({(profitMultiplier * 100).toFixed(1)}%):</p>}
                 <p className="text-sm font-semibold text-slate-900 mt-2 pt-2 border-t border-slate-300">Price:</p>
                 {tariffMultiplier > 0 && <p className="text-sm text-slate-600">Tariff ({(tariffMultiplier * 100).toFixed(2)}%):</p>}
+                {referralRate > 0 && <p className="text-sm text-slate-600">Referral Fee ({(referralRate * 100).toFixed(2)}%):</p>}
                 {taxPercentage > 0 && <p className="text-sm text-slate-600">Tax ({taxPercentage}%):</p>}
-                <p className="text-sm text-slate-600">Other Expenses:</p>
                 <p className="text-sm text-slate-600">Install & Delivery:</p>
+                <p className="text-sm text-slate-600">Other Expenses:</p>
                 <p className="text-base font-semibold text-slate-900 mt-2 pt-2 border-t border-slate-300">Total:</p>
               </div>
               <div className="text-right">
@@ -1126,9 +1158,10 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
                 {profitMultiplier > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(profitAmount)}</p>}
                 <p className="text-sm font-bold text-blue-900 mt-2 pt-2 border-t border-slate-300">{formatPrice(price)}</p>
                 {tariffMultiplier > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(tariffAmount)}</p>}
+                {referralRate > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(referralAmount)}</p>}
                 {taxPercentage > 0 && <p className="text-sm font-medium text-slate-700">{formatPrice(taxAmount)}</p>}
-                <p className="text-sm font-medium text-slate-700">{formatPrice(otherExpenses)}</p>
                 <p className="text-sm font-medium text-slate-700">{formatPrice(installDelivery)}</p>
+                <p className="text-sm font-medium text-slate-700">{formatPrice(otherExpenses)}</p>
                 <p className="text-base font-bold text-slate-900 mt-2 pt-2 border-t border-slate-300">{formatPrice(projectTotal)}</p>
               </div>
             </div>

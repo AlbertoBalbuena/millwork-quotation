@@ -133,8 +133,11 @@ export interface Database {
           profit_multiplier: number;
           tax_percentage: number;
           install_delivery: number;
+          referral_currency_rate: number;
           project_details: string | null;
           project_brief: string | null;
+          disclaimer_tariff_info: string | null;
+          disclaimer_price_validity: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -152,8 +155,11 @@ export interface Database {
           profit_multiplier?: number;
           tax_percentage?: number;
           install_delivery?: number;
+          referral_currency_rate?: number;
           project_details?: string | null;
           project_brief?: string | null;
+          disclaimer_tariff_info?: string | null;
+          disclaimer_price_validity?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -171,8 +177,11 @@ export interface Database {
           profit_multiplier?: number;
           tax_percentage?: number;
           install_delivery?: number;
+          referral_currency_rate?: number;
           project_details?: string | null;
           project_brief?: string | null;
+          disclaimer_tariff_info?: string | null;
+          disclaimer_price_validity?: string | null;
           created_at?: string;
           updated_at?: string;
         };
