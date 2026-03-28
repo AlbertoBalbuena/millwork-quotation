@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Sparkles, ChevronRight, RotateCcw, Loader2, History, ArrowLeft, MessageSquare } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAiChatContext } from '../stores/aiChatContext';
 
@@ -55,15 +55,12 @@ const SUGGESTIONS = [
   { icon: '📦', text: 'Search a SKU' },
 ];
 
-function formatInline(text: string, keyPrefix: string = ''): React.ReactNode[] {
+function formatBoldCode(text: string, keyPrefix: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // Split by ** for bold, then handle backticks within each segment
   const boldSegments = text.split('**');
   boldSegments.forEach((segment, si) => {
     if (segment === '') return;
-    // Odd indices are bold content
     const isBold = si % 2 === 1;
-    // Handle backtick code within this segment
     const codeParts = segment.split(/`([^`]+)`/);
     const children: React.ReactNode[] = [];
     codeParts.forEach((part, ci) => {
@@ -83,6 +80,49 @@ function formatInline(text: string, keyPrefix: string = ''): React.ReactNode[] {
   return parts;
 }
 
+function formatInline(text: string, keyPrefix: string = '', onNavigate?: (path: string) => void): React.ReactNode[] {
+  const linkRegex = /\[\[(project|material):([^|]+)\|([^\]]+)\]\]/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let idx = 0;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(...formatBoldCode(text.slice(lastIndex, match.index), `${keyPrefix}t${idx}-`));
+    }
+    const [, kind, id, label] = match;
+    if (kind === 'project') {
+      parts.push(
+        <button
+          key={`${keyPrefix}lnk${idx}`}
+          type="button"
+          onClick={() => onNavigate?.(`/projects/${id}`)}
+          className="text-blue-600 hover:text-blue-800 underline cursor-pointer font-medium bg-transparent border-0 p-0 inline text-inherit"
+        >
+          {label}
+        </button>
+      );
+    } else {
+      parts.push(
+        <span key={`${keyPrefix}lnk${idx}`} className="text-blue-600 underline">
+          {label}
+        </span>
+      );
+    }
+    lastIndex = linkRegex.lastIndex;
+    idx++;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(...formatBoldCode(text.slice(lastIndex), `${keyPrefix}t${idx}-`));
+  } else if (lastIndex === 0) {
+    return formatBoldCode(text, keyPrefix);
+  }
+
+  return parts;
+}
+
 function isTableSeparator(line: string): boolean {
   return /^\|[\s\-:|]+\|$/.test(line.trim());
 }
@@ -97,7 +137,7 @@ function isAmountCell(text: string): boolean {
   return /^\$/.test(t) || /^-?\d[\d,.]+%?$/.test(t);
 }
 
-function renderTable(tableLines: string[], keyBase: number): React.ReactNode {
+function renderTable(tableLines: string[], keyBase: number, onNavigate?: (path: string) => void): React.ReactNode {
   const rows = tableLines.filter(l => !isTableSeparator(l));
   if (rows.length === 0) return null;
 
@@ -129,7 +169,7 @@ function renderTable(tableLines: string[], keyBase: number): React.ReactNode {
               <tr key={ri} className="border-b border-slate-100 last:border-0">
                 {cells.map((cell, ci) => (
                   <td key={ci} className={`py-1 px-2 text-slate-600 ${isAmountCell(cell) ? 'text-right tabular-nums' : ''}`}>
-                    {formatInline(cell, `t${keyBase}-${ri}-${ci}-`)}
+                    {formatInline(cell, `t${keyBase}-${ri}-${ci}-`, onNavigate)}
                   </td>
                 ))}
               </tr>
@@ -141,7 +181,7 @@ function renderTable(tableLines: string[], keyBase: number): React.ReactNode {
   );
 }
 
-function formatMessage(text: string): React.ReactNode {
+function formatMessage(text: string, onNavigate?: (path: string) => void): React.ReactNode {
   const lines = text.split('\n');
   const result: React.ReactNode[] = [];
   let i = 0;
@@ -156,17 +196,17 @@ function formatMessage(text: string): React.ReactNode {
         tableLines.push(lines[i]);
         i++;
       }
-      result.push(renderTable(tableLines, i));
+      result.push(renderTable(tableLines, i, onNavigate));
       continue;
     }
 
     // Headers
     if (line.startsWith('### ')) {
-      result.push(<p key={i} className="font-semibold text-slate-900 my-1 text-sm">{formatInline(line.slice(4), `h${i}-`)}</p>);
+      result.push(<p key={i} className="font-semibold text-slate-900 my-1 text-sm">{formatInline(line.slice(4), `h${i}-`, onNavigate)}</p>);
       i++; continue;
     }
     if (line.startsWith('## ')) {
-      result.push(<p key={i} className="font-semibold text-slate-900 my-1">{formatInline(line.slice(3), `h${i}-`)}</p>);
+      result.push(<p key={i} className="font-semibold text-slate-900 my-1">{formatInline(line.slice(3), `h${i}-`, onNavigate)}</p>);
       i++; continue;
     }
 
@@ -175,7 +215,7 @@ function formatMessage(text: string): React.ReactNode {
       result.push(
         <div key={i} className="flex gap-2 my-0.5">
           <span className="text-blue-500 flex-shrink-0">•</span>
-          <span>{formatInline(line.slice(2), `bl${i}-`)}</span>
+          <span>{formatInline(line.slice(2), `bl${i}-`, onNavigate)}</span>
         </div>
       );
       i++; continue;
@@ -187,7 +227,7 @@ function formatMessage(text: string): React.ReactNode {
       result.push(
         <div key={i} className="flex gap-2 my-0.5">
           <span className="text-blue-500 flex-shrink-0 min-w-[1.2em] text-right">{numMatch[1]}.</span>
-          <span>{formatInline(numMatch[2], `nl${i}-`)}</span>
+          <span>{formatInline(numMatch[2], `nl${i}-`, onNavigate)}</span>
         </div>
       );
       i++; continue;
@@ -200,7 +240,7 @@ function formatMessage(text: string): React.ReactNode {
     }
 
     // Plain text with inline formatting
-    result.push(<p key={i} className="my-0.5 leading-relaxed">{formatInline(line, `p${i}-`)}</p>);
+    result.push(<p key={i} className="my-0.5 leading-relaxed">{formatInline(line, `p${i}-`, onNavigate)}</p>);
     i++;
   }
 
@@ -229,6 +269,7 @@ function derivePageContext(pathname: string): { currentPage: string; projectId: 
 
 export function AiChat() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { currentPage, projectId } = derivePageContext(pathname);
   const activeProjectTab = useAiChatContext(s => s.activeProjectTab);
   const [isOpen, setIsOpen] = useState(false);
@@ -722,7 +763,7 @@ export function AiChat() {
                       }
                     >
                       {msg.role === 'assistant'
-                        ? formatMessage(msg.content)
+                        ? formatMessage(msg.content, navigate)
                         : <p className="leading-relaxed">{msg.content}</p>
                       }
                     </div>

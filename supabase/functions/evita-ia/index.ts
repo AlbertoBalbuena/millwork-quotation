@@ -340,7 +340,7 @@ Deno.serve(async (req: Request) => {
 
   const [settingsRes, recentRes, matPricesRes] = await Promise.all([
     sb.from('settings').select('key, value'),
-    sb.from('projects').select('name, customer, status, total_amount').order('updated_at', { ascending: false }).limit(5),
+    sb.from('projects').select('id, name, customer, status, total_amount').order('updated_at', { ascending: false }).limit(5),
     sb.from('price_list').select('id, unit_price_mxn').or('id.like.f4953b9f%,id.like.d0eb99a2%,id.like.6d877ed9%,id.like.e3e9c098%'),
   ]);
 
@@ -363,7 +363,7 @@ Deno.serve(async (req: Request) => {
   let liveData = `Exchange rate: ${fx} MXN/USD | Waste box: x${wBox} | Waste doors: x${wDoor} | Labor base: $${lBase} | Labor drawers: $${lDraw}`;
   if (recentRes.data?.length) {
     liveData += '\nRecent projects: ' + recentRes.data.map((p: any) =>
-      `${p.name} (${p.status}) $${Number(p.total_amount).toLocaleString()} MXN`
+      `${p.name} [id:${p.id}] (${p.status}) $${Number(p.total_amount).toLocaleString()} MXN`
     ).join(' | ');
   }
 
@@ -401,7 +401,7 @@ Deno.serve(async (req: Request) => {
       const totalMaterials = costBreakdown.box_mat + costBreakdown.door_mat + costBreakdown.box_eb + costBreakdown.door_eb + costBreakdown.accessories + costBreakdown.back_panel + costBreakdown.door_profile;
       const totalCabSubtotal = totalMaterials + costBreakdown.labor + costBreakdown.hardware;
 
-      liveData += `\nOpen project: ${proj.name} | ${proj.status} | $${Number(proj.total_amount).toLocaleString()} MXN`;
+      liveData += `\nOpen project: ${proj.name} [id:${projectId}] | ${proj.status} | $${Number(proj.total_amount).toLocaleString()} MXN`;
       liveData += ` | Profit: ${((proj.profit_multiplier??0)*100).toFixed(1)}% | Tax: ${proj.tax_percentage??0}% | Tariff: ${((proj.tariff_multiplier??0)*100).toFixed(1)}%`;
       if (proj.install_delivery_usd) liveData += ` | Install: $${proj.install_delivery_usd} USD`;
       liveData += ` | Referral: ${((proj.referral_currency_rate??0)*100).toFixed(0)}%`;
@@ -639,6 +639,13 @@ project.total_amount = FULL TOTAL (includes profit, tariff, tax, install)
 DO NOT use total_amount as "materials cost"
 When user asks for "just materials" from an open project, read MATERIALS ONLY
 directly from the COST BREAKDOWN — do not reverse-engineer or estimate.
+
+=== CLICKABLE LINKS ===
+When mentioning a project by name from LIVE DATA, wrap it as: [[project:PROJECT_UUID|Display Name]]
+When mentioning a material from search_materials results, wrap it as: [[material:MATERIAL_UUID|Display Name]]
+Example: "Your project [[project:abc-123|Kitchen Remodel]] has 5 areas."
+Example: "The material [[material:def-456|MDF 3/4 Maple]] costs $45.20/sheet."
+Always use these formats when an ID is available. The [id:...] in LIVE DATA is for your reference only — never output it directly.
 
 === LIVE DATA ===
 ${liveData}${skuContext}
