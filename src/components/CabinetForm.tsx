@@ -9,7 +9,7 @@ import { AutocompleteSelect } from './AutocompleteSelect';
 import { TemplateSelectorModal } from './TemplateSelectorModal';
 import { logTemplateUsage } from '../lib/templateManager';
 import type { CabinetTemplate } from '../types';
-import { getSettings } from '../lib/settingsStore';
+import { useSettingsStore } from '../lib/settingsStore';
 import {
   calculateBoxMaterialCost,
   calculateBoxEdgebandCost,
@@ -41,7 +41,8 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState({ laborCostNoDrawers: 400, laborCostWithDrawers: 600, laborCostAccessories: 100, wastePercentageBox: 10, wastePercentageDoors: 10 });
+  const settings = useSettingsStore(s => s.settings);
+  const fetchSettings = useSettingsStore(s => s.fetchSettings);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
 
@@ -124,15 +125,14 @@ export function CabinetForm({ areaId, cabinet, onClose }: CabinetFormProps) {
 
   async function loadData() {
     try {
-      const [products, pricesRes, settingsData] = await Promise.all([
+      const [products, pricesRes] = await Promise.all([
         fetchAllProducts({ onlyActive: true }),
         supabase.from('price_list').select('*').eq('is_active', true).order('concept_description'),
-        getSettings(),
       ]);
+      fetchSettings();
 
       setProducts(products);
       setPriceList(pricesRes.data || []);
-      setSettings(settingsData);
 
       if (cabinet?.product_sku) {
         const product = products.find((p) => p.sku === cabinet.product_sku);
