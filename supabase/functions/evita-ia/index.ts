@@ -24,11 +24,6 @@ function hasModificationIntent(messages: {role:string;content:string}[]): boolea
   return kw.some(k => last.toLowerCase().includes(k));
 }
 
-function detectSarahRomero(messages: {role:string;content:string}[]): boolean {
-  const text = messages.map(m => m.content).join(' ').toLowerCase();
-  return text.includes('sarah romero') || text.includes("sarah's") || text.includes('de sarah');
-}
-
 function normalizeQuotes(s: string): string {
   return s
     .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
@@ -367,10 +362,12 @@ Deno.serve(async (req: Request) => {
     ).join(' | ');
   }
 
+  let proj: any = null;
   if (projectId) {
-    const { data: proj } = await sb.from('projects')
+    const { data: projData } = await sb.from('projects')
       .select('name, status, total_amount, profit_multiplier, tax_percentage, tariff_multiplier, install_delivery, install_delivery_usd, install_delivery_per_box_usd, referral_currency_rate')
       .eq('id', projectId).single();
+    proj = projData;
     if (proj) {
       const { data: areas } = await sb.from('project_areas')
         .select('id, name, subtotal, applies_tariff').eq('project_id', projectId).order('display_order');
@@ -452,8 +449,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const modMode = hasModificationIntent(messages);
-  const isSarahRomero = detectSarahRomero(messages);
-  const referralRate = isSarahRomero ? 0.06 : 0;
+  const referralRate = proj?.referral_currency_rate ?? 0;
 
   const system = `You are Evita IA, quotation assistant for Evita Cabinets (Houston TX).
 
@@ -555,16 +551,13 @@ Use these for ALL estimates unless user specifies otherwise:
   tariff_multiplier  : 0.25 (25%) — kitchen areas ONLY
   tax_percentage     : 8.25%
   install_usd_per_box: $150 USD/box
-  referral_rate      : 0% default | 6% ONLY for Sarah Romero projects
+  referral_rate      : ${(referralRate*100).toFixed(0)}% (from project settings)
   fx                 : use live exchange rate from LIVE DATA
 
 TARIFF AREAS RULE — CRITICAL:
   applies_tariff = TRUE  -> Kitchen, Dining, Coffee, Pantry, Bar, Butler's Pantry, Wet Bar
   applies_tariff = FALSE -> Closet, Bedroom, Bathroom, Office, Laundry, Storage, Garage
   Default to false when area type is unclear.
-
-SARAH ROMERO RULE: If conversation mentions "Sarah Romero" as client, apply referral_rate=0.06.
-${isSarahRomero ? 'SARAH ROMERO DETECTED — apply 6% referral to this estimate.' : ''}
 
 === ESTIMATE OUTPUT FORMAT ===
 Always show this exact breakdown table after every estimate:
@@ -580,7 +573,7 @@ PRICING BREAKDOWN
   Price ...................... $XX,XXX MXN
   Tariff (25% kitchen) ....... $X,XXX MXN
   Install & Delivery ......... $X,XXX MXN  (XX boxes x $150 USD)
-  ${isSarahRomero ? 'Referral (6%) .............. $X,XXX MXN' : ''}
+  Referral (${(referralRate*100).toFixed(0)}%) .............. $X,XXX MXN
   Tax (8.25%) ................ $X,XXX MXN
   -----------------------------------------
   TOTAL ...................... $XXX,XXX MXN
