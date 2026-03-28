@@ -338,9 +338,10 @@ Deno.serve(async (req: Request) => {
   const { messages = [], projectId = null, pageKey = 'dashboard' } = body;
   const sb = createClient(SB_URL, SB_SERVICE);
 
-  const [settingsRes, recentRes] = await Promise.all([
+  const [settingsRes, recentRes, matPricesRes] = await Promise.all([
     sb.from('settings').select('key, value'),
     sb.from('projects').select('name, customer, status, total_amount').order('updated_at', { ascending: false }).limit(5),
+    sb.from('price_list').select('id, unit_price_mxn').or('id.like.f4953b9f%,id.like.d0eb99a2%,id.like.6d877ed9%,id.like.e3e9c098%'),
   ]);
 
   const sData = settingsRes.data ?? [];
@@ -350,6 +351,14 @@ Deno.serve(async (req: Request) => {
   const lBase = Number(get('labor_cost_no_drawers'));
   const lDraw = Number(get('labor_cost_with_drawers'));
   const fx    = Number(get('exchange_rate_usd_to_mxn'));
+
+  const matPrices = matPricesRes.data ?? [];
+  const priceOf = (prefix: string) =>
+    Number(matPrices.find((m: any) => m.id.startsWith(prefix))?.unit_price_mxn) || 0;
+  const pBoxMat  = priceOf('f4953b9f');
+  const pDoorMat = priceOf('d0eb99a2');
+  const pBoxEB   = priceOf('6d877ed9');
+  const pDoorEB  = priceOf('e3e9c098');
 
   let liveData = `Exchange rate: ${fx} MXN/USD | Waste box: x${wBox} | Waste doors: x${wDoor} | Labor base: $${lBase} | Labor drawers: $${lDraw}`;
   if (recentRes.data?.length) {
@@ -374,15 +383,16 @@ Deno.serve(async (req: Request) => {
           .in('area_id', areaIds);
         if (cabCosts) {
           for (const c of cabCosts) {
-            costBreakdown.box_mat    += Number(c.box_material_cost)        || 0;
-            costBreakdown.door_mat   += Number(c.doors_material_cost)      || 0;
-            costBreakdown.box_eb     += Number(c.box_edgeband_cost)        || 0;
-            costBreakdown.door_eb    += Number(c.doors_edgeband_cost)      || 0;
-            costBreakdown.labor      += Number(c.labor_cost)               || 0;
-            costBreakdown.hardware   += Number(c.hardware_cost)            || 0;
-            costBreakdown.accessories+= Number(c.accessories_cost)         || 0;
-            costBreakdown.back_panel += Number(c.back_panel_material_cost) || 0;
-            costBreakdown.door_profile += Number(c.door_profile_cost)      || 0;
+            const qty = Number(c.quantity) || 1;
+            costBreakdown.box_mat    += (Number(c.box_material_cost)        || 0) * qty;
+            costBreakdown.door_mat   += (Number(c.doors_material_cost)      || 0) * qty;
+            costBreakdown.box_eb     += (Number(c.box_edgeband_cost)        || 0) * qty;
+            costBreakdown.door_eb    += (Number(c.doors_edgeband_cost)      || 0) * qty;
+            costBreakdown.labor      += (Number(c.labor_cost)               || 0) * qty;
+            costBreakdown.hardware   += (Number(c.hardware_cost)            || 0) * qty;
+            costBreakdown.accessories+= (Number(c.accessories_cost)         || 0) * qty;
+            costBreakdown.back_panel += (Number(c.back_panel_material_cost) || 0) * qty;
+            costBreakdown.door_profile += (Number(c.door_profile_cost)      || 0) * qty;
           }
         }
       }
@@ -424,10 +434,10 @@ Deno.serve(async (req: Request) => {
         const bsf=Number(p.box_sf), dsf=Number(p.doors_fronts_sf);
         const beb=Number(p.box_edgeband), bebc=Number(p.box_edgeband_color), deb=Number(p.doors_fronts_edgeband);
         const labor = p.has_drawers ? lDraw : lBase;
-        const boxMat  = Math.round((bsf*wBox/32)*550*100)/100;
-        const doorMat = Math.round((dsf*wDoor/32)*1250*100)/100;
-        const boxEB   = Math.round((beb+bebc)*8.30*100)/100;
-        const doorEB  = Math.round(deb*11.30*100)/100;
+        const boxMat  = Math.round((bsf*wBox/32)*pBoxMat*100)/100;
+        const doorMat = Math.round((dsf*wDoor/32)*pDoorMat*100)/100;
+        const boxEB   = Math.round((beb+bebc)*pBoxEB*100)/100;
+        const doorEB  = Math.round(deb*pDoorEB*100)/100;
         const baseUnit = boxMat+doorMat+boxEB+doorEB+labor;
         skuContext += `\n${p.sku} | ${p.description} | drawers=${p.has_drawers}\n`;
         skuContext += `  box_sf=${bsf} | doors_sf=${dsf} | box_eb=${beb}m+${bebc}m | door_eb=${deb}m\n`;
@@ -455,10 +465,10 @@ Deno.serve(async (req: Request) => {
 === MATERIAL COST FORMULA — CRITICAL ===
 NEVER guess SF values. Use ONLY values from the database section.
 Per unit (then x qty):
-  box_mat    = (box_sf x waste_box / 32) x 550
-  door_mat   = (doors_fronts_sf x waste_door / 32) x 1250
-  box_eb     = (box_edgeband_m + box_edgeband_color_m) x 8.30
-  door_eb    = doors_fronts_edgeband_m x 11.30
+  box_mat    = (box_sf x waste_box / 32) x ${pBoxMat}
+  door_mat   = (doors_fronts_sf x waste_door / 32) x ${pDoorMat}
+  box_eb     = (box_edgeband_m + box_edgeband_color_m) x ${pBoxEB}
+  door_eb    = doors_fronts_edgeband_m x ${pDoorEB}
   labor      = 400 (no drawers) | 600 (with drawers)
   hardware   = hinge_PAIRS x 130 + slide_SETS x 626.63
   subtotal   = (all above) x qty

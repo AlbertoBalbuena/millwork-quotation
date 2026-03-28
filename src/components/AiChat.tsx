@@ -155,6 +155,32 @@ export function AiChat() {
     }
   }, [messages, loading, view]);
 
+  useEffect(() => {
+    if (!unlocked) return;
+    const saved = sessionStorage.getItem('evita-ia-messages');
+    if (saved) return;
+
+    (async () => {
+      const sessionKey = getOrCreateSessionKey();
+      const { data } = await supabase
+        .from('ai_chat_sessions')
+        .select('id, created_at, messages')
+        .eq('session_key', sessionKey)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (data?.length) {
+        const session = data[0];
+        const age = Date.now() - new Date(session.created_at).getTime();
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        if (age < TWENTY_FOUR_HOURS && Array.isArray(session.messages) && session.messages.length > 0) {
+          setMessages(session.messages as Message[]);
+          setCurrentSessionId(session.id);
+        }
+      }
+    })();
+  }, [unlocked]);
+
   async function saveSession(msgs: Message[]) {
     if (msgs.length === 0) return;
     const sessionKey = getOrCreateSessionKey();
