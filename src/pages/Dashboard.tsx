@@ -20,7 +20,7 @@ import { formatCurrency } from '../lib/calculations';
 import { seedSampleData } from '../utils/seedData';
 import { Button } from '../components/Button';
 import { isAccessoryPanel } from '../lib/cabinetFilters';
-import { getSettings } from '../lib/settingsStore';
+import { useSettingsStore } from '../lib/settingsStore';
 
 interface DashboardStats {
   totalProjects: number;
@@ -107,12 +107,13 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
-  const [exchangeRate, setExchangeRate] = useState(18);
+  const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
+  const fetchSettings = useSettingsStore(s => s.fetchSettings);
 
   useEffect(() => {
     loadStats();
     loadTrends();
-    getSettings().then(s => setExchangeRate(s.exchangeRateUsdToMxn));
+    fetchSettings();
   }, []);
 
   useEffect(() => {

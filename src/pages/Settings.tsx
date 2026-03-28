@@ -3,7 +3,7 @@ import { Save, Upload, AlertCircle, Plus, Trash2, RefreshCw, Download, CheckCirc
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { clearSettingsCache } from '../lib/settingsStore';
+import { clearSettingsCache, useSettingsStore } from '../lib/settingsStore';
 import { downloadFullBackup, type BackupSummary } from '../utils/backupExport';
 import type { Setting, TaxByType, CustomType, CustomUnit, TeamMember } from '../types';
 
@@ -118,6 +118,7 @@ export function Settings() {
       }
 
       clearSettingsCache();
+      useSettingsStore.getState().fetchSettings();
       setMessage({ type: 'success', text: 'Settings saved successfully! Changes will be applied to new calculations.' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {

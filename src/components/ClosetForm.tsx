@@ -4,7 +4,7 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { Modal } from './Modal';
 import { formatCurrency } from '../lib/calculations';
-import { getSettings } from '../lib/settingsStore';
+import { useSettingsStore } from '../lib/settingsStore';
 import { Search, X } from 'lucide-react';
 import type { ClosetCatalogItem, AreaClosetItem, HardwareItem, PriceListItem } from '../types';
 
@@ -20,7 +20,8 @@ export function ClosetForm({ areaId, closetItem, onClose }: ClosetFormProps) {
   const [catalog, setCatalog] = useState<ClosetCatalogItem[]>([]);
   const [priceList, setPriceList] = useState<PriceListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [exchangeRate, setExchangeRate] = useState(18);
+  const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
+  const fetchSettings = useSettingsStore(s => s.fetchSettings);
 
   const [selectedLine, setSelectedLine] = useState<string>(closetItem?.catalog_item?.evita_line || 'Evita Plus');
   const [selectedDescription, setSelectedDescription] = useState<string>(closetItem?.catalog_item?.description || '');
@@ -42,16 +43,15 @@ export function ClosetForm({ areaId, closetItem, onClose }: ClosetFormProps) {
 
   async function loadData() {
     try {
-      const [catalogResult, priceListResult, settingsData] = await Promise.all([
+      const [catalogResult, priceListResult] = await Promise.all([
         supabase.from('closet_catalog').select('*').eq('is_active', true).order('evita_line').order('description').order('width_in').order('height_in'),
         supabase.from('price_list').select('*').eq('is_active', true).in('type', ['Hardware', 'Accessories']).order('concept_description'),
-        getSettings(),
       ]);
+      fetchSettings();
 
       if (catalogResult.error) throw catalogResult.error;
       setCatalog((catalogResult.data || []) as ClosetCatalogItem[]);
       setPriceList(priceListResult.data || []);
-      setExchangeRate(settingsData.exchangeRateUsdToMxn);
 
       if (closetItem && closetItem.closet_catalog_id) {
         const cat = catalogResult.data?.find(c => c.id === closetItem.closet_catalog_id);

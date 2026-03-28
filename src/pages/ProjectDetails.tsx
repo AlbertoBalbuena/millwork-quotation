@@ -20,7 +20,7 @@ import { printQuotation, printQuotationUSD } from '../utils/printQuotation';
 import { filterProjectBriefForPDF } from '../utils/filterProjectBrief';
 import { BoxesPalletsBreakdown } from '../components/BoxesPalletsBreakdown';
 import { calculateAreaBoxesAndPallets } from '../lib/boxesAndPallets';
-import { getSettings } from '../lib/settingsStore';
+import { useSettingsStore } from '../lib/settingsStore';
 import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
@@ -76,7 +76,8 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   }, [setActiveProjectTab]);
 
   const [currencyDisplay, setCurrencyDisplay] = useState<'USD' | 'MXN' | 'BOTH'>('MXN');
-  const [exchangeRate, setExchangeRate] = useState(18);
+  const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
+  const fetchSettings = useSettingsStore(s => s.fetchSettings);
   const [otherExpenses, setOtherExpenses] = useState(project.other_expenses || 0);
   const [otherExpensesLabel, setOtherExpensesLabel] = useState(project.other_expenses_label || 'Other Expenses');
   const [profitMultiplier, setProfitMultiplier] = useState(project.profit_multiplier || 0);
@@ -199,7 +200,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
 
   async function loadAreas() {
     try {
-      const [areasResult, allProducts, priceListResult, settingsData] = await Promise.all([
+      const [areasResult, allProducts, priceListResult] = await Promise.all([
         supabase
           .from('project_areas')
           .select('*')
@@ -207,15 +208,14 @@ const [isEditingDate, setIsEditingDate] = useState(false);
           .order('display_order'),
         fetchAllProducts({ onlyActive: false }),
         supabase.from('price_list').select('*').eq('is_active', true),
-        getSettings(),
       ]);
+      fetchSettings();
 
       const { data: areasData, error: areasError } = areasResult;
       if (areasError) throw areasError;
 
       setProducts(allProducts);
       setPriceList(priceListResult.data || []);
-      setExchangeRate(settingsData.exchangeRateUsdToMxn);
 
       const areaIds = (areasData || []).map((a) => a.id);
 

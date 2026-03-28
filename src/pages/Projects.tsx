@@ -12,7 +12,7 @@ import { getProjectsWithStalePrices } from '../lib/priceUpdateSystem';
 import { ImportProjectModal } from '../components/ImportProjectModal';
 import { groupProjectsByGroupId } from '../lib/projectGrouping';
 import { ProjectGroupCard } from '../components/ProjectGroupCard';
-import { getSettings } from '../lib/settingsStore';
+import { useSettingsStore } from '../lib/settingsStore';
 
 type SortBy = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | 'amount_desc' | 'amount_asc';
 
@@ -21,7 +21,8 @@ export function Projects() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [exchangeRate, setExchangeRate] = useState(18);
+  const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
+  const fetchSettings = useSettingsStore(s => s.fetchSettings);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -42,7 +43,7 @@ export function Projects() {
   useEffect(() => {
     loadProjects();
     loadStaleProjects();
-    getSettings().then(s => setExchangeRate(s.exchangeRateUsdToMxn));
+    fetchSettings();
   }, []);
 
   async function loadStaleProjects() {
