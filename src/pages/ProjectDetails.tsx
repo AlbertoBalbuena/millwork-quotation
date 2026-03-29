@@ -6,7 +6,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { formatCurrency } from '../lib/calculations';
-import type { Quotation, ProjectArea, AreaCabinet, ProjectAreaInsert, Product, AreaItem, AreaCountertop, AreaClosetItem, PriceListItem } from '../types';
+import type { Quotation, Project, ProjectArea, AreaCabinet, ProjectAreaInsert, Product, AreaItem, AreaCountertop, AreaClosetItem, PriceListItem } from '../types';
 import { CabinetForm } from '../components/CabinetForm';
 import { ItemForm } from '../components/ItemForm';
 import { CountertopForm } from '../components/CountertopForm';
@@ -42,10 +42,11 @@ import { useAiChatContext } from '../stores/aiChatContext';
 
 interface ProjectDetailsProps {
   project: Quotation;
+  parentProject?: Project | null;
   onBack: () => void;
 }
 
-export function ProjectDetails({ project: initialProject, onBack }: ProjectDetailsProps) {
+export function ProjectDetails({ project: initialProject, parentProject, onBack }: ProjectDetailsProps) {
   const setActiveProjectTab = useAiChatContext(s => s.setActiveProjectTab);
   const [project, setProject] = useState<Quotation>(initialProject);
   const [areas, setAreas] = useState<(ProjectArea & { cabinets: AreaCabinet[]; items: AreaItem[]; countertops: AreaCountertop[]; closetItems: AreaClosetItem[] })[]>([]);
@@ -942,11 +943,21 @@ const [isEditingDate, setIsEditingDate] = useState(false);
         <div className="max-w-7xl mx-auto flex items-center h-12 px-4 sm:px-6 lg:px-8" style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', alignItems: 'center', height: '48px', padding: '0 24px' }}>
           <button
             onClick={onBack}
-            className="flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors px-3 flex-shrink-0"
+            className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors mr-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Back
+            <ArrowLeft className="h-4 w-4" />
           </button>
+          <div className="flex items-center gap-1.5 text-sm text-slate-400 mr-4 flex-shrink-0 hidden sm:flex">
+            {parentProject ? (
+              <>
+                <button onClick={onBack} className="hover:text-blue-600 transition-colors truncate max-w-[140px]">{parentProject.name}</button>
+                <span>/</span>
+                <span className="text-slate-700 font-medium truncate max-w-[160px]">{project.version_label || project.name}</span>
+              </>
+            ) : (
+              <span className="text-slate-700 font-medium truncate max-w-[200px]">{project.name}</span>
+            )}
+          </div>
           <div className="flex flex-1 items-center overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
