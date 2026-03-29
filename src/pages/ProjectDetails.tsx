@@ -656,7 +656,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
 
   async function handleExportJSON() {
     if (areas.length === 0) {
-      alert('No areas to export. Please add areas to the quote first.');
+      alert('No areas to export. Please add areas to the project first.');
       return;
     }
 
@@ -664,7 +664,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
       await exportQuotationToJSON(project.id);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export quote. Please try again.');
+      alert('Failed to export project. Please try again.');
     }
   }
 
@@ -924,7 +924,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-slate-600">Loading quote details...</div>
+        <div className="text-slate-600">Loading project details...</div>
       </div>
     );
   }
@@ -1137,7 +1137,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
             </div>
 
             <div className="flex-shrink-0 text-right">
-              <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Quote Total</div>
+              <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Project Total</div>
               <div className="text-2xl font-bold text-slate-900 leading-tight">
                 {formatPrice(projectTotal)}{' '}
                 <span className="text-sm font-normal text-slate-500">
@@ -1466,7 +1466,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center">
               <FileText className="h-5 w-5 text-blue-600 mr-2" />
-              <h3 className="text-lg font-semibold text-slate-900">PDF Quote Details</h3>
+              <h3 className="text-lg font-semibold text-slate-900">PDF Project Details</h3>
             </div>
             {isAnyPdfFieldModified && (
               <button
@@ -1487,7 +1487,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
           <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg mb-4">
             <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-blue-700 leading-relaxed">
-              These values default to your Quote Brief. Changes here only affect PDF output and will not modify your original brief.
+              These values default to your Project Brief. Changes here only affect PDF output and will not modify your original Project Brief.
             </p>
           </div>
 
@@ -1495,7 +1495,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
             <div>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-slate-700">Quote Name</label>
+                  <label className="text-sm font-medium text-slate-700">Project Name</label>
                   {isPdfNameModified && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
                       Modified
@@ -1518,7 +1518,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                 onChange={(e) => setPdfProjectName(e.target.value)}
                 onBlur={updateProjectCosts}
                 className="block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Quote name as it appears on PDFs"
+                placeholder="Project name as it appears on PDFs"
               />
             </div>
 
@@ -1585,7 +1585,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
             <div>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-slate-700">Quote Brief / Details</label>
+                  <label className="text-sm font-medium text-slate-700">Project Brief / Details</label>
                   {isPdfBriefModified && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
                       Modified
@@ -1608,7 +1608,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                 onBlur={updateProjectCosts}
                 rows={6}
                 className="block w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
-                placeholder="Quote details as they appear on PDFs (CABINET TYPES, ACCESSORIES, and OTHER sections are excluded automatically)"
+                placeholder="Project details as they appear on PDFs (CABINET TYPES, ACCESSORIES, and OTHER sections are excluded automatically)"
               />
               <p className="mt-1 text-xs text-slate-500">
                 This is the filtered version shown in PDFs — CABINET TYPES, ACCESSORIES, and OTHER sections are excluded.
@@ -1621,7 +1621,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
             <h3 className="text-sm font-semibold text-blue-900 flex items-center gap-2 mb-3">
               <Package className="h-4 w-4" />
-              Quote Brief
+              Project Brief
             </h3>
             <p className="text-sm text-blue-900 whitespace-pre-wrap font-mono">{project.project_brief}</p>
           </div>
