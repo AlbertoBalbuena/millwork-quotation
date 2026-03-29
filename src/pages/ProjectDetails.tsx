@@ -6,7 +6,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { formatCurrency } from '../lib/calculations';
-import type { Quotation, ProjectArea, AreaCabinet, ProjectAreaInsert, Product, AreaItem, AreaCountertop, AreaClosetItem, PriceListItem, TeamMember } from '../types';
+import type { Quotation, ProjectArea, AreaCabinet, ProjectAreaInsert, Product, AreaItem, AreaCountertop, AreaClosetItem, PriceListItem } from '../types';
 import { CabinetForm } from '../components/CabinetForm';
 import { ItemForm } from '../components/ItemForm';
 import { CountertopForm } from '../components/CountertopForm';
@@ -37,10 +37,7 @@ import { FloatingActionBar } from '../components/FloatingActionBar';
 import { ProductFormModal } from '../components/ProductFormModal';
 import type { ProductInsert } from '../types';
 import { exportQuotationToJSON } from '../utils/projectExportImport';
-import { ScheduleSection } from '../components/ScheduleSection';
-import { TasksSection } from '../components/TasksSection';
-import { DocumentationSection } from '../components/DocumentationSection';
-import { BitacoraSection } from '../components/BitacoraSection';
+
 import { useAiChatContext } from '../stores/aiChatContext';
 
 interface ProjectDetailsProps {
@@ -64,7 +61,7 @@ export function ProjectDetails({ project: initialProject, onBack }: ProjectDetai
   const [editingCountertop, setEditingCountertop] = useState<AreaCountertop | null>(null);
   const [selectedAreaForCloset, setSelectedAreaForCloset] = useState<string | null>(null);
   const [editingClosetItem, setEditingClosetItem] = useState<AreaClosetItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'pricing' | 'analytics' | 'history' | 'management'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'pricing' | 'analytics' | 'history'>('info');
 
   useEffect(() => {
     setActiveProjectTab(activeTab);
@@ -100,8 +97,6 @@ const [isEditingDate, setIsEditingDate] = useState(false);
   const [editedQuoteDate, setEditedQuoteDate] = useState(project.quote_date);
   const [hasAreasOrderChanged, setHasAreasOrderChanged] = useState(false);
   const [savingAreasOrder, setSavingAreasOrder] = useState(false);
-  const [hasLoadedManagement, setHasLoadedManagement] = useState(false);
-  const [managementTeamMembers, setManagementTeamMembers] = useState<TeamMember[]>([]);
   const [draggedCabinet, setDraggedCabinet] = useState<{ areaId: string; index: number } | null>(null);
   const [cabinetDropTarget, setCabinetDropTarget] = useState<{ areaId: string; index: number; position: 'before' | 'after' } | null>(null);
   const DEFAULT_TARIFF_INFO = 'Grand Total includes design services, delivery costs, installation and tax.';
@@ -149,24 +144,6 @@ const [isEditingDate, setIsEditingDate] = useState(false);
       setInstallDelivery(installDeliveryPerBox * boxes);
     }
   }, [installDeliveryPerBox, areas, products]);
-
-  useEffect(() => {
-    if (activeTab === 'management' && !hasLoadedManagement) {
-      (async () => {
-        try {
-          const { data } = await supabase
-            .from('team_members')
-            .select('*')
-            .eq('is_active', true)
-            .order('display_order');
-          setManagementTeamMembers(data || []);
-        } catch (error) {
-          console.error('Error loading team members:', error);
-        }
-        setHasLoadedManagement(true);
-      })();
-    }
-  }, [activeTab, hasLoadedManagement]);
 
   async function loadProject() {
     try {
@@ -957,7 +934,6 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     { id: 'pricing' as const, label: 'Pricing', icon: Calculator },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
     { id: 'history' as const, label: 'History', icon: History },
-    { id: 'management' as const, label: 'Project Management', icon: Hammer },
   ];
 
   return (
@@ -1687,15 +1663,6 @@ const [isEditingDate, setIsEditingDate] = useState(false);
             loadVersionCount();
           }}
         />
-      )}
-
-      {activeTab === 'management' && (
-        <div className="space-y-6">
-          <ScheduleSection projectId={project.id} />
-          <TasksSection projectId={project.id} teamMembers={managementTeamMembers} />
-          <DocumentationSection projectId={project.id} />
-          <BitacoraSection projectId={project.id} />
-        </div>
       )}
 
       {activeTab === 'pricing' && (
