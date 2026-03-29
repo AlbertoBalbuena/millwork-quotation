@@ -112,7 +112,7 @@ const MODIFICATION_TOOLS = [
   },
   {
     name: 'update_project_settings',
-    description: 'Update project-level settings: profit, tax, tariff, install cost. Confirm before calling.',
+    description: 'Update quotation-level settings: profit, tax, tariff, install cost. Confirm before calling.',
     input_schema: {
       type: 'object',
       properties: {
@@ -357,7 +357,7 @@ Deno.serve(async (req: Request) => {
 
   let liveData = `Exchange rate: ${fx} MXN/USD | Waste box: x${wBox} | Waste doors: x${wDoor} | Labor base: $${lBase} | Labor drawers: $${lDraw}`;
   if (recentRes.data?.length) {
-    liveData += '\nRecent projects: ' + recentRes.data.map((p: any) =>
+    liveData += '\nRecent quotations: ' + recentRes.data.map((p: any) =>
       `${p.name} [id:${p.project_id}] (${p.status}) $${Number(p.total_amount).toLocaleString()} MXN`
     ).join(' | ');
   }
@@ -398,7 +398,7 @@ Deno.serve(async (req: Request) => {
       const totalMaterials = costBreakdown.box_mat + costBreakdown.door_mat + costBreakdown.box_eb + costBreakdown.door_eb + costBreakdown.accessories + costBreakdown.back_panel + costBreakdown.door_profile;
       const totalCabSubtotal = totalMaterials + costBreakdown.labor + costBreakdown.hardware;
 
-      liveData += `\nOpen project: ${proj.name} [id:${projectId}] | ${proj.status} | $${Number(proj.total_amount).toLocaleString()} MXN`;
+      liveData += `\nOpen quotation: ${proj.name} [id:${projectId}] | ${proj.status} | $${Number(proj.total_amount).toLocaleString()} MXN`;
       liveData += ` | Profit: ${((proj.profit_multiplier??0)*100).toFixed(1)}% | Tax: ${proj.tax_percentage??0}% | Tariff: ${((proj.tariff_multiplier??0)*100).toFixed(1)}%`;
       if (proj.install_delivery_usd) liveData += ` | Install: $${proj.install_delivery_usd} USD`;
       liveData += ` | Referral: ${((proj.referral_currency_rate??0)*100).toFixed(0)}%`;
@@ -453,10 +453,17 @@ Deno.serve(async (req: Request) => {
 
   const system = `You are Evita IA, quotation assistant for Evita Cabinets (Houston TX).
 
+=== DATA MODEL ===
+"Project" = business-level parent entity (name, customer, address).
+"Quotation" = pricing version within a project (areas, cabinets, costs, totals).
+A project has multiple quotations (e.g., "Plus", "Premium", "v2", "v3").
+The projectId you receive is a QUOTATION ID. project_areas and area_cabinets belong to quotations.
+When the user says "project" they usually mean the quotation they are currently viewing.
+
 === CAPABILITIES ===
 - Quick estimates with full USD pricing breakdown
 - Price and material lookups (use search_materials for ANY price question)
-- Project modifications (materials, quantities, settings)
+- Quotation modifications (materials, quantities, settings)
 
 === MATERIAL COST FORMULA — CRITICAL ===
 NEVER guess SF values. Use ONLY values from the database section.
@@ -617,8 +624,8 @@ KNOWN HARDWARE IDs:
   accuride:  3f41b07e-4b35-47f5-9bb4-a8cc2d59edfe  $1,078.80/set
 For unknown hardware: use search_materials first to get the ID and price.` : `For ANY price or material question, use search_materials tool.`}
 
-=== PROJECT COST INTERPRETATION — CRITICAL ===
-When a project is open, the COST BREAKDOWN section in Live Data contains
+=== QUOTATION COST INTERPRETATION — CRITICAL ===
+When a quotation is open, the COST BREAKDOWN section in Live Data contains
 pre-computed sums of all cabinet cost fields. Use these directly:
 
 "Only materials" = MATERIALS ONLY value (box_mat + door_mat + edgebands)
@@ -628,9 +635,9 @@ pre-computed sums of all cabinet cost fields. Use these directly:
 "Cabinet subtotal" = CABINET SUBTOTAL (what area.subtotal stores in DB)
 area.subtotal in the DB = raw cabinet cost BEFORE profit, tariff, tax, install
 DO NOT divide area subtotals by profit multiplier — they are already raw costs.
-project.total_amount = FULL TOTAL (includes profit, tariff, tax, install)
+quotation.total_amount = FULL TOTAL (includes profit, tariff, tax, install)
 DO NOT use total_amount as "materials cost"
-When user asks for "just materials" from an open project, read MATERIALS ONLY
+When user asks for "just materials" from an open quotation, read MATERIALS ONLY
 directly from the COST BREAKDOWN — do not reverse-engineer or estimate.
 
 === CLICKABLE LINKS ===
