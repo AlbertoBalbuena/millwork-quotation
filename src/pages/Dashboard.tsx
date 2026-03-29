@@ -261,10 +261,12 @@ export function Dashboard() {
 
   async function loadTrends() {
     try {
-      await loadTopCabinetsManually();
-      await loadDoorMaterialsManually();
-      await loadBoxMaterialsManually();
-      await loadHardwareTrendsManually();
+      await Promise.all([
+        loadTopCabinetsManually(),
+        loadDoorMaterialsManually(),
+        loadBoxMaterialsManually(),
+        loadHardwareTrendsManually(),
+      ]);
     } catch (error) {
       console.error('Error loading trends:', error);
     }
@@ -495,15 +497,6 @@ export function Dashboard() {
     }
   }
 
-  async function loadTrendsManually() {
-    await Promise.all([
-      loadTopCabinetsManually(),
-      loadDoorMaterialsManually(),
-      loadBoxMaterialsManually(),
-      loadHardwareTrendsManually(),
-    ]);
-  }
-
   const conversionRate = stats.totalProjects > 0
     ? (stats.wonProjects / stats.totalProjects) * 100
     : 0;
@@ -573,8 +566,9 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-slate-600">Loading dashboard...</div>
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <div className="h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="text-slate-500 text-sm">Loading dashboard...</div>
       </div>
     );
   }
@@ -738,7 +732,7 @@ export function Dashboard() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-600">{card.label}</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 break-all">
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2">
                     {card.value}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">{card.subtext}</p>
@@ -1067,7 +1061,7 @@ export function Dashboard() {
               return (
                 <div
                   key={typeData.projectType}
-                  className={`bg-gradient-to-br ${typeColors[typeData.projectType]} rounded-lg p-5 text-white`}
+                  className={`bg-gradient-to-br ${typeColors[typeData.projectType] || 'from-slate-500 to-slate-600'} rounded-lg p-5 text-white`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold uppercase tracking-wide">
@@ -1132,19 +1126,19 @@ export function Dashboard() {
           <div className="space-y-2">
             <button
               onClick={() => navigate('/projects')}
-              className="w-full text-left bg-white/20 hover:bg-white/30 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              className="w-full text-left bg-white/25 hover:bg-white/40 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
             >
               Create New Project
             </button>
             <button
               onClick={() => navigate('/products')}
-              className="w-full text-left bg-white/20 hover:bg-white/30 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              className="w-full text-left bg-white/25 hover:bg-white/40 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
             >
               Manage Products
             </button>
             <button
               onClick={() => navigate('/prices')}
-              className="w-full text-left bg-white/20 hover:bg-white/30 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              className="w-full text-left bg-white/25 hover:bg-white/40 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
             >
               Update Prices
             </button>
