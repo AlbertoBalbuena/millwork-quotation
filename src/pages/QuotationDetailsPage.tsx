@@ -2,29 +2,32 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ProjectDetails } from './ProjectDetails';
-import type { Quotation } from '../types';
+import type { Quotation, Project } from '../types';
 
 export function QuotationDetailsPage() {
   const { projectId, quotationId } = useParams<{ projectId: string; quotationId: string }>();
   const navigate = useNavigate();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
+  const [parentProject, setParentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!quotationId) { navigate('/projects', { replace: true }); return; }
 
     async function load() {
-      const { data, error } = await supabase
-        .from('quotations')
-        .select('*')
-        .eq('id', quotationId)
-        .single();
+      const [{ data: qData, error: qErr }, { data: pData }] = await Promise.all([
+        supabase.from('quotations').select('*').eq('id', quotationId).single(),
+        projectId
+          ? supabase.from('projects').select('*').eq('id', projectId).single()
+          : Promise.resolve({ data: null }),
+      ]);
 
-      if (error || !data) {
+      if (qErr || !qData) {
         navigate(projectId ? `/projects/${projectId}` : '/projects', { replace: true });
         return;
       }
-      setQuotation(data);
+      setQuotation(qData);
+      setParentProject(pData);
       setLoading(false);
     }
 
@@ -43,6 +46,7 @@ export function QuotationDetailsPage() {
   return (
     <ProjectDetails
       project={quotation}
+      parentProject={parentProject}
       onBack={() => navigate(projectId ? `/projects/${projectId}` : '/projects')}
     />
   );

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Pencil as Edit2, FileText, FolderOpen, Hammer, BarChart3,
-  Plus, Calendar, Tag, User, MapPin, Check, Save, X, Copy
+  Plus, Calendar, Tag, User, MapPin, Check, Save, X, Copy,
+  Receipt, ClipboardList, Files, ScrollText
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
@@ -28,7 +29,7 @@ export function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'quotations' | 'management' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'quotations' | 'management' | 'documents' | 'logs' | 'analytics'>('overview');
 
   // Overview editing
   const [editing, setEditing] = useState(false);
@@ -173,8 +174,10 @@ export function ProjectPage() {
 
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: FolderOpen },
-    { id: 'quotations' as const, label: 'Quotations', icon: FileText },
-    { id: 'management' as const, label: 'Management', icon: Hammer },
+    { id: 'quotations' as const, label: 'Quotations', icon: Receipt },
+    { id: 'management' as const, label: 'Management', icon: ClipboardList },
+    { id: 'documents' as const, label: 'Documents', icon: Files },
+    { id: 'logs' as const, label: 'Logs', icon: ScrollText },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
   ];
 
@@ -349,14 +352,22 @@ export function ProjectPage() {
         </div>
       )}
 
-      {/* Management tab */}
+      {/* Management tab — Schedule + Tasks only */}
       {activeTab === 'management' && (
         <div className="space-y-6">
           <ScheduleSection projectId={project.id} />
           <TasksSection projectId={project.id} teamMembers={teamMembers} />
-          <DocumentationSection projectId={project.id} />
-          <BitacoraSection projectId={project.id} />
         </div>
+      )}
+
+      {/* Documents tab */}
+      {activeTab === 'documents' && (
+        <DocumentationSection projectId={project.id} />
+      )}
+
+      {/* Logs tab */}
+      {activeTab === 'logs' && (
+        <BitacoraSection projectId={project.id} />
       )}
 
       {/* Analytics tab */}
