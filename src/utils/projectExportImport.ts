@@ -1,10 +1,10 @@
 import { supabase } from '../lib/supabase';
-import type { Project, ProjectArea, AreaCabinet, AreaItem, AreaCountertop, AreaClosetItem, HardwareItem, AccessoryItem } from '../types';
+import type { Quotation, ProjectArea, AreaCabinet, AreaItem, AreaCountertop, AreaClosetItem, HardwareItem, AccessoryItem } from '../types';
 
 export interface ProjectExport {
   exportVersion: "1.0";
   exportDate: string;
-  project: Project;
+  project: Quotation;
   areas: Array<{
     area: ProjectArea;
     cabinets: AreaCabinet[];
@@ -48,7 +48,7 @@ export interface ImportSummary {
 export async function exportProjectToJSON(projectId: string): Promise<void> {
   try {
     const { data: project, error: projectError } = await supabase
-      .from('projects')
+      .from('quotations')
       .select('*')
       .eq('id', projectId)
       .single();
@@ -221,7 +221,7 @@ export async function performProjectImport(
     if (importMode === 'version') {
       const baseName = project.name;
       const { data: existingProjects } = await supabase
-        .from('projects')
+        .from('quotations')
         .select('group_id')
         .ilike('name', `${baseName}%`)
         .not('group_id', 'is', null)
@@ -259,7 +259,7 @@ export async function performProjectImport(
     };
 
     const { data: newProject, error: projectError } = await supabase
-      .from('projects')
+      .from('quotations')
       .insert([projectInsert])
       .select()
       .single();
@@ -587,7 +587,7 @@ async function generateProjectName(baseName: string, importMode: 'new' | 'versio
   }
 
   const { data: existingProjects, error } = await supabase
-    .from('projects')
+    .from('quotations')
     .select('name')
     .like('name', `${baseName}%`);
 

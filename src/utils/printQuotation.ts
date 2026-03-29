@@ -1,7 +1,7 @@
 import { formatCurrency } from '../lib/calculations';
 import { calculateAreaBoxesAndPallets } from '../lib/boxesAndPallets';
 import { supabase } from '../lib/supabase';
-import type { Project, ProjectArea, AreaCabinet, AreaItem, AreaCountertop, AreaClosetItem, Product, PriceListItem } from '../types';
+import type { Quotation, ProjectArea, AreaCabinet, AreaItem, AreaCountertop, AreaClosetItem, Product, PriceListItem } from '../types';
 import { filterProjectBriefForPDF, renderBriefBlocksAsHTML } from './filterProjectBrief';
 
 export interface PDFOverrides {
@@ -12,7 +12,7 @@ export interface PDFOverrides {
 }
 
 export async function printQuotation(
-  project: Project,
+  project: Quotation,
   areas: (ProjectArea & { cabinets: AreaCabinet[]; items: AreaItem[]; countertops: AreaCountertop[]; closetItems?: AreaClosetItem[] })[],
   products: Product[] = [],
   priceList: PriceListItem[] = [],
@@ -575,7 +575,7 @@ export async function printQuotation(
 }
 
 export async function printQuotationUSD(
-  project: Project,
+  project: Quotation,
   areas: (ProjectArea & { cabinets: AreaCabinet[]; items: AreaItem[]; countertops: AreaCountertop[]; closetItems?: AreaClosetItem[] })[],
   exchangeRate: number,
   products: Product[] = [],
