@@ -66,7 +66,7 @@ export async function printQuotation(
     return {
       name: qty > 1 ? `${area.name} (×${qty})` : area.name,
       boxes: boxesPalletsCalc.boxes * qty,
-      pallets: boxesPalletsCalc.pallets * qty,
+      palletsRaw: boxesPalletsCalc.palletsRaw * qty,
       sf: (boxesPalletsCalc.accessoriesSqFt * qty).toFixed(2),
       total: areaTotal
     };
@@ -79,7 +79,7 @@ export async function printQuotation(
   });
 
   const totalBoxes = cabinetAreaBreakdown.reduce((sum, a) => sum + a.boxes, 0);
-  const totalPallets = areaBreakdown.reduce((sum, a) => sum + a.pallets, 0);
+  const totalPallets = Math.ceil(areaBreakdown.reduce((sum, a) => sum + a.palletsRaw, 0));
   const totalSF = cabinetAreaBreakdown.reduce((sum, a) => sum + parseFloat(a.sf), 0);
   const cabinetAreasDisplayTotal = cabinetAreaBreakdown.reduce((sum, a) => sum + a.total, 0);
 
