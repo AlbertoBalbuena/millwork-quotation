@@ -649,7 +649,7 @@ export function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <FolderOpen className="h-5 w-5 text-blue-600 mr-2" />
-            <h2 className="text-lg font-semibold text-slate-900">Recent Projects</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Recent Quotes</h2>
           </div>
           <button
             onClick={() => navigate('/projects')}
@@ -711,12 +711,12 @@ export function Dashboard() {
         ) : (
           <div className="text-center py-12 text-slate-500">
             <FolderOpen className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-            <p className="text-sm">No projects yet</p>
+            <p className="text-sm">No quotes yet</p>
             <button
               onClick={() => navigate('/projects')}
               className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              Create your first project
+              Create your first quote
             </button>
           </div>
         )}
