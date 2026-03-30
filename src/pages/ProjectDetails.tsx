@@ -99,10 +99,8 @@ const [isEditingDate, setIsEditingDate] = useState(false);
   const [editedQuoteDate, setEditedQuoteDate] = useState(project.quote_date);
   const [hasAreasOrderChanged, setHasAreasOrderChanged] = useState(false);
   const [savingAreasOrder, setSavingAreasOrder] = useState(false);
-  const [draggedCabinet, setDraggedCabinet] = useState<{ areaId: string; index: number } | null>(null);
-  const [cabinetDropTarget, setCabinetDropTarget] = useState<{ areaId: string; index: number; position: 'before' | 'after' } | null>(null);
-  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
-  const [sectionDropTargetId, setSectionDropTargetId] = useState<string | null>(null);
+  const [draggedMerged, setDraggedMerged] = useState<{ areaId: string; mergedIndex: number } | null>(null);
+  const [mergedDropTarget, setMergedDropTarget] = useState<{ areaId: string; mergedIndex: number; position: 'before' | 'after' } | null>(null);
   const DEFAULT_TARIFF_INFO = 'Grand Total includes design services, delivery costs, installation and tax.';
   const DEFAULT_PRICE_VALIDITY = '*Price is valid for 15 days.\n*Preliminary quote, based off of our best interpretation of the provided plans. Pricing is subject to change once final layout and finishes have been approved.\n*A Design Retainer is required prior to commencing drawings. The design retainer will be credited back to the purchase of cabinets.';
   const [disclaimerTariffInfo, setDisclaimerTariffInfo] = useState(project.disclaimer_tariff_info || DEFAULT_TARIFF_INFO);
@@ -467,52 +465,6 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     }
   }
 
-  function handleSectionDragStart(e: React.DragEvent<HTMLDivElement>, sectionId: string) {
-    setDraggedSectionId(sectionId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.currentTarget.style.opacity = '0.5';
-  }
-
-  function handleSectionDragEnd(e: React.DragEvent<HTMLDivElement>) {
-    setDraggedSectionId(null);
-    setSectionDropTargetId(null);
-    e.currentTarget.style.opacity = '1';
-  }
-
-  function handleSectionDragOver(e: React.DragEvent<HTMLDivElement>, targetSectionId: string) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedSectionId && draggedSectionId !== targetSectionId) {
-      setSectionDropTargetId(targetSectionId);
-    }
-  }
-
-  async function handleSectionDrop(e: React.DragEvent<HTMLDivElement>, areaId: string, targetSectionId: string) {
-    e.preventDefault();
-    setSectionDropTargetId(null);
-    if (!draggedSectionId || draggedSectionId === targetSectionId) {
-      setDraggedSectionId(null);
-      return;
-    }
-    const area = areas.find(a => a.id === areaId);
-    if (!area) { setDraggedSectionId(null); return; }
-
-    const sections = [...area.sections];
-    const fromIdx = sections.findIndex(s => s.id === draggedSectionId);
-    const toIdx = sections.findIndex(s => s.id === targetSectionId);
-    if (fromIdx === -1 || toIdx === -1) { setDraggedSectionId(null); return; }
-
-    const [moved] = sections.splice(fromIdx, 1);
-    sections.splice(toIdx, 0, moved);
-
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, sections: sections.map((s, i) => ({ ...s, display_order: area.cabinets.length + i })) } : a));
-    setDraggedSectionId(null);
-
-    for (let i = 0; i < sections.length; i++) {
-      await supabase.from('area_sections').update({ display_order: area.cabinets.length + i }).eq('id', sections[i].id);
-    }
-  }
-
   async function handleDeleteCabinet(cabinet: AreaCabinet) {
     if (!confirm('Delete this cabinet?')) return;
 
@@ -852,63 +804,78 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     return [...cabinets, ...sections].sort((a, b) => a.display_order - b.display_order);
   }
 
-  function handleCabinetDragStart(e: React.DragEvent<HTMLDivElement>, areaId: string, index: number) {
-    setDraggedCabinet({ areaId, index });
+  function handleMergedDragStart(e: React.DragEvent<HTMLDivElement>, areaId: string, mergedIndex: number) {
+    setDraggedMerged({ areaId, mergedIndex });
     e.dataTransfer.effectAllowed = 'move';
     e.currentTarget.style.opacity = '0.5';
   }
 
-  function handleCabinetDragEnd(e: React.DragEvent<HTMLDivElement>) {
+  function handleMergedDragEnd(e: React.DragEvent<HTMLDivElement>) {
     e.currentTarget.style.opacity = '1';
-    setDraggedCabinet(null);
-    setCabinetDropTarget(null);
+    setDraggedMerged(null);
+    setMergedDropTarget(null);
   }
 
-  function handleCabinetDragOver(e: React.DragEvent<HTMLDivElement>, areaId: string, index: number) {
+  function handleMergedDragOver(e: React.DragEvent<HTMLDivElement>, areaId: string, mergedIndex: number) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (draggedCabinet && draggedCabinet.areaId === areaId) {
+    if (draggedMerged && draggedMerged.areaId === areaId) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const midpoint = rect.top + rect.height / 2;
-      const position = e.clientY < midpoint ? 'before' : 'after';
-      setCabinetDropTarget({ areaId, index, position });
+      const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+      setMergedDropTarget({ areaId, mergedIndex, position });
     }
   }
 
-  async function handleCabinetDrop(e: React.DragEvent<HTMLDivElement>, areaId: string, dropIndex: number) {
+  async function handleMergedDrop(e: React.DragEvent<HTMLDivElement>, areaId: string, dropMergedIndex: number) {
     e.preventDefault();
-    setCabinetDropTarget(null);
+    setMergedDropTarget(null);
 
-    if (!draggedCabinet || draggedCabinet.areaId !== areaId || draggedCabinet.index === dropIndex) {
-      setDraggedCabinet(null);
+    if (!draggedMerged || draggedMerged.areaId !== areaId || draggedMerged.mergedIndex === dropMergedIndex) {
+      setDraggedMerged(null);
       return;
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-    const dropAfter = e.clientY >= midpoint;
+    const dropAfter = e.clientY >= rect.top + rect.height / 2;
 
     const areaIndex = areas.findIndex(a => a.id === areaId);
-    if (areaIndex === -1) { setDraggedCabinet(null); return; }
+    if (areaIndex === -1) { setDraggedMerged(null); return; }
 
-    const newCabinets = [...areas[areaIndex].cabinets];
-    const [moved] = newCabinets.splice(draggedCabinet.index, 1);
-    let insertAt = dropAfter ? dropIndex : dropIndex;
-    if (draggedCabinet.index < dropIndex) insertAt = dropAfter ? dropIndex : dropIndex - 1;
-    else insertAt = dropAfter ? dropIndex + 1 : dropIndex;
-    newCabinets.splice(Math.max(0, Math.min(insertAt, newCabinets.length)), 0, moved);
+    const area = areas[areaIndex];
+    const merged = getMergedItems(area);
 
-    const newAreas = areas.map((a, i) =>
-      i === areaIndex ? { ...a, cabinets: newCabinets } : a
-    );
-    setAreas(newAreas);
-    setDraggedCabinet(null);
+    const fromIndex = draggedMerged.mergedIndex;
+    const newMerged = [...merged];
+    const [moved] = newMerged.splice(fromIndex, 1);
+    let insertAt: number;
+    if (fromIndex < dropMergedIndex) insertAt = dropAfter ? dropMergedIndex : dropMergedIndex - 1;
+    else insertAt = dropAfter ? dropMergedIndex + 1 : dropMergedIndex;
+    newMerged.splice(Math.max(0, Math.min(insertAt, newMerged.length)), 0, moved);
 
-    for (let i = 0; i < newCabinets.length; i++) {
-      await supabase
-        .from('area_cabinets')
-        .update({ display_order: i })
-        .eq('id', newCabinets[i].id);
+    // Assign new sequential display_orders across the full merged list
+    const newCabinets = area.cabinets.map(c => ({ ...c }));
+    const newSections = area.sections.map(s => ({ ...s }));
+    newMerged.forEach((item, i) => {
+      if (item.type === 'cabinet') {
+        const cab = newCabinets.find(c => c.id === item.data.id);
+        if (cab) cab.display_order = i;
+      } else {
+        const sec = newSections.find(s => s.id === item.data.id);
+        if (sec) sec.display_order = i;
+      }
+    });
+
+    setAreas(prev => prev.map((a, i) =>
+      i === areaIndex ? { ...a, cabinets: newCabinets, sections: newSections } : a
+    ));
+    setDraggedMerged(null);
+
+    for (const item of newMerged) {
+      if (item.type === 'cabinet') {
+        await supabase.from('area_cabinets').update({ display_order: newCabinets.find(c => c.id === item.data.id)!.display_order }).eq('id', item.data.id);
+      } else {
+        await supabase.from('area_sections').update({ display_order: newSections.find(s => s.id === item.data.id)!.display_order }).eq('id', item.data.id);
+      }
     }
   }
 
@@ -2074,38 +2041,49 @@ const [isEditingDate, setIsEditingDate] = useState(false);
 
                     {(area.cabinets.length > 0 || area.sections.length > 0) && (
                       <div className="space-y-2">
-                        {getMergedItems(area).map((item) => {
+                        {getMergedItems(area).map((item, mergedIndex) => {
+                          const totalMerged = getMergedItems(area).length;
+                          const isDropBefore = mergedDropTarget?.areaId === area.id && mergedDropTarget?.mergedIndex === mergedIndex && mergedDropTarget?.position === 'before';
+                          const isDropAfter = mergedDropTarget?.areaId === area.id && mergedDropTarget?.mergedIndex === mergedIndex && mergedDropTarget?.position === 'after';
+
                           if (item.type === 'section') {
                             return (
-                              <SectionDivider
+                              <div
                                 key={item.data.id}
-                                section={item.data}
-                                onRename={(name) => handleRenameSection(item.data, name)}
-                                onDelete={() => handleDeleteSection(item.data)}
-                                draggable={area.sections.length > 1}
-                                onDragStart={(e) => handleSectionDragStart(e, item.data.id)}
-                                onDragEnd={handleSectionDragEnd}
-                                onDragOver={(e) => handleSectionDragOver(e, item.data.id)}
-                                onDrop={(e) => handleSectionDrop(e, area.id, item.data.id)}
-                                isDropTarget={sectionDropTargetId === item.data.id}
-                              />
+                                className="relative"
+                                draggable={totalMerged > 1}
+                                onDragStart={(e) => handleMergedDragStart(e, area.id, mergedIndex)}
+                                onDragEnd={handleMergedDragEnd}
+                                onDragOver={(e) => handleMergedDragOver(e, area.id, mergedIndex)}
+                                onDrop={(e) => handleMergedDrop(e, area.id, mergedIndex)}
+                              >
+                                {isDropBefore && (
+                                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginTop: '-1px' }} />
+                                )}
+                                {isDropAfter && (
+                                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginBottom: '-1px' }} />
+                                )}
+                                <SectionDivider
+                                  section={item.data}
+                                  onRename={(name) => handleRenameSection(item.data, name)}
+                                  onDelete={() => handleDeleteSection(item.data)}
+                                  draggable={false}
+                                />
+                              </div>
                             );
                           }
                           const cabinet = item.data;
-                          const cabinetIndex = item.index;
                           const product = products.find(p => p.sku === cabinet.product_sku);
                           const otherAreas = areas.filter(a => a.id !== area.id).map(a => ({ id: a.id, name: a.name }));
-                          const isDropBefore = cabinetDropTarget?.areaId === area.id && cabinetDropTarget?.index === cabinetIndex && cabinetDropTarget?.position === 'before';
-                          const isDropAfter = cabinetDropTarget?.areaId === area.id && cabinetDropTarget?.index === cabinetIndex && cabinetDropTarget?.position === 'after';
                           return (
                             <div
                               key={cabinet.id}
                               className="relative"
-                              draggable={area.cabinets.length > 1}
-                              onDragStart={(e) => handleCabinetDragStart(e, area.id, cabinetIndex)}
-                              onDragEnd={handleCabinetDragEnd}
-                              onDragOver={(e) => handleCabinetDragOver(e, area.id, cabinetIndex)}
-                              onDrop={(e) => handleCabinetDrop(e, area.id, cabinetIndex)}
+                              draggable={totalMerged > 1}
+                              onDragStart={(e) => handleMergedDragStart(e, area.id, mergedIndex)}
+                              onDragEnd={handleMergedDragEnd}
+                              onDragOver={(e) => handleMergedDragOver(e, area.id, mergedIndex)}
+                              onDrop={(e) => handleMergedDrop(e, area.id, mergedIndex)}
                             >
                               {isDropBefore && (
                                 <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginTop: '-1px' }} />
@@ -2114,7 +2092,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginBottom: '-1px' }} />
                               )}
                               <div className="flex items-start gap-2">
-                                {area.cabinets.length > 1 && (
+                                {totalMerged > 1 && (
                                   <div
                                     className="flex-shrink-0 mt-3 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-100 transition-colors"
                                     title="Drag to reorder"
