@@ -324,8 +324,39 @@ async function executeTool(name: string, input: any, sb: any, projectId: string 
           area_id: a.id, area_name: a.name, applies_tariff: a.applies_tariff,
           area_subtotal: a.subtotal, cabinets: cabsByArea[a.id] ?? []
         }));
-        return JSON.stringify({ project_id: projectId, total_areas: (areas ?? []).length,
-          total_cabinet_lines: (cabs ?? []).length, areas: result });
+        // Collect hardware items used across all cabinets
+        let hardwareSummary: Record<string, { name: string; total_qty: number; total_cost: number }> = {};
+        if (areaIds.length) {
+          const { data: cabHardware } = await sb.from('area_cabinets')
+            .select('hardware, hardware_cost, quantity')
+            .in('area_id', areaIds);
+          if (cabHardware) {
+            for (const c of cabHardware) {
+              const hw = c.hardware as Record<string, any> | null;
+              if (!hw) continue;
+              for (const [hwId, hwData] of Object.entries(hw)) {
+                if (!hwData || typeof hwData !== 'object') continue;
+                const name = (hwData as any).name ?? hwId;
+                const qty = Number((hwData as any).qty ?? 0) * (Number(c.quantity) || 1);
+                const cost = Number((hwData as any).price ?? 0) * qty;
+                if (!hardwareSummary[hwId]) hardwareSummary[hwId] = { name, total_qty: 0, total_cost: 0 };
+                hardwareSummary[hwId].total_qty += qty;
+                hardwareSummary[hwId].total_cost += cost;
+              }
+            }
+          }
+        }
+        return JSON.stringify({
+          project_id: projectId,
+          total_areas: (areas ?? []).length,
+          total_cabinet_lines: (cabs ?? []).length,
+          areas: result,
+          hardware_used: Object.values(hardwareSummary).map(h => ({
+            name: h.name,
+            total_qty: h.total_qty,
+            total_cost: `$${Math.round(h.total_cost).toLocaleString('en-US')}`,
+          })),
+        });
       }
 
       case 'bulk_update_hardware': {
@@ -445,14 +476,14 @@ Deno.serve(async (req: Request) => {
   let liveData = `Exchange rate: ${fx} MXN/USD | Waste box: x${wBox} | Waste doors: x${wDoor} | Labor base: $${lBase} | Labor drawers: $${lDraw}`;
   if (recentRes.data?.length) {
     liveData += '\nRecent quotations: ' + recentRes.data.map((p: any) =>
-      `${p.name} [id:${p.project_id}] (${p.status}) $${Number(p.total_amount).toLocaleString()} MXN`
+      `${p.name} [project_id:${p.project_id}] [quotation_id:${p.id}] (${p.status}) $${Number(p.total_amount).toLocaleString()} MXN`
     ).join(' | ');
   }
 
   let proj: any = null;
   if (projectId) {
     const { data: projData } = await sb.from('quotations')
-      .select('name, status, total_amount, profit_multiplier, tax_percentage, tariff_multiplier, install_delivery, install_delivery_usd, install_delivery_per_box_usd, referral_currency_rate')
+      .select('name, status, total_amount, profit_multiplier, tax_percentage, tariff_multiplier, install_delivery, install_delivery_usd, install_delivery_per_box_usd, referral_currency_rate, project_id')
       .eq('id', projectId).single();
     proj = projData;
     if (proj) {
@@ -485,7 +516,7 @@ Deno.serve(async (req: Request) => {
       const totalMaterials = costBreakdown.box_mat + costBreakdown.door_mat + costBreakdown.box_eb + costBreakdown.door_eb + costBreakdown.accessories + costBreakdown.back_panel + costBreakdown.door_profile;
       const totalCabSubtotal = totalMaterials + costBreakdown.labor + costBreakdown.hardware;
 
-      liveData += `\nOpen quotation: ${proj.name} [id:${projectId}] | ${proj.status} | $${Number(proj.total_amount).toLocaleString()} MXN`;
+      liveData += `\nOpen quotation: ${proj.name} [project_id:${proj.project_id}] [quotation_id:${projectId}] | ${proj.status} | $${Number(proj.total_amount).toLocaleString()} MXN`;
       liveData += ` | Profit: ${((proj.profit_multiplier??0)*100).toFixed(1)}% | Tax: ${proj.tax_percentage??0}% | Tariff: ${((proj.tariff_multiplier??0)*100).toFixed(1)}%`;
       if (proj.install_delivery_usd) liveData += ` | Install: $${proj.install_delivery_usd} USD`;
       liveData += ` | Referral: ${((proj.referral_currency_rate??0)*100).toFixed(0)}%`;
@@ -727,12 +758,21 @@ DO NOT use total_amount as "materials cost"
 When user asks for "just materials" from an open quotation, read MATERIALS ONLY
 directly from the COST BREAKDOWN — do not reverse-engineer or estimate.
 
-=== CLICKABLE LINKS ===
-When mentioning a project by name from LIVE DATA, wrap it as: [[project:PROJECT_UUID|Display Name]]
-When mentioning a material from search_materials results, wrap it as: [[material:MATERIAL_UUID|Display Name]]
-Example: "Your project [[project:abc-123|Kitchen Remodel]] has 5 areas."
-Example: "The material [[material:def-456|MDF 3/4 Maple]] costs $45.20/sheet."
-Always use these formats when an ID is available. The [id:...] in LIVE DATA is for your reference only — never output it directly.
+=== CLICKABLE LINKS — MANDATORY ===
+EVERY time you mention a quotation by name (from LIVE DATA or tool results), you MUST format it as a clickable link. No exceptions.
+Format: [[quotation:PROJECT_UUID/QUOTATION_UUID|Display Name]]
+Where PROJECT_UUID = the [project_id:X] value and QUOTATION_UUID = the [quotation_id:Y] value.
+
+EVERY time you mention a project hub, format it as: [[project:PROJECT_UUID|Display Name]]
+EVERY time you mention a material from search_materials results: [[material:MATERIAL_UUID|Display Name]]
+
+Examples:
+- "The quotation [[quotation:abc-123/def-456|Kitchen Premium]] has 5 areas."
+- "Project [[project:abc-123|Casa Perez]] has 3 quotations."
+- "Material [[material:xyz-789|MDF 3/4 Maple]] costs $45/sheet."
+
+The [project_id:...] and [quotation_id:...] tags in LIVE DATA are your source for these IDs.
+NEVER output raw UUIDs or [id:...] tags directly in your response — always wrap them as links.
 
 === PROJECT MANAGEMENT QUERIES ===
 For questions about tasks, pending tasks, overdue tasks, project documents, notes, or activity log:
