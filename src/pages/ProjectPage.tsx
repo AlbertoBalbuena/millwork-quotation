@@ -202,7 +202,7 @@ export function ProjectPage() {
     Estimating: 'bg-amber-50 text-amber-700 border-amber-200/50',
     Sent: 'bg-cyan-50 text-cyan-700 border-cyan-200/50',
     Lost: 'bg-red-50 text-red-700 border-red-200/50',
-    Disqualified: 'bg-slate-100 text-slate-600 border-slate-200/50',
+    Discarded: 'bg-slate-100 text-slate-600 border-slate-200/50',
     Cancelled: 'bg-slate-100 text-slate-500 border-slate-200/50',
   };
 
@@ -269,7 +269,7 @@ export function ProjectPage() {
                   </div>
                   <div><label className="text-xs text-slate-500">Status</label>
                     <select value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 rounded-lg">
-                      <option>Estimating</option><option>Pending</option><option>Sent</option><option>Awarded</option><option>Lost</option><option>Disqualified</option><option>Cancelled</option>
+                      <option>Estimating</option><option>Pending</option><option>Sent</option><option>Awarded</option><option>Lost</option><option>Discarded</option><option>Cancelled</option>
                     </select>
                   </div>
                 </div>

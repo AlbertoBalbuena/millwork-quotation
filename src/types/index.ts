@@ -162,7 +162,7 @@ export interface CabinetCostBreakdown {
 
 export type ProjectType = 'Custom' | 'Bids' | 'Prefab' | 'Stores';
 
-export type QuotationStatus = 'Pending' | 'Estimating' | 'Sent' | 'Lost' | 'Awarded' | 'Disqualified' | 'Cancelled';
+export type QuotationStatus = 'Pending' | 'Estimating' | 'Sent' | 'Lost' | 'Awarded' | 'Discarded' | 'Cancelled';
 /** @deprecated Use QuotationStatus */
 export type ProjectStatus = QuotationStatus;
 

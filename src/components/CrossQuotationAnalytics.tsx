@@ -37,7 +37,7 @@ const STATUS_GRADIENTS: Record<string, string> = {
   Sent: 'bg-gradient-to-r from-cyan-400 to-cyan-500',
   Pending: 'bg-gradient-to-r from-blue-300 to-blue-400',
   Lost: 'bg-gradient-to-r from-red-300 to-red-400',
-  Disqualified: 'bg-gradient-to-r from-slate-300 to-slate-400',
+  Discarded: 'bg-gradient-to-r from-slate-300 to-slate-400',
   Cancelled: 'bg-gradient-to-r from-slate-300 to-slate-400',
 };
 
@@ -47,7 +47,7 @@ const STATUS_COLORS: Record<string, string> = {
   Estimating: 'bg-amber-50 text-amber-700 border-amber-200/50',
   Sent: 'bg-cyan-50 text-cyan-700 border-cyan-200/50',
   Lost: 'bg-red-50 text-red-700 border-red-200/50',
-  Disqualified: 'bg-slate-100 text-slate-600 border-slate-200/50',
+  Discarded: 'bg-slate-100 text-slate-600 border-slate-200/50',
   Cancelled: 'bg-slate-100 text-slate-500 border-slate-200/50',
 };
 

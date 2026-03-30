@@ -1025,7 +1025,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                       project.status === 'Estimating' ? 'bg-orange-100 text-orange-700' :
                       project.status === 'Sent' ? 'bg-cyan-100 text-cyan-700' :
                       project.status === 'Lost' ? 'bg-red-100 text-red-700' :
-                      project.status === 'Disqualified' ? 'bg-slate-100 text-slate-600' :
+                      project.status === 'Discarded' ? 'bg-slate-100 text-slate-600' :
                       project.status === 'Cancelled' ? 'bg-gray-100 text-gray-600' :
                       'bg-slate-100 text-slate-600'
                     }`}
@@ -1035,7 +1035,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                   </button>
                   {isStatusMenuOpen && (
                     <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[160px]">
-                      {(['Pending', 'Estimating', 'Sent', 'Lost', 'Awarded', 'Disqualified', 'Cancelled'] as const).map((status) => (
+                      {(['Pending', 'Estimating', 'Sent', 'Lost', 'Awarded', 'Discarded', 'Cancelled'] as const).map((status) => (
                         <button
                           key={status}
                           onClick={async () => {
@@ -1059,7 +1059,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                             status === 'Estimating' ? 'bg-orange-500' :
                             status === 'Sent' ? 'bg-cyan-500' :
                             status === 'Lost' ? 'bg-red-500' :
-                            status === 'Disqualified' ? 'bg-slate-400' :
+                            status === 'Discarded' ? 'bg-slate-400' :
                             'bg-gray-400'
                           }`} />
                           {status}

@@ -62,7 +62,7 @@ export function DocumentationSection({ projectId }: Props) {
 
       const { error } = await supabase
         .from('project_documents')
-        .upsert(rows, { onConflict: 'project_id,label', ignoreDuplicates: true });
+        .insert(rows);
       if (error) throw error;
 
       const { data, error: fetchError } = await supabase
