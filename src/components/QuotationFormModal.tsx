@@ -11,7 +11,7 @@ const STATUSES: QuotationStatus[] = [
   'Sent',
   'Awarded',
   'Lost',
-  'Disqualified',
+  'Discarded',
   'Cancelled',
 ];
 

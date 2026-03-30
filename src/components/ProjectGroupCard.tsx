@@ -70,7 +70,7 @@ export function ProjectGroupCard({
           color: 'bg-red-100 text-red-800 border-red-300',
           icon: <XCircle className="h-3.5 w-3.5" />,
         };
-      case 'Disqualified':
+      case 'Discarded':
         return {
           color: 'bg-slate-100 text-slate-700 border-slate-300',
           icon: <Ban className="h-3.5 w-3.5" />,

@@ -53,7 +53,7 @@ export function ProjectGroupListItem({
         return 'bg-green-100 text-green-700';
       case 'Lost':
         return 'bg-red-100 text-red-700';
-      case 'Disqualified':
+      case 'Discarded':
         return 'bg-slate-100 text-slate-600';
       case 'Cancelled':
         return 'bg-gray-100 text-gray-600';

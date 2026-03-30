@@ -668,7 +668,7 @@ export function Dashboard() {
                 'Estimating': 'bg-orange-100 text-orange-700 border-orange-200',
                 'Sent': 'bg-cyan-100 text-cyan-700 border-cyan-200',
                 'Lost': 'bg-red-100 text-red-700 border-red-200',
-                'Disqualified': 'bg-slate-100 text-slate-600 border-slate-200',
+                'Discarded': 'bg-slate-100 text-slate-600 border-slate-200',
                 'Cancelled': 'bg-gray-100 text-gray-600 border-gray-200',
               };
 

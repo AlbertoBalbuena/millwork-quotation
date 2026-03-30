@@ -149,7 +149,7 @@ export function Projects() {
     const estimating = projects.filter((p) => p.status === 'Estimating').length;
     const awarded = projects.filter((p) => p.status === 'Awarded').length;
     const lost = projects.filter((p) => p.status === 'Lost').length;
-    const disqualified = projects.filter((p) => p.status === 'Disqualified').length;
+    const disqualified = projects.filter((p) => p.status === 'Discarded').length;
     const cancelled = projects.filter((p) => p.status === 'Cancelled').length;
 
     const totalValue = projects.reduce((sum, p) => sum + p.total_amount, 0);
@@ -160,7 +160,7 @@ export function Projects() {
       .filter((p) => p.status === 'Pending' || p.status === 'Estimating')
       .reduce((sum, p) => sum + p.total_amount, 0);
     const lostValue = projects
-      .filter((p) => p.status === 'Lost' || p.status === 'Disqualified' || p.status === 'Cancelled')
+      .filter((p) => p.status === 'Lost' || p.status === 'Discarded' || p.status === 'Cancelled')
       .reduce((sum, p) => sum + p.total_amount, 0);
 
     return {
@@ -530,7 +530,7 @@ export function Projects() {
                   <option value="Sent">Sent</option>
                   <option value="Lost">Lost</option>
                   <option value="Awarded">Awarded</option>
-                  <option value="Disqualified">Disqualified</option>
+                  <option value="Discarded">Discarded</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
@@ -778,7 +778,7 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
           color: 'bg-red-100 text-red-800 border-red-300',
           icon: <XCircle className="h-3.5 w-3.5" />,
         };
-      case 'Disqualified':
+      case 'Discarded':
         return {
           color: 'bg-slate-100 text-slate-700 border-slate-300',
           icon: <Ban className="h-3.5 w-3.5" />,
@@ -945,13 +945,13 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onStatusChange(project, 'Disqualified');
+                    onStatusChange(project, 'Discarded');
                     setShowActions(false);
                   }}
                   className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 text-slate-600"
                 >
                   <Ban className="h-4 w-4" />
-                  Mark as Disqualified
+                  Mark as Discarded
                 </button>
                 <button
                   onClick={(e) => {
@@ -1184,7 +1184,7 @@ function ProjectFormModal({ project, onSave, onClose }: ProjectFormModalProps) {
               <option value="Sent">Sent</option>
               <option value="Lost">Lost</option>
               <option value="Awarded">Awarded</option>
-              <option value="Disqualified">Disqualified</option>
+              <option value="Discarded">Discarded</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
