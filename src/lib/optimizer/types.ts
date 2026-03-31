@@ -103,3 +103,15 @@ export type OptimizerTab = 'boards' | 'cutlist' | 'summary';
 
 /** Display unit system — the engine always stores and computes in mm internally */
 export type UnitSystem = 'mm' | 'in';
+
+export interface EbTypeConfig {
+  id: string;        // price_list item ID (empty = not configured)
+  name: string;      // concept_description
+  price: number;     // price per meter
+}
+
+export interface EbConfig {
+  a: EbTypeConfig;
+  b: EbTypeConfig;
+  c: EbTypeConfig;
+}

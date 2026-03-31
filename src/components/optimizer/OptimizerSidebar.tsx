@@ -85,8 +85,8 @@ function EdgeBandPopover({ piece, onUpdate }: { piece: Pieza; onUpdate: (cb: Pie
   );
 }
 
-// ── Price list sheet material type ──────────────────────────
-interface SheetMaterial {
+// ── Price list material types ────────────────────────────────
+interface PriceListItem {
   id: string;
   concept_description: string;
   price: number;
@@ -103,12 +103,16 @@ export function OptimizerSidebar() {
   const [optionsOpen, setOptionsOpen] = useState(true);
   const [remnantsOpen, setRemnantsOpen] = useState(false);
 
-  // ── Price list sheet materials ────────────────────────────
-  const [sheetMaterials, setSheetMaterials] = useState<SheetMaterial[]>([]);
+  // ── Price list materials ───────────────────────────────────
+  const [sheetMaterials, setSheetMaterials] = useState<PriceListItem[]>([]);
+  const [edgebandItems, setEdgebandItems] = useState<PriceListItem[]>([]);
   useEffect(() => {
     supabase.from('price_list').select('id, concept_description, price, dimensions, material')
       .eq('unit', 'Sheet').eq('is_active', true)
       .then(({ data }) => { if (data) setSheetMaterials(data); });
+    supabase.from('price_list').select('id, concept_description, price, dimensions, material')
+      .eq('type', 'Edgeband').eq('is_active', true)
+      .then(({ data }) => { if (data) setEdgebandItems(data); });
   }, []);
 
   // Derive material names from stock sheets for panel material dropdown
@@ -394,6 +398,43 @@ export function OptimizerSidebar() {
               onChange={e => store.setBoardTrim(Math.max(0, parseFloat(e.target.value) || 0))}
               className="w-16 text-xs text-right border border-slate-200 rounded px-1.5 py-0.5 tabular-nums" />
           </div>
+
+          {/* Edgeband type configuration */}
+          {edgebandItems.length > 0 && (
+            <div className="pt-2 mt-2 border-t border-slate-100">
+              <div className="text-xs font-semibold text-slate-600 mb-2">Cubrecanto</div>
+              {(['a', 'b', 'c'] as const).map(key => {
+                const label = key.toUpperCase();
+                const lineStyle = key === 'a' ? '━━' : key === 'b' ? '╌╌' : '····';
+                const selected = store.ebConfig[key];
+                return (
+                  <div key={key} className="mb-1.5">
+                    <label className="text-[10px] text-slate-500 font-semibold">Tipo {label} ({lineStyle})</label>
+                    <select
+                      value={selected.id}
+                      onChange={e => {
+                        const item = edgebandItems.find(i => i.id === e.target.value);
+                        store.setEbConfig({
+                          ...store.ebConfig,
+                          [key]: item
+                            ? { id: item.id, name: item.concept_description, price: item.price }
+                            : { id: '', name: '', price: 0 },
+                        });
+                      }}
+                      className="w-full text-xs border border-slate-200 rounded px-1.5 py-1 bg-white text-slate-700 mt-0.5"
+                    >
+                      <option value="">Sin asignar</option>
+                      {edgebandItems.map(item => (
+                        <option key={item.id} value={item.id}>
+                          {item.concept_description} — ${item.price}/m {item.dimensions ? `(${item.dimensions})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

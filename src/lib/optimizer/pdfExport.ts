@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { OptimizationResult, BoardResult, PIECE_COLORS, generateCutSequence } from './engine';
 import { UnitSystem, fmtDim, fmtNum } from './units';
+import { EbConfig } from './types';
 
 const EB_LABELS: Record<number, string> = { 1: 'A', 2: 'B', 3: 'C' };
 
@@ -9,6 +10,7 @@ export function exportOptimizerPDF(
   projectName: string,
   clientName: string,
   unit: UnitSystem = 'mm',
+  ebConfig?: EbConfig,
 ): void {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -248,15 +250,31 @@ export function exportOptimizerPDF(
     }));
 
     doc.setFontSize(9); doc.setFont('Helvetica', 'normal'); doc.setTextColor(50, 50, 50);
-    const typeNames = ['', 'Tipo A (━━)', 'Tipo B (╌╌)', 'Tipo C (····)'];
+    const ebNames: Record<number, string> = {
+      1: ebConfig?.a?.name ? `Tipo A — ${ebConfig.a.name}` : 'Tipo A (━━)',
+      2: ebConfig?.b?.name ? `Tipo B — ${ebConfig.b.name}` : 'Tipo B (╌╌)',
+      3: ebConfig?.c?.name ? `Tipo C — ${ebConfig.c.name}` : 'Tipo C (····)',
+    };
+    const ebPrices: Record<number, number> = {
+      1: ebConfig?.a?.price || 0,
+      2: ebConfig?.b?.price || 0,
+      3: ebConfig?.c?.price || 0,
+    };
+    let ebTotalCost = 0;
     [1, 2, 3].forEach(t => {
       if (byType[t] > 0) {
-        doc.text(`${typeNames[t]}: ${(byType[t] / 1000).toFixed(2)} m lineales`, 25, cutListY);
+        const meters = byType[t] / 1000;
+        const cost = meters * ebPrices[t];
+        ebTotalCost += cost;
+        const costStr = ebPrices[t] > 0 ? ` — $${ebPrices[t].toFixed(2)}/m = $${cost.toFixed(2)}` : '';
+        doc.text(`${ebNames[t]}: ${meters.toFixed(2)} m${costStr}`, 25, cutListY);
         cutListY += 5;
       }
     });
     doc.setFont('Helvetica', 'bold');
-    doc.text(`Total: ${(totalEB / 1000).toFixed(2)} m lineales`, 25, cutListY);
+    const totalMeters = totalEB / 1000;
+    const totalCostStr = ebTotalCost > 0 ? ` — Costo: $${ebTotalCost.toFixed(2)}` : '';
+    doc.text(`Total: ${totalMeters.toFixed(2)} m lineales${totalCostStr}`, 25, cutListY);
     cutListY += 5;
     doc.setFont('Helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
     doc.text('Nota: Cada lado incluye +3cm de desperdicio.', 25, cutListY);

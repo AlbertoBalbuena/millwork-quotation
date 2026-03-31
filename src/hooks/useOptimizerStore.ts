@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Pieza, StockSize, Remnant, OptimizationResult, OptimizerTab, UnitSystem } from '../lib/optimizer/types';
+import { Pieza, StockSize, Remnant, OptimizationResult, OptimizerTab, UnitSystem, EbConfig } from '../lib/optimizer/types';
 import { runOptimization } from '../lib/optimizer/engine';
 import { exportOptimizerPDF } from '../lib/optimizer/pdfExport';
 
@@ -34,12 +34,20 @@ interface OptimizerState {
   setGlobalSierra: (v: number) => void;
   setMinOffcut: (v: number) => void;
   setBoardTrim: (v: number) => void;
+  ebConfig: EbConfig;
+  setEbConfig: (cfg: EbConfig) => void;
   runOptimize: () => Promise<void>;
   exportPDF: () => void;
   saveProject: () => void;
   loadProject: (json: string) => void;
   reset: () => void;
 }
+
+const EMPTY_EB: EbConfig = {
+  a: { id: '', name: '', price: 0 },
+  b: { id: '', name: '', price: 0 },
+  c: { id: '', name: '', price: 0 },
+};
 
 const DEFAULT_STOCK: StockSize = {
   id: crypto.randomUUID(),
@@ -57,6 +65,7 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   globalSierra: 3.2,
   minOffcut: 200,
   boardTrim: 5,
+  ebConfig: EMPTY_EB,
   projectName: '',
   clientName: '',
   unit: 'mm' as UnitSystem,
@@ -84,6 +93,7 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   setGlobalSierra: (v) => set({ globalSierra: v }),
   setMinOffcut: (v) => set({ minOffcut: v }),
   setBoardTrim: (v) => set({ boardTrim: v }),
+  setEbConfig: (cfg) => set({ ebConfig: cfg }),
 
   runOptimize: async () => {
     const state = get();
@@ -103,12 +113,12 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   exportPDF: () => {
     const state = get();
     if (!state.result) { alert('Ejecuta una optimización primero'); return; }
-    exportOptimizerPDF(state.result, state.projectName, state.clientName, state.unit);
+    exportOptimizerPDF(state.result, state.projectName, state.clientName, state.unit, state.ebConfig);
   },
 
   saveProject: () => {
     const state = get();
-    const data = { version: '1.0', projectName: state.projectName, clientName: state.clientName, pieces: state.pieces, stocks: state.stocks, remnants: state.remnants, globalSierra: state.globalSierra, minOffcut: state.minOffcut, boardTrim: state.boardTrim };
+    const data = { version: '1.0', projectName: state.projectName, clientName: state.clientName, pieces: state.pieces, stocks: state.stocks, remnants: state.remnants, globalSierra: state.globalSierra, minOffcut: state.minOffcut, boardTrim: state.boardTrim, ebConfig: state.ebConfig };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -120,9 +130,9 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   loadProject: (json) => {
     try {
       const data = JSON.parse(json);
-      set({ projectName: data.projectName || '', clientName: data.clientName || '', pieces: data.pieces || [], stocks: data.stocks || [DEFAULT_STOCK], remnants: data.remnants || [], globalSierra: data.globalSierra || 3.2, minOffcut: data.minOffcut || 200, boardTrim: data.boardTrim ?? 5 });
+      set({ projectName: data.projectName || '', clientName: data.clientName || '', pieces: data.pieces || [], stocks: data.stocks || [DEFAULT_STOCK], remnants: data.remnants || [], globalSierra: data.globalSierra || 3.2, minOffcut: data.minOffcut || 200, boardTrim: data.boardTrim ?? 5, ebConfig: data.ebConfig || EMPTY_EB });
     } catch (error) { alert('Error cargando proyecto: ' + String(error)); }
   },
 
-  reset: () => set({ pieces: [], stocks: [DEFAULT_STOCK], remnants: [], globalSierra: 3.2, minOffcut: 200, boardTrim: 5, projectName: '', clientName: '', result: null, isOptimizing: false, activeTab: 'boards', selectedBoardIndex: null }),
+  reset: () => set({ pieces: [], stocks: [DEFAULT_STOCK], remnants: [], globalSierra: 3.2, minOffcut: 200, boardTrim: 5, ebConfig: EMPTY_EB, projectName: '', clientName: '', result: null, isOptimizing: false, activeTab: 'boards', selectedBoardIndex: null }),
 }));
