@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Scissors, Upload, Table, FolderOpen, Save, Zap, FileDown, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Upload, Table, FolderOpen, Save, Zap, FileDown, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useOptimizerStore } from '../hooks/useOptimizerStore';
 import { toMM } from '../lib/optimizer/units';
@@ -145,9 +145,9 @@ export function OptimizerPage() {
 
       {/* ── Page header ───────────────────────────────────── */}
       <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-2 flex-shrink-0 flex-wrap">
-        <Scissors className="h-5 w-5 text-blue-600 shrink-0" />
-        <span className="font-semibold text-slate-800 text-sm">CutBoard Pro</span>
-        <span className="text-xs text-slate-400">v1.2</span>
+        <LayoutDashboard className="h-5 w-5 text-blue-600 shrink-0" />
+        <span className="font-semibold text-slate-800 text-sm">Evita Optimizer</span>
+        <span className="text-xs text-slate-400">v1.3</span>
         <div className="w-px h-4 bg-slate-200 mx-0.5" />
         <input value={store.projectName} onChange={(e) => store.setProjectName(e.target.value)}
           placeholder="Proyecto" className="px-2 py-1 text-sm border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 w-28" />
