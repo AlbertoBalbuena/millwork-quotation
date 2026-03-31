@@ -1021,6 +1021,41 @@ export type Database = {
           },
         ]
       }
+      project_log_replies: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          comment: string
+          created_at: string | null
+          id: string
+          log_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          comment: string
+          created_at?: string | null
+          id?: string
+          log_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          comment?: string
+          created_at?: string | null
+          id?: string
+          log_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_log_replies_log_id_fkey"
+            columns: ["log_id"]
+            isOneToOne: false
+            referencedRelation: "project_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_price_staleness: {
         Row: {
           affected_material_count: number | null

@@ -4,7 +4,8 @@ import {
   ScrollText, Trash2, Pencil, X, Check, Bold, Italic, Underline as UnderlineIcon,
   List, ListOrdered, CheckCircle2, AlertTriangle, Star, Lightbulb,
   ArrowRightCircle, Filter, Clock, Folder, FileText, Package, DollarSign,
-  Heading1, Heading2, Heading3, Type, Link2, Link2Off, User, ChevronDown
+  Heading1, Heading2, Heading3, Type, Link2, Link2Off, User, ChevronDown,
+  CornerDownRight, MessageSquare
 } from 'lucide-react';
 import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
 import { generateHTML, mergeAttributes } from '@tiptap/core';
@@ -21,7 +22,7 @@ import type { Instance as TippyInstance } from 'tippy.js';
 import { supabase } from '../lib/supabase';
 import { Button } from './Button';
 import { format } from 'date-fns';
-import type { ProjectLog, TeamMember } from '../types';
+import type { ProjectLog, ProjectLogReply, TeamMember } from '../types';
 
 const AUTHOR_STORAGE_KEY = 'bitacora_author';
 
@@ -42,12 +43,12 @@ interface LogTypeConfig {
 }
 
 const LOG_TYPES: Record<LogType, LogTypeConfig> = {
-  note:            { label: 'Nota',              Icon: ScrollText,       color: 'text-slate-600',   bg: 'bg-slate-50',    border: 'border-slate-300',  badgeBg: 'bg-slate-100' },
-  change_request:  { label: 'Cambio Solicitado', Icon: ArrowRightCircle, color: 'text-blue-600',    bg: 'bg-blue-50',     border: 'border-blue-400',   badgeBg: 'bg-blue-100'  },
-  approved_change: { label: 'Cambio Aprobado',   Icon: CheckCircle2,     color: 'text-green-600',   bg: 'bg-green-50',    border: 'border-green-400',  badgeBg: 'bg-green-100' },
-  decision:        { label: 'Decisión',          Icon: Lightbulb,        color: 'text-amber-600',   bg: 'bg-amber-50',    border: 'border-amber-400',  badgeBg: 'bg-amber-100' },
-  error:           { label: 'Error',             Icon: AlertTriangle,    color: 'text-red-600',     bg: 'bg-red-50',      border: 'border-red-400',    badgeBg: 'bg-red-100'   },
-  achievement:     { label: 'Acierto',           Icon: Star,             color: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-400',badgeBg: 'bg-emerald-100'},
+  note:            { label: 'Note',            Icon: ScrollText,       color: 'text-slate-600',   bg: 'bg-slate-50',    border: 'border-slate-300',  badgeBg: 'bg-slate-100' },
+  change_request:  { label: 'Change Request',  Icon: ArrowRightCircle, color: 'text-blue-600',    bg: 'bg-blue-50',     border: 'border-blue-400',   badgeBg: 'bg-blue-100'  },
+  approved_change: { label: 'Approved Change', Icon: CheckCircle2,     color: 'text-green-600',   bg: 'bg-green-50',    border: 'border-green-400',  badgeBg: 'bg-green-100' },
+  decision:        { label: 'Decision',        Icon: Lightbulb,        color: 'text-amber-600',   bg: 'bg-amber-50',    border: 'border-amber-400',  badgeBg: 'bg-amber-100' },
+  error:           { label: 'Error',           Icon: AlertTriangle,    color: 'text-red-600',     bg: 'bg-red-50',      border: 'border-red-400',    badgeBg: 'bg-red-100'   },
+  achievement:     { label: 'Achievement',     Icon: Star,             color: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-400',badgeBg: 'bg-emerald-100'},
 };
 
 const LOG_TYPE_ORDER: LogType[] = ['note', 'change_request', 'approved_change', 'decision', 'error', 'achievement'];
@@ -64,10 +65,10 @@ interface MentionItem {
 }
 
 const MENTION_TYPE_CONFIG = {
-  project:    { groupLabel: 'Proyectos',   Icon: Folder,    iconColor: 'text-violet-600', iconBg: 'bg-violet-100' },
-  quotation:  { groupLabel: 'Cotizaciones',Icon: FileText,  iconColor: 'text-blue-600',   iconBg: 'bg-blue-100'   },
-  cabinet:    { groupLabel: 'Gabinetes',   Icon: Package,   iconColor: 'text-amber-600',  iconBg: 'bg-amber-100'  },
-  price_item: { groupLabel: 'Price List',  Icon: DollarSign,iconColor: 'text-green-600',  iconBg: 'bg-green-100'  },
+  project:    { groupLabel: 'Projects',   Icon: Folder,    iconColor: 'text-violet-600', iconBg: 'bg-violet-100' },
+  quotation:  { groupLabel: 'Quotations', Icon: FileText,  iconColor: 'text-blue-600',   iconBg: 'bg-blue-100'   },
+  cabinet:    { groupLabel: 'Cabinets',   Icon: Package,   iconColor: 'text-amber-600',  iconBg: 'bg-amber-100'  },
+  price_item: { groupLabel: 'Price List', Icon: DollarSign,iconColor: 'text-green-600',  iconBg: 'bg-green-100'  },
 } as const;
 
 function isUuid(s: string): boolean {
@@ -137,8 +138,8 @@ const SuggestionList = forwardRef<SuggestionListRef, SuggestionListProps>(
     if (!items.length) {
       return (
         <div className="bg-white border border-slate-200 rounded-xl shadow-xl p-4 w-72 text-center">
-          <p className="text-xs text-slate-500 font-medium">Sin resultados</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Sigue escribiendo para buscar…</p>
+          <p className="text-xs text-slate-500 font-medium">No results</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Keep typing to search…</p>
         </div>
       );
     }
@@ -333,16 +334,16 @@ function renderContent(comment: string): string {
 // ---------------------------------------------------------------------------
 
 const TEXT_COLORS = [
-  { label: 'Predeterminado', value: null,      display: '#64748b' },
-  { label: 'Rojo',           value: '#ef4444', display: '#ef4444' },
-  { label: 'Naranja',        value: '#f97316', display: '#f97316' },
-  { label: 'Ámbar',          value: '#f59e0b', display: '#f59e0b' },
-  { label: 'Verde',          value: '#22c55e', display: '#22c55e' },
-  { label: 'Azul',           value: '#3b82f6', display: '#3b82f6' },
-  { label: 'Índigo',         value: '#6366f1', display: '#6366f1' },
-  { label: 'Violeta',        value: '#8b5cf6', display: '#8b5cf6' },
-  { label: 'Rosa',           value: '#ec4899', display: '#ec4899' },
-  { label: 'Gris',           value: '#475569', display: '#475569' },
+  { label: 'Default', value: null,      display: '#64748b' },
+  { label: 'Red',     value: '#ef4444', display: '#ef4444' },
+  { label: 'Orange',  value: '#f97316', display: '#f97316' },
+  { label: 'Amber',   value: '#f59e0b', display: '#f59e0b' },
+  { label: 'Green',   value: '#22c55e', display: '#22c55e' },
+  { label: 'Blue',    value: '#3b82f6', display: '#3b82f6' },
+  { label: 'Indigo',  value: '#6366f1', display: '#6366f1' },
+  { label: 'Violet',  value: '#8b5cf6', display: '#8b5cf6' },
+  { label: 'Pink',    value: '#ec4899', display: '#ec4899' },
+  { label: 'Gray',    value: '#475569', display: '#475569' },
 ];
 
 interface ToolbarProps {
@@ -406,27 +407,27 @@ function Toolbar({ editor }: ToolbarProps) {
     <div className="flex items-center flex-wrap gap-0.5 px-2 py-1.5 border-b border-slate-200 bg-slate-50 rounded-t-lg relative">
 
       {/* Headings */}
-      {tbBtn(editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run(), Heading1, 'Título 1')}
-      {tbBtn(editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run(), Heading2, 'Título 2')}
-      {tbBtn(editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run(), Heading3, 'Título 3')}
+      {tbBtn(editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run(), Heading1, 'Heading 1')}
+      {tbBtn(editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run(), Heading2, 'Heading 2')}
+      {tbBtn(editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run(), Heading3, 'Heading 3')}
       {sep}
 
       {/* Inline styles */}
-      {tbBtn(editor.isActive('bold'),      () => editor.chain().focus().toggleBold().run(),      Bold,          'Negrita (Ctrl+B)')}
-      {tbBtn(editor.isActive('italic'),    () => editor.chain().focus().toggleItalic().run(),    Italic,        'Cursiva (Ctrl+I)')}
-      {tbBtn(editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run(), UnderlineIcon, 'Subrayado (Ctrl+U)')}
+      {tbBtn(editor.isActive('bold'),      () => editor.chain().focus().toggleBold().run(),      Bold,          'Bold (Ctrl+B)')}
+      {tbBtn(editor.isActive('italic'),    () => editor.chain().focus().toggleItalic().run(),    Italic,        'Italic (Ctrl+I)')}
+      {tbBtn(editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run(), UnderlineIcon, 'Underline (Ctrl+U)')}
       {sep}
 
       {/* Lists */}
-      {tbBtn(editor.isActive('bulletList'),  () => editor.chain().focus().toggleBulletList().run(),  List,        'Lista con viñetas')}
-      {tbBtn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), ListOrdered, 'Lista numerada')}
+      {tbBtn(editor.isActive('bulletList'),  () => editor.chain().focus().toggleBulletList().run(),  List,        'Bullet list')}
+      {tbBtn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), ListOrdered, 'Ordered list')}
       {sep}
 
       {/* Color picker */}
       <div className="relative">
         <button
           type="button"
-          title="Color de texto"
+          title="Text color"
           onMouseDown={(e) => { e.preventDefault(); setColorOpen((o) => !o); setLinkOpen(false); }}
           className={`p-1.5 rounded transition-colors flex flex-col items-center gap-0 ${
             currentColor ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
@@ -443,7 +444,7 @@ function Toolbar({ editor }: ToolbarProps) {
             {/* Click-away backdrop */}
             <div className="fixed inset-0 z-40" onMouseDown={() => setColorOpen(false)} />
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 min-w-[140px]">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Color de texto</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Text color</p>
               <div className="grid grid-cols-5 gap-1.5">
                 {TEXT_COLORS.map((c) => (
                   <button
@@ -467,12 +468,12 @@ function Toolbar({ editor }: ToolbarProps) {
 
       {/* Link */}
       <div className="relative">
-        {tbBtn(editor.isActive('link'), openLink, Link2, 'Insertar enlace')}
+        {tbBtn(editor.isActive('link'), openLink, Link2, 'Insert link')}
         {linkOpen && (
           <>
             <div className="fixed inset-0 z-40" onMouseDown={() => setLinkOpen(false)} />
             <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-72">
-              <p className="text-xs font-semibold text-slate-700 mb-2">Insertar enlace</p>
+              <p className="text-xs font-semibold text-slate-700 mb-2">Insert link</p>
               <input
                 type="url"
                 value={linkUrl}
@@ -486,7 +487,7 @@ function Toolbar({ editor }: ToolbarProps) {
                 className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
               />
               <div className="flex gap-1.5">
-                <Button size="sm" onClick={applyLink}>Aplicar</Button>
+                <Button size="sm" onClick={applyLink}>Apply</Button>
                 {editor.isActive('link') && (
                   <Button
                     size="sm"
@@ -494,7 +495,7 @@ function Toolbar({ editor }: ToolbarProps) {
                     onClick={() => { editor.chain().focus().unsetLink().run(); setLinkOpen(false); }}
                   >
                     <Link2Off className="h-3.5 w-3.5 mr-1" />
-                    Quitar
+                    Remove
                   </Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => setLinkOpen(false)}>
@@ -516,15 +517,37 @@ function Toolbar({ editor }: ToolbarProps) {
 
 interface LogEntryProps {
   log: ProjectLog;
+  replies: ProjectLogReply[];
+  teamMembers: TeamMember[];
   onEdit: () => void;
   onDelete: () => void;
+  onReplyAdded: (reply: ProjectLogReply) => void;
 }
 
-function LogEntry({ log, onEdit, onDelete }: LogEntryProps) {
+function AuthorAvatar({ name, className = '' }: { name: string; className?: string }) {
+  const initials = name.split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  return (
+    <div className={`rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 ${className}`}>
+      <span className="text-[9px] font-bold text-indigo-600 uppercase leading-none">{initials}</span>
+    </div>
+  );
+}
+
+function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }: LogEntryProps) {
   const navigate = useNavigate();
   const logType = (log.log_type as LogType) || 'note';
   const cfg = LOG_TYPES[logType] || LOG_TYPES.note;
   const { Icon } = cfg;
+
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replyAuthorId, setReplyAuthorId] = useState<string | null>(() => {
+    try { const s = localStorage.getItem(AUTHOR_STORAGE_KEY); return s ? JSON.parse(s).id : null; } catch { return null; }
+  });
+  const [replyAuthorName, setReplyAuthorName] = useState<string | null>(() => {
+    try { const s = localStorage.getItem(AUTHOR_STORAGE_KEY); return s ? JSON.parse(s).name : null; } catch { return null; }
+  });
+  const [postingReply, setPostingReply] = useState(false);
 
   const htmlContent = useMemo(() => renderContent(log.comment), [log.comment]);
 
@@ -540,11 +563,49 @@ function LogEntry({ log, onEdit, onDelete }: LogEntryProps) {
 
   function formatTimestamp(ts: string | null): string {
     if (!ts) return '';
+    try { return format(new Date(ts), "d MMM yyyy · h:mm a"); } catch { return ts; }
+  }
+
+  function formatShortTimestamp(ts: string | null): string {
+    if (!ts) return '';
+    try { return format(new Date(ts), "d MMM · h:mm a"); } catch { return ts ?? ''; }
+  }
+
+  async function handlePostReply() {
+    const text = replyText.trim();
+    if (!text || postingReply) return;
+    setPostingReply(true);
+
+    const optimistic: ProjectLogReply = {
+      id: crypto.randomUUID(),
+      log_id: log.id,
+      comment: text,
+      author_id: replyAuthorId,
+      author_name: replyAuthorName,
+      created_at: new Date().toISOString(),
+    };
+    onReplyAdded(optimistic);
+    setReplyText('');
+    setShowReplyForm(false);
+
     try {
-      return format(new Date(ts), "d MMM yyyy · h:mm a");
-    } catch {
-      return ts;
+      await supabase.from('project_log_replies').insert({
+        log_id: log.id,
+        comment: text,
+        author_id: replyAuthorId,
+        author_name: replyAuthorName,
+      });
+    } catch (err) {
+      console.error('Error posting reply:', err);
+    } finally {
+      setPostingReply(false);
     }
+  }
+
+  function handleSelectReplyAuthor(memberId: string, memberName: string) {
+    setReplyAuthorId(memberId);
+    setReplyAuthorName(memberName);
+    try { localStorage.setItem(AUTHOR_STORAGE_KEY, JSON.stringify({ id: memberId, name: memberName })); } catch { /* noop */ }
   }
 
   return (
@@ -562,21 +623,28 @@ function LogEntry({ log, onEdit, onDelete }: LogEntryProps) {
               {formatTimestamp(log.created_at)}
             </p>
             {log.updated_at && (
-              <p className="text-[10px] text-slate-400 italic">editado</p>
+              <p className="text-[10px] text-slate-400 italic">edited</p>
             )}
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
+              onClick={() => setShowReplyForm((v) => !v)}
+              className="text-slate-400 hover:text-indigo-600 p-1 rounded hover:bg-white/80"
+              title="Reply"
+            >
+              <CornerDownRight className="h-3.5 w-3.5" />
+            </button>
+            <button
               onClick={onEdit}
               className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-white/80"
-              title="Editar entrada"
+              title="Edit entry"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={onDelete}
               className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-white/80"
-              title="Eliminar entrada"
+              title="Delete entry"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -584,7 +652,7 @@ function LogEntry({ log, onEdit, onDelete }: LogEntryProps) {
         </div>
       </div>
 
-      {/* Rich content rendered via generateHTML — no editor instance per card */}
+      {/* Rich content rendered via generateHTML */}
       <div
         className="bitacora-content text-sm text-slate-700"
         // eslint-disable-next-line react/no-danger
@@ -595,13 +663,101 @@ function LogEntry({ log, onEdit, onDelete }: LogEntryProps) {
       {/* Author footer */}
       {log.author_name && (
         <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-[9px] font-bold text-indigo-600 uppercase leading-none">
-              {log.author_name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-            </span>
-          </div>
+          <AuthorAvatar name={log.author_name} className="w-5 h-5" />
           <span className="text-xs text-slate-500">{log.author_name}</span>
         </div>
+      )}
+
+      {/* Thread replies */}
+      {(replies.length > 0 || showReplyForm) && (
+        <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-2.5">
+          {replies.length > 0 && (
+            <div className="flex items-center gap-1.5 mb-1">
+              <MessageSquare className="h-3 w-3 text-slate-400" />
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+              </span>
+            </div>
+          )}
+
+          {replies.map((reply) => (
+            <div key={reply.id} className="flex gap-2.5 pl-1">
+              <div className="flex-shrink-0 mt-0.5">
+                {reply.author_name
+                  ? <AuthorAvatar name={reply.author_name} className="w-5 h-5" />
+                  : <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center"><User className="h-2.5 w-2.5 text-slate-400" /></div>
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-slate-700">{reply.author_name ?? 'Anonymous'}</span>
+                  <span className="text-[10px] text-slate-400">{formatShortTimestamp(reply.created_at)}</span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{reply.comment}</p>
+              </div>
+            </div>
+          ))}
+
+          {showReplyForm && (
+            <div className="flex gap-2.5 pl-1 pt-1">
+              <div className="flex-shrink-0 mt-0.5">
+                {replyAuthorName
+                  ? <AuthorAvatar name={replyAuthorName} className="w-5 h-5" />
+                  : <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center"><User className="h-2.5 w-2.5 text-slate-400" /></div>
+                }
+              </div>
+              <div className="flex-1 space-y-2">
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handlePostReply(); if (e.key === 'Escape') setShowReplyForm(false); }}
+                  placeholder="Write a reply… (Ctrl+Enter to post)"
+                  rows={2}
+                  autoFocus
+                  className="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white"
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {teamMembers.length > 0 && (
+                    <div className="relative">
+                      <select
+                        value={replyAuthorId ?? ''}
+                        onChange={(e) => {
+                          const m = teamMembers.find((x) => x.id === e.target.value);
+                          if (m) handleSelectReplyAuthor(m.id, m.name);
+                          else { setReplyAuthorId(null); setReplyAuthorName(null); }
+                        }}
+                        className="appearance-none pl-2 pr-6 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
+                      >
+                        <option value="">— No author —</option>
+                        {teamMembers.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
+                    </div>
+                  )}
+                  <Button size="sm" onClick={handlePostReply} disabled={!replyText.trim() || postingReply}>
+                    {postingReply ? 'Posting…' : 'Post Reply'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowReplyForm(false); setReplyText(''); }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reply button shown at bottom when no replies and form is hidden */}
+      {replies.length === 0 && !showReplyForm && (
+        <button
+          onClick={() => setShowReplyForm(true)}
+          className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-slate-400 hover:text-indigo-600 flex items-center gap-1"
+        >
+          <CornerDownRight className="h-3 w-3" />
+          Reply
+        </button>
       )}
     </div>
   );
@@ -647,7 +803,7 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
         openOnClick: false,
         HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer', class: 'bitacora-link' },
       }),
-      Placeholder.configure({ placeholder: 'Agrega una observación, cambio, decisión… Usa @ para referenciar proyectos, cotizaciones o productos.' }),
+      Placeholder.configure({ placeholder: 'Add an observation, change, decision… Use @ to reference projects, quotations, or products.' }),
       buildMentionExtension(getMentionItems),
     ],
     content: startContent,
@@ -731,7 +887,7 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
                 }}
                 className="appearance-none pl-2.5 pr-7 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
-                <option value="">— Sin autor —</option>
+                <option value="">— No author —</option>
                 {teamMembers.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}{m.role ? ` · ${m.role}` : ''}
@@ -741,23 +897,23 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
               <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
             </div>
           ) : (
-            <span className="text-xs text-slate-400 italic">Sin equipo configurado</span>
+            <span className="text-xs text-slate-400 italic">No team configured</span>
           )}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <p className="text-xs text-slate-400 hidden sm:block">Ctrl+Enter para guardar · @ para mencionar</p>
+          <p className="text-xs text-slate-400 hidden sm:block">Ctrl+Enter to save · @ to mention</p>
           {onCancel && (
             <Button size="sm" variant="ghost" onClick={onCancel}>
               <X className="h-3.5 w-3.5 mr-1" />
-              Cancelar
+              Cancel
             </Button>
           )}
           <Button size="sm" onClick={handleSave} disabled={isEmpty || saving}>
-            {saving ? 'Guardando...' : isEdit ? (
-              <><Check className="h-3.5 w-3.5 mr-1" />Guardar</>
+            {saving ? 'Saving...' : isEdit ? (
+              <><Check className="h-3.5 w-3.5 mr-1" />Save</>
             ) : (
-              'Agregar Entrada'
+              'Add Entry'
             )}
           </Button>
         </div>
@@ -776,6 +932,7 @@ interface Props {
 
 export function BitacoraSection({ projectId }: Props) {
   const [logs, setLogs] = useState<ProjectLog[]>([]);
+  const [repliesByLog, setRepliesByLog] = useState<Record<string, ProjectLogReply[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -848,7 +1005,24 @@ export function BitacoraSection({ projectId }: Props) {
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setLogs(data || []);
+      const logsData = data || [];
+      setLogs(logsData);
+
+      // Load all replies for these logs in one query
+      if (logsData.length > 0) {
+        const { data: replyData } = await supabase
+          .from('project_log_replies')
+          .select('*')
+          .in('log_id', logsData.map((l) => l.id))
+          .order('created_at', { ascending: true });
+
+        const grouped: Record<string, ProjectLogReply[]> = {};
+        for (const reply of replyData || []) {
+          if (!grouped[reply.log_id]) grouped[reply.log_id] = [];
+          grouped[reply.log_id].push(reply);
+        }
+        setRepliesByLog(grouped);
+      }
     } catch (err) {
       console.error('Error loading logs:', err);
     } finally {
@@ -922,6 +1096,13 @@ export function BitacoraSection({ projectId }: Props) {
     }
   }
 
+  function handleReplyAdded(logId: string, reply: ProjectLogReply) {
+    setRepliesByLog((prev) => ({
+      ...prev,
+      [logId]: [...(prev[logId] ?? []), reply],
+    }));
+  }
+
   const filteredLogs = filterType === 'all' ? logs : logs.filter((l) => (l.log_type || 'note') === filterType);
 
   if (loading) {
@@ -939,10 +1120,10 @@ export function BitacoraSection({ projectId }: Props) {
       {/* Header */}
       <div className="flex items-center gap-2">
         <ScrollText className="h-5 w-5 text-amber-600" />
-        <h3 className="text-lg font-semibold text-slate-900">Bitácora del Proyecto</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Project Log</h3>
         {logs.length > 0 && (
           <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-            {logs.length} {logs.length === 1 ? 'entrada' : 'entradas'}
+            {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
           </span>
         )}
       </div>
@@ -971,7 +1152,7 @@ export function BitacoraSection({ projectId }: Props) {
                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
             }`}
           >
-            Todas ({logs.length})
+            All ({logs.length})
           </button>
           {LOG_TYPE_ORDER.map((type) => {
             const count = logs.filter((l) => (l.log_type || 'note') === type).length;
@@ -998,14 +1179,14 @@ export function BitacoraSection({ projectId }: Props) {
       {filteredLogs.length === 0 ? (
         <div className="py-10 text-center text-slate-400">
           <ScrollText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">{filterType === 'all' ? 'No hay entradas aún' : 'No hay entradas de este tipo'}</p>
+          <p className="text-sm">{filterType === 'all' ? 'No entries yet' : 'No entries of this type'}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filteredLogs.map((log) =>
             editingId === log.id ? (
               <div key={log.id} className="border border-blue-200 rounded-lg p-4 bg-blue-50/30">
-                <p className="text-xs text-slate-400 mb-3">Editando entrada</p>
+                <p className="text-xs text-slate-400 mb-3">Editing entry</p>
                 <EntryForm
                   getMentionItems={getMentionItems}
                   teamMembers={teamMembers}
@@ -1023,8 +1204,11 @@ export function BitacoraSection({ projectId }: Props) {
               <LogEntry
                 key={log.id}
                 log={log}
+                replies={repliesByLog[log.id] ?? []}
+                teamMembers={teamMembers}
                 onEdit={() => setEditingId(log.id)}
                 onDelete={() => deleteLog(log.id)}
+                onReplyAdded={(reply) => handleReplyAdded(log.id, reply)}
               />
             )
           )}
