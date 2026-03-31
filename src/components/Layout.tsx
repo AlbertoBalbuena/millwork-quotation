@@ -9,7 +9,9 @@ import {
   LogOut,
   Menu,
   X,
+  Search,
 } from 'lucide-react';
+import { GlobalSearch } from './GlobalSearch';
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,11 +20,23 @@ interface LayoutProps {
 
 export function Layout({ children, onLogout }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { pathname } = useLocation();
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -77,6 +91,16 @@ export function Layout({ children, onLogout }: LayoutProps) {
 
             {/* Right actions */}
             <div className="flex-shrink-0 flex items-center gap-1 w-40 justify-end ml-auto lg:ml-0">
+              {/* Search button */}
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="inline-flex items-center justify-center p-2 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all duration-150"
+                title="Search (⌘K)"
+                aria-label="Open search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+
               <Link
                 to="/settings"
                 className={`hidden sm:inline-flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-150 ${
@@ -141,6 +165,13 @@ export function Layout({ children, onLogout }: LayoutProps) {
                 );
               })}
               <div className="flex items-center gap-2 pt-1 border-t border-slate-200 mt-1">
+                <button
+                  onClick={() => { setSearchOpen(true); setMobileMenuOpen(false); }}
+                  className="flex items-center justify-center p-3 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all duration-150"
+                  title="Search"
+                >
+                  <Search className="h-5 w-5 flex-shrink-0" />
+                </button>
                 <Link
                   to="/settings"
                   className={`flex items-center justify-center p-3 rounded-lg transition-all duration-150 ${
@@ -168,6 +199,8 @@ export function Layout({ children, onLogout }: LayoutProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
+
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }
