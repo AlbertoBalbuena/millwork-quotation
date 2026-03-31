@@ -12,6 +12,8 @@ interface SectionDividerProps {
   onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
   isDropTarget?: boolean;
+  isDropBefore?: boolean;
+  isDropAfter?: boolean;
 }
 
 export function SectionDivider({
@@ -24,6 +26,8 @@ export function SectionDivider({
   onDragOver,
   onDrop,
   isDropTarget,
+  isDropBefore,
+  isDropAfter,
 }: SectionDividerProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(section.name);
@@ -47,6 +51,12 @@ export function SectionDivider({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {isDropBefore && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginTop: '-1px' }} />
+      )}
+      {isDropAfter && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginBottom: '-1px' }} />
+      )}
       {draggable && (
         <div className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-100 transition-colors" title="Drag to reorder">
           <GripVertical className="h-4 w-4 text-slate-300" />
