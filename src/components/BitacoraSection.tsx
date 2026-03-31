@@ -7,7 +7,7 @@ import {
   Heading1, Heading2, Heading3, Type, Link2, Link2Off
 } from 'lucide-react';
 import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
-import { generateHTML } from '@tiptap/core';
+import { generateHTML, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExt from '@tiptap/extension-underline';
 import { Color } from '@tiptap/extension-color';
@@ -280,13 +280,23 @@ function buildMentionExtension(getItems: (() => MentionItem[]) | null) {
   });
 }
 
-// Separate extension config used only inside generateHTML (no suggestion needed)
-const MENTION_VIEW_EXTENSION = Mention.configure({
-  renderHTML({ node }) {
-    const id = node.attrs.id as string;
-    const label = node.attrs.label as string;
+// View-only mention extension used inside generateHTML.
+// Must use .extend() to actually override the node's renderHTML —
+// Mention.configure() only sets options and does NOT override the render method.
+const MENTION_VIEW_EXTENSION = Mention.extend({
+  renderHTML({ node, HTMLAttributes }) {
+    const id = (node.attrs.id as string) ?? '';
+    const label = (node.attrs.label as string) ?? node.attrs.id ?? '';
     const url = mentionToUrl(id);
-    return ['a', { href: url, class: 'mention-link', 'data-mention-id': id }, `@${label}`];
+    return [
+      'a',
+      mergeAttributes(HTMLAttributes, {
+        href: url,
+        class: 'mention-link',
+        'data-mention-id': id,
+      }),
+      `@${label}`,
+    ];
   },
 });
 
