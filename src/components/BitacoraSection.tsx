@@ -635,6 +635,8 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
       ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: initialContent }] }] }
       : '';
 
+  const [isEmpty, setIsEmpty] = useState(() => !startContent);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -649,6 +651,8 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
       buildMentionExtension(getMentionItems),
     ],
     content: startContent,
+    onCreate: ({ editor }) => setIsEmpty(editor.getText().trim() === ''),
+    onUpdate: ({ editor }) => setIsEmpty(editor.getText().trim() === ''),
   });
 
   function handleSelectAuthor(memberId: string, memberName: string) {
@@ -668,10 +672,9 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
     if (!isEdit) {
       editor.commands.clearContent();
       setLogType('note');
+      setIsEmpty(true);
     }
   }
-
-  const isEmpty = !editor || editor.getText().trim() === '';
 
   return (
     <div className="space-y-3">
