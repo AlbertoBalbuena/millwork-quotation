@@ -143,6 +143,7 @@ export type ProjectActivityInsert = Database['public']['Tables']['project_activi
 
 export type ProjectLog = Database['public']['Tables']['project_logs']['Row'];
 export type ProjectLogInsert = Database['public']['Tables']['project_logs']['Insert'];
+export type ProjectLogReply = Database['public']['Tables']['project_log_replies']['Row'];
 
 export interface HardwareItem {
   hardware_id: string;
