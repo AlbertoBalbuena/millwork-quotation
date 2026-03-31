@@ -2048,28 +2048,19 @@ const [isEditingDate, setIsEditingDate] = useState(false);
 
                           if (item.type === 'section') {
                             return (
-                              <div
+                              <SectionDivider
                                 key={item.data.id}
-                                className="relative"
+                                section={item.data}
+                                onRename={(name) => handleRenameSection(item.data, name)}
+                                onDelete={() => handleDeleteSection(item.data)}
                                 draggable={totalMerged > 1}
                                 onDragStart={(e) => handleMergedDragStart(e, area.id, mergedIndex)}
                                 onDragEnd={handleMergedDragEnd}
                                 onDragOver={(e) => handleMergedDragOver(e, area.id, mergedIndex)}
                                 onDrop={(e) => handleMergedDrop(e, area.id, mergedIndex)}
-                              >
-                                {isDropBefore && (
-                                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginTop: '-1px' }} />
-                                )}
-                                {isDropAfter && (
-                                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-green-500 z-10" style={{ marginBottom: '-1px' }} />
-                                )}
-                                <SectionDivider
-                                  section={item.data}
-                                  onRename={(name) => handleRenameSection(item.data, name)}
-                                  onDelete={() => handleDeleteSection(item.data)}
-                                  draggable={false}
-                                />
-                              </div>
+                                isDropBefore={isDropBefore}
+                                isDropAfter={isDropAfter}
+                              />
                             );
                           }
                           const cabinet = item.data;
