@@ -61,13 +61,13 @@ export function useGlobalSearch() {
             .limit(5),
           supabase
             .from('products_catalog')
-            .select('id, sku, description, collection')
-            .or(`sku.ilike.%${q}%,description.ilike.%${q}%`)
+            .select('id, sku, description, collection_name')
+            .or(`sku.ilike.%${q}%,description.ilike.%${q}%,collection_name.ilike.%${q}%`)
             .limit(5),
           supabase
             .from('price_list')
-            .select('id, concept_description, type, sku, unit')
-            .or(`concept_description.ilike.%${q}%,sku.ilike.%${q}%`)
+            .select('id, concept_description, type, sku_code, unit')
+            .or(`concept_description.ilike.%${q}%,sku_code.ilike.%${q}%`)
             .limit(5),
         ]);
 
@@ -97,14 +97,14 @@ export function useGlobalSearch() {
           title: c.description ?? c.sku,
           subtitle: c.sku,
           url: `/products/${c.id}`,
-          badge: c.collection ?? undefined,
+          badge: c.collection_name ?? undefined,
         }));
 
         const priceItems: SearchResult[] = (priceItemsRes.data ?? []).map((pi) => ({
           id: pi.id,
           type: 'price_item',
           title: pi.concept_description,
-          subtitle: [pi.type, pi.sku, pi.unit].filter(Boolean).join(' · '),
+          subtitle: [pi.type, pi.sku_code, pi.unit].filter(Boolean).join(' · '),
           url: `/prices/${pi.id}`,
           badge: pi.type ?? undefined,
         }));
