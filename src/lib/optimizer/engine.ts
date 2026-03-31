@@ -841,4 +841,78 @@ export function renderBoardCAD(
     ctx.moveTo(0, rS); ctx.lineTo(cssW, rS);
     ctx.stroke();
   }
+
+  // ── Dimension annotations (cotas) ─────────────────────────
+  {
+    const dimOffset = 18;   // px from board edge
+    const arrowLen  = 6;
+    const boardLeft   = ox;
+    const boardRight  = ox + scaledW;
+    const boardTop    = oy;
+    const boardBottom = oy + scaledH;
+
+    ctx.strokeStyle = '#475569';
+    ctx.fillStyle   = '#334155';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([]);
+    ctx.font = 'bold 10px system-ui, sans-serif';
+
+    // ── Horizontal dimension (bottom) ────────────────────────
+    const hY = boardBottom + dimOffset;
+    // Extension lines
+    ctx.beginPath();
+    ctx.moveTo(boardLeft,  boardBottom + 4); ctx.lineTo(boardLeft,  hY + 4);
+    ctx.moveTo(boardRight, boardBottom + 4); ctx.lineTo(boardRight, hY + 4);
+    ctx.stroke();
+    // Dimension line with arrows
+    ctx.beginPath();
+    ctx.moveTo(boardLeft, hY); ctx.lineTo(boardRight, hY);
+    ctx.stroke();
+    // Left arrow
+    ctx.beginPath();
+    ctx.moveTo(boardLeft, hY);
+    ctx.lineTo(boardLeft + arrowLen, hY - 3);
+    ctx.lineTo(boardLeft + arrowLen, hY + 3);
+    ctx.closePath(); ctx.fill();
+    // Right arrow
+    ctx.beginPath();
+    ctx.moveTo(boardRight, hY);
+    ctx.lineTo(boardRight - arrowLen, hY - 3);
+    ctx.lineTo(boardRight - arrowLen, hY + 3);
+    ctx.closePath(); ctx.fill();
+    // Label
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(_fmtU(board.ancho, unit), (boardLeft + boardRight) / 2, hY + 3);
+
+    // ── Vertical dimension (left) ────────────────────────────
+    const vX = boardLeft - dimOffset;
+    // Extension lines
+    ctx.beginPath();
+    ctx.moveTo(boardLeft - 4, boardTop);    ctx.lineTo(vX - 4, boardTop);
+    ctx.moveTo(boardLeft - 4, boardBottom); ctx.lineTo(vX - 4, boardBottom);
+    ctx.stroke();
+    // Dimension line with arrows
+    ctx.beginPath();
+    ctx.moveTo(vX, boardTop); ctx.lineTo(vX, boardBottom);
+    ctx.stroke();
+    // Top arrow
+    ctx.beginPath();
+    ctx.moveTo(vX, boardTop);
+    ctx.lineTo(vX - 3, boardTop + arrowLen);
+    ctx.lineTo(vX + 3, boardTop + arrowLen);
+    ctx.closePath(); ctx.fill();
+    // Bottom arrow
+    ctx.beginPath();
+    ctx.moveTo(vX, boardBottom);
+    ctx.lineTo(vX - 3, boardBottom - arrowLen);
+    ctx.lineTo(vX + 3, boardBottom - arrowLen);
+    ctx.closePath(); ctx.fill();
+    // Label (rotated)
+    ctx.save();
+    ctx.translate(vX - 5, (boardTop + boardBottom) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(_fmtU(board.alto, unit), 0, 0);
+    ctx.restore();
+  }
 }

@@ -23,7 +23,7 @@ export function RightStatsPanel({ result, selectedIdx, onSelectBoard }: Props) {
   // ── Empty state ───────────────────────────────────────────
   if (!result) {
     return (
-      <div className="w-72 shrink-0 border-l border-slate-200 bg-white flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-white">
         <p className="text-xs text-slate-400 text-center px-4 leading-relaxed">
           Ejecuta la optimización<br />para ver estadísticas
         </p>
@@ -90,7 +90,7 @@ export function RightStatsPanel({ result, selectedIdx, onSelectBoard }: Props) {
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div className="w-72 shrink-0 border-l border-slate-200 bg-white flex flex-col overflow-y-auto overflow-x-hidden text-sm">
+    <div className="flex-1 bg-white flex flex-col overflow-y-auto overflow-x-hidden text-sm">
 
       <Section title="Global statistics" open={globalOpen} onToggle={() => setGlobalOpen((v) => !v)}>
         <StatRow label="Used stock sheets" value={stockStr} />
