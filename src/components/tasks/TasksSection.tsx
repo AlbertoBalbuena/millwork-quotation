@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckSquare, List, LayoutGrid, Calendar, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../Button';
@@ -69,24 +69,26 @@ export function TasksSection({ projectId, teamMembers }: Props) {
 
     const taskIds = rawTasks.map((t) => t.id);
 
-    // Load subtasks, assignees, tag assignments in parallel
-    const [subtasksRes, assigneesRes, tagAssignRes] = await Promise.all([
+    // Load subtasks, assignees, tag assignments, team members, and tags in parallel
+    // NOTE: team_members is fetched here directly to avoid race condition with the
+    // parent prop (teamMembers prop may be empty when this runs on first render).
+    const [subtasksRes, assigneesRes, tagAssignRes, membersRes, allTagsRes] = await Promise.all([
       supabase.from('project_tasks').select('*').in('parent_task_id', taskIds.length ? taskIds : ['none']).order('display_order'),
       supabase.from('task_assignees').select('task_id, member_id').in('task_id', taskIds.length ? taskIds : ['none']),
       supabase.from('task_tag_assignments').select('task_id, tag_id').in('task_id', taskIds.length ? taskIds : ['none']),
+      supabase.from('team_members').select('*').eq('is_active', true).order('display_order'),
+      supabase.from('task_tags').select('*').eq('project_id', projectId),
     ]);
 
     const subtasks = subtasksRes.data || [];
     const assigneeRows = assigneesRes.data || [];
     const tagRows = tagAssignRes.data || [];
 
-    // Load tags list (may already be loaded but ensure fresh)
-    const { data: allTags } = await supabase
-      .from('task_tags')
-      .select('*')
-      .eq('project_id', projectId);
-    const tagsMap = new Map((allTags || []).map((t) => [t.id, t]));
-    const membersMap = new Map(teamMembers.map((m) => [m.id, m]));
+    const allTags = allTagsRes.data || [];
+    const tagsMap = new Map(allTags.map((t) => [t.id, t]));
+    // Use freshly fetched members so assignees always resolve regardless of prop timing
+    const freshMembers = membersRes.data || [];
+    const membersMap = new Map(freshMembers.map((m) => [m.id, m]));
 
     function buildEnhanced(raw: typeof rawTasks[0], subs: typeof subtasks): EnhancedTask {
       const taskAssignees = assigneeRows
@@ -146,18 +148,9 @@ export function TasksSection({ projectId, teamMembers }: Props) {
     await supabase.from('project_tasks').update({ status, updated_at: new Date().toISOString() }).eq('id', taskId);
   }
 
-  async function handleTaskUpdate(updated: EnhancedTask) {
+  function handleTaskUpdate(updated: EnhancedTask) {
+    // Only update local state — the panel's save() already persisted to the DB.
     setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
-    // Persist core fields
-    await supabase.from('project_tasks').update({
-      title: updated.title,
-      description: updated.description,
-      details: updated.details,
-      due_date: updated.due_date,
-      status: updated.status,
-      priority: updated.priority,
-      updated_at: new Date().toISOString(),
-    }).eq('id', updated.id);
   }
 
   async function handleTaskDelete(taskId: string) {
