@@ -62,7 +62,7 @@ export function TaskFormModal({
     }
 
     setSaving(false);
-    onCreated();
+    if (data) onCreated();
   }
 
   function toggleAssignee(id: string) {
@@ -77,9 +77,9 @@ export function TaskFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white/85 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/70 w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/60 bg-gradient-to-r from-indigo-50/40 to-blue-50/20">
           <h3 className="text-base font-semibold text-slate-900">New Task</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X className="h-5 w-5" />
@@ -96,7 +96,7 @@ export function TaskFormModal({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title…"
               autoFocus
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm border border-slate-200/60 rounded-lg px-3 py-2 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) create(); }}
             />
           </div>
@@ -120,7 +120,7 @@ export function TaskFormModal({
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full text-xs border border-slate-200/60 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/60 backdrop-blur-sm"
               >
                 {(Object.entries(TASK_PRIORITY_CONFIG) as [TaskPriority, typeof TASK_PRIORITY_CONFIG[TaskPriority]][]).map(([val, cfg]) => (
                   <option key={val} value={val}>{cfg.label}</option>
@@ -147,10 +147,10 @@ export function TaskFormModal({
                   <button
                     key={m.id}
                     onClick={() => toggleAssignee(m.id)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
                       assigneeIds.includes(m.id)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm'
+                        : 'bg-white/60 backdrop-blur-sm border border-slate-200/60 text-slate-600 hover:border-blue-200 hover:bg-white/80'
                     }`}
                   >
                     {m.name}
@@ -186,7 +186,7 @@ export function TaskFormModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-white/60 bg-white/30 backdrop-blur-sm">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" onClick={create} disabled={!title.trim() || saving}>
             {saving ? 'Creating…' : 'Create Task'}

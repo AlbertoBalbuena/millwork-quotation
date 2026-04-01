@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  X, Trash2, Plus, ChevronDown, ExternalLink,
+  X, Trash2, Plus,
   CheckSquare, Flag, Clock, Users, Tag, Paperclip, MessageSquare,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ interface Props {
   onUpdate: (task: EnhancedTask) => void;
   onDelete: (id: string) => void;
   onReload: () => void;
+  onTagCreated?: (tag: TaskTag) => void;
 }
 
 const STATUS_OPTIONS = Object.entries(TASK_STATUS_CONFIG) as [TaskStatus, typeof TASK_STATUS_CONFIG[TaskStatus]][];
@@ -33,7 +34,7 @@ const PRESET_COLORS = [
   '#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899',
 ];
 
-export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, onUpdate, onDelete, onReload }: Props) {
+export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, onUpdate, onDelete, onReload, onTagCreated }: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || task.details || '');
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -52,15 +53,9 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
   const [dirty, setDirty] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [allTags, setAllTags] = useState<TaskTag[]>(tags);
+  const [freshMembers, setFreshMembers] = useState<TeamMember[]>(teamMembers);
 
-  // Load detail data on mount
-  useEffect(() => {
-    loadComments();
-    loadDeliverables();
-    loadSubtasks();
-  }, [task.id]);
-
-  // Sync when task prop changes (new task selected)
+  // Sync state and reload detail data whenever the selected task changes
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description || task.details || '');
@@ -71,12 +66,22 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
     setTagIds(task.tags.map((t) => t.id));
     setSubtasks(task.subtasks);
     setDirty(false);
-    loadComments();
-    loadDeliverables();
-    loadSubtasks();
+
+    async function init() {
+      // Fetch team members fresh to avoid race condition with parent prop
+      const { data: membersData } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      const members = membersData || teamMembers;
+      setFreshMembers(members);
+      await Promise.all([loadComments(members), loadDeliverables(), loadSubtasks()]);
+    }
+    init();
   }, [task.id]);
 
-  async function loadComments() {
+  async function loadComments(members?: TeamMember[]) {
     const { data } = await supabase
       .from('task_comments')
       .select('*')
@@ -90,7 +95,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
       .select('*')
       .in('comment_id', commentIds.length ? commentIds : ['none'])
       .order('created_at');
-    const membersMap = new Map(teamMembers.map((m) => [m.id, m]));
+    const membersMap = new Map((members ?? freshMembers).map((m) => [m.id, m]));
     const enriched: TaskComment[] = data.map((c) => ({
       ...c,
       author_name: c.author_id ? membersMap.get(c.author_id)?.name : undefined,
@@ -174,7 +179,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
       due_date: dueDate || null,
       status,
       priority,
-      assignees: teamMembers.filter((m) => assigneeIds.includes(m.id)),
+      assignees: freshMembers.filter((m) => assigneeIds.includes(m.id)),
       tags: allTags.filter((t) => tagIds.includes(t.id)),
     };
     onUpdate(updatedTask);
@@ -231,6 +236,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
       setNewTagLabel('');
       setShowNewTag(false);
       markDirty();
+      onTagCreated?.(data);
     }
   }
 
@@ -249,9 +255,9 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
   const doneSubtasks = subtasks.filter((s) => s.status === 'done').length;
 
   return (
-    <div className="w-[400px] flex-shrink-0 bg-white rounded-xl border border-slate-200 flex flex-col max-h-[calc(100vh-200px)] sticky top-4">
+    <div className="panel-enter w-[400px] flex-shrink-0 glass-white flex flex-col max-h-[calc(100vh-200px)] sticky top-4 overflow-hidden">
       {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/60 bg-gradient-to-r from-slate-50/60 to-transparent">
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Task Detail</span>
         <div className="flex items-center gap-1">
           {dirty && (
@@ -274,7 +280,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
             <textarea
               value={title}
               onChange={(e) => { setTitle(e.target.value); markDirty(); }}
-              className="w-full text-base font-semibold text-slate-900 bg-transparent resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-2 py-1 -mx-2 -my-1"
+              className="w-full text-base font-semibold text-slate-900 bg-white/60 backdrop-blur-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-2 py-1 -mx-2 -my-1"
               rows={2}
               placeholder="Task title…"
             />
@@ -289,7 +295,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
               <select
                 value={status}
                 onChange={(e) => { setStatus(e.target.value as TaskStatus); markDirty(); }}
-                className={`w-full text-xs font-medium px-2 py-1.5 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 ${statusCfg.color}`}
+                className={`w-full text-xs font-medium px-2 py-1.5 rounded-lg border border-white/60 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${statusCfg.color}`}
               >
                 {STATUS_OPTIONS.map(([val, cfg]) => (
                   <option key={val} value={val}>{cfg.label}</option>
@@ -303,7 +309,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
               <select
                 value={priority}
                 onChange={(e) => { setPriority(e.target.value as TaskPriority); markDirty(); }}
-                className={`w-full text-xs font-medium px-2 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${priorityCfg.color}`}
+                className={`w-full text-xs font-medium px-2 py-1.5 rounded-lg border border-white/60 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${priorityCfg.color}`}
               >
                 {PRIORITY_OPTIONS.map(([val, cfg]) => (
                   <option key={val} value={val}>{cfg.label}</option>
@@ -321,7 +327,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
               type="datetime-local"
               value={dueDate}
               onChange={(e) => { setDueDate(e.target.value); markDirty(); }}
-              className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-xs border border-slate-200/70 rounded-lg px-2 py-1.5 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -335,7 +341,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
               onChange={(e) => { setDescription(e.target.value); markDirty(); }}
               rows={3}
               placeholder="Add description or links…"
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+              className="w-full text-sm border border-slate-200/70 rounded-lg px-3 py-2 resize-none bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
             />
           </div>
 
@@ -351,8 +357,10 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
                   <button
                     key={m.id}
                     onClick={() => toggleAssignee(m.id)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                      active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+                      active
+                        ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm'
+                        : 'bg-white/60 backdrop-blur-sm border border-slate-200/60 text-slate-600 hover:border-blue-200 hover:bg-white/80'
                     }`}
                   >
                     {m.name}
@@ -391,7 +399,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
               </button>
             </div>
             {showNewTag && (
-              <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-2 p-2 bg-white/60 backdrop-blur-sm rounded-lg border border-slate-200/60">
                 <input
                   type="text"
                   value={newTagLabel}
@@ -425,7 +433,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
             </label>
             <div className="space-y-1 mb-2">
               {subtasks.map((sub) => (
-                <div key={sub.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-slate-50 group">
+                <div key={sub.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-white/60 group">
                   <button onClick={() => toggleSubtaskStatus(sub)}>
                     <span className={`block w-3.5 h-3.5 rounded-full border-2 transition-colors ${
                       sub.status === 'done' ? 'bg-green-500 border-green-500' : 'border-slate-300'
@@ -450,7 +458,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(); }}
                 placeholder="Add subtask…"
-                className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 text-xs border border-slate-200/70 rounded-lg px-2 py-1.5 bg-white/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 onClick={addSubtask}
@@ -489,7 +497,7 @@ export function TaskDetailPanel({ task, teamMembers, tags, projectId, onClose, o
           </div>
 
           {/* Danger zone */}
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-2 border-t border-white/60">
             {showDeleteConfirm ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-600">Delete this task?</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckSquare, List, LayoutGrid, Calendar, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../Button';
@@ -69,24 +69,26 @@ export function TasksSection({ projectId, teamMembers }: Props) {
 
     const taskIds = rawTasks.map((t) => t.id);
 
-    // Load subtasks, assignees, tag assignments in parallel
-    const [subtasksRes, assigneesRes, tagAssignRes] = await Promise.all([
+    // Load subtasks, assignees, tag assignments, team members, and tags in parallel
+    // NOTE: team_members is fetched here directly to avoid race condition with the
+    // parent prop (teamMembers prop may be empty when this runs on first render).
+    const [subtasksRes, assigneesRes, tagAssignRes, membersRes, allTagsRes] = await Promise.all([
       supabase.from('project_tasks').select('*').in('parent_task_id', taskIds.length ? taskIds : ['none']).order('display_order'),
       supabase.from('task_assignees').select('task_id, member_id').in('task_id', taskIds.length ? taskIds : ['none']),
       supabase.from('task_tag_assignments').select('task_id, tag_id').in('task_id', taskIds.length ? taskIds : ['none']),
+      supabase.from('team_members').select('*').eq('is_active', true).order('display_order'),
+      supabase.from('task_tags').select('*').eq('project_id', projectId),
     ]);
 
     const subtasks = subtasksRes.data || [];
     const assigneeRows = assigneesRes.data || [];
     const tagRows = tagAssignRes.data || [];
 
-    // Load tags list (may already be loaded but ensure fresh)
-    const { data: allTags } = await supabase
-      .from('task_tags')
-      .select('*')
-      .eq('project_id', projectId);
-    const tagsMap = new Map((allTags || []).map((t) => [t.id, t]));
-    const membersMap = new Map(teamMembers.map((m) => [m.id, m]));
+    const allTags = allTagsRes.data || [];
+    const tagsMap = new Map(allTags.map((t) => [t.id, t]));
+    // Use freshly fetched members so assignees always resolve regardless of prop timing
+    const freshMembers = membersRes.data || [];
+    const membersMap = new Map(freshMembers.map((m) => [m.id, m]));
 
     function buildEnhanced(raw: typeof rawTasks[0], subs: typeof subtasks): EnhancedTask {
       const taskAssignees = assigneeRows
@@ -146,18 +148,9 @@ export function TasksSection({ projectId, teamMembers }: Props) {
     await supabase.from('project_tasks').update({ status, updated_at: new Date().toISOString() }).eq('id', taskId);
   }
 
-  async function handleTaskUpdate(updated: EnhancedTask) {
+  function handleTaskUpdate(updated: EnhancedTask) {
+    // Only update local state — the panel's save() already persisted to the DB.
     setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
-    // Persist core fields
-    await supabase.from('project_tasks').update({
-      title: updated.title,
-      description: updated.description,
-      details: updated.details,
-      due_date: updated.due_date,
-      status: updated.status,
-      priority: updated.priority,
-      updated_at: new Date().toISOString(),
-    }).eq('id', updated.id);
   }
 
   async function handleTaskDelete(taskId: string) {
@@ -177,11 +170,11 @@ export function TasksSection({ projectId, teamMembers }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="glass-white p-6">
         <div className="animate-pulse space-y-3">
-          <div className="h-6 bg-slate-100 rounded w-24" />
-          <div className="h-4 bg-slate-100 rounded w-full" />
-          <div className="h-4 bg-slate-100 rounded w-3/4" />
+          <div className="h-6 bg-white/60 rounded w-24" />
+          <div className="h-4 bg-white/60 rounded w-full" />
+          <div className="h-4 bg-white/60 rounded w-3/4" />
         </div>
       </div>
     );
@@ -190,52 +183,55 @@ export function TasksSection({ projectId, teamMembers }: Props) {
   return (
     <div className="flex gap-4 items-start">
       {/* Main panel */}
-      <div className={`bg-white rounded-xl border border-slate-200 flex-1 min-w-0 transition-all ${selectedTask ? 'lg:max-w-[calc(100%-420px)]' : ''}`}>
+      <div className={`glass-white flex-1 min-w-0 overflow-hidden transition-all ${selectedTask ? 'lg:max-w-[calc(100%-420px)]' : ''}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/60 bg-gradient-to-r from-indigo-50/40 to-blue-50/20">
           <div className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-blue-600" />
+            <CheckSquare className="h-5 w-5 text-indigo-500" />
             <h3 className="text-lg font-semibold text-slate-900">Tasks</h3>
             {tasks.length > 0 && (
-              <span className="text-xs font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-medium bg-indigo-50 text-indigo-600 border border-indigo-100/60 px-2 py-0.5 rounded-full">
                 {tasks.length}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
             {/* View switcher */}
-            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
+            <div className="flex items-center bg-white/50 backdrop-blur-sm border border-slate-200/50 rounded-lg p-0.5 gap-0.5">
               <button
                 onClick={() => setView('list')}
                 title="List view"
-                className={`p-1.5 rounded-md transition-colors ${view === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`p-1.5 rounded-md transition-all ${view === 'list' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setView('kanban')}
                 title="Board view"
-                className={`p-1.5 rounded-md transition-colors ${view === 'kanban' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`p-1.5 rounded-md transition-all ${view === 'kanban' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setView('calendar')}
                 title="Calendar view"
-                className={`p-1.5 rounded-md transition-colors ${view === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`p-1.5 rounded-md transition-all ${view === 'calendar' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Calendar className="h-4 w-4" />
               </button>
             </div>
-            <Button size="sm" onClick={() => setShowAddModal(true)}>
-              <Plus className="h-4 w-4 mr-1" />
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary-glass flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+            >
+              <Plus className="h-4 w-4" />
               Add Task
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="px-5 py-3 border-b border-slate-100">
+        <div className="px-5 py-3 border-b border-white/60 bg-white/20">
           <TaskFilters
             filters={filters}
             onFiltersChange={setFilters}
@@ -286,6 +282,7 @@ export function TasksSection({ projectId, teamMembers }: Props) {
           onUpdate={handleTaskUpdate}
           onDelete={handleTaskDelete}
           onReload={loadTasks}
+          onTagCreated={(tag) => setTags((prev) => [...prev, tag])}
         />
       )}
 

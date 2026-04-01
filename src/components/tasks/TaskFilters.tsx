@@ -30,10 +30,10 @@ export function TaskFilters({ filters, onFiltersChange, teamMembers, tags }: Pro
       <div className="flex items-center gap-1 flex-wrap">
         <button
           onClick={() => set({ assigneeId: '' })}
-          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
             !filters.assigneeId
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm'
+              : 'bg-white/60 backdrop-blur-sm border border-slate-200/60 text-slate-600 hover:border-blue-200 hover:bg-white/80'
           }`}
         >
           All
@@ -42,10 +42,10 @@ export function TaskFilters({ filters, onFiltersChange, teamMembers, tags }: Pro
           <button
             key={m.id}
             onClick={() => set({ assigneeId: m.id === filters.assigneeId ? '' : m.id })}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
               filters.assigneeId === m.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm'
+                : 'bg-white/60 backdrop-blur-sm border border-slate-200/60 text-slate-600 hover:border-blue-200 hover:bg-white/80'
             }`}
           >
             {m.name.split(' ')[0]}
@@ -60,7 +60,7 @@ export function TaskFilters({ filters, onFiltersChange, teamMembers, tags }: Pro
       <select
         value={filters.status}
         onChange={(e) => set({ status: e.target.value as TaskStatus | '' })}
-        className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="text-xs border border-slate-200/60 rounded-lg px-2 py-1 bg-white/70 backdrop-blur-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       >
         <option value="">All statuses</option>
         {STATUS_OPTIONS.map(([val, cfg]) => (
@@ -72,7 +72,7 @@ export function TaskFilters({ filters, onFiltersChange, teamMembers, tags }: Pro
       <select
         value={filters.priority}
         onChange={(e) => set({ priority: e.target.value as TaskPriority | '' })}
-        className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="text-xs border border-slate-200/60 rounded-lg px-2 py-1 bg-white/70 backdrop-blur-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       >
         <option value="">All priorities</option>
         {PRIORITY_OPTIONS.map(([val, cfg]) => (
@@ -85,7 +85,7 @@ export function TaskFilters({ filters, onFiltersChange, teamMembers, tags }: Pro
         <select
           value={filters.tagId}
           onChange={(e) => set({ tagId: e.target.value })}
-          className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="text-xs border border-slate-200/60 rounded-lg px-2 py-1 bg-white/70 backdrop-blur-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="">All tags</option>
           {tags.map((tag) => (
