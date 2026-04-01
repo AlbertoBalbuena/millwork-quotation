@@ -3,13 +3,15 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckSquare, Clock, ChevronDown, ChevronRight, CheckCircle2,
   ScrollText, ArrowRightCircle, Lightbulb, AlertTriangle, Star,
-  Activity, ExternalLink, Filter, X, TrendingUp,
+  Activity, ExternalLink, Filter, X, TrendingUp, FolderOpen, ArrowRight,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import type { EnhancedTask, TaskStatus, TaskPriority, TeamMember } from '../types';
 import { TASK_PRIORITY_CONFIG } from '../types';
 import { TaskCard } from '../components/tasks/TaskCard';
+import { formatCurrency } from '../lib/calculations';
+import { useSettingsStore } from '../lib/settingsStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,17 @@ interface CrossProjectLog {
   comment: string;
   author_name: string | null;
   created_at: string;
+}
+
+interface RecentQuote {
+  id: string;
+  project_id: string;
+  name: string;
+  quote_date: string;
+  total_amount: number;
+  status: string;
+  project_type: string;
+  updated_at: string;
 }
 
 type TaskFilterState = {
@@ -187,23 +200,46 @@ function TaskSubsection({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const QUOTE_STATUS_COLORS: Record<string, string> = {
+  'Awarded':    'bg-green-100 text-green-700 border-green-200',
+  'Pending':    'bg-blue-100 text-blue-700 border-blue-200',
+  'Estimating': 'bg-orange-100 text-orange-700 border-orange-200',
+  'Sent':       'bg-cyan-100 text-cyan-700 border-cyan-200',
+  'Lost':       'bg-red-100 text-red-700 border-red-200',
+  'Discarded':  'bg-slate-100 text-slate-600 border-slate-200',
+  'Cancelled':  'bg-gray-100 text-gray-600 border-gray-200',
+};
+
 export function HomePage() {
   const navigate = useNavigate();
+  const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
+  const fetchSettings = useSettingsStore(s => s.fetchSettings);
   const [tasks, setTasks] = useState<CrossProjectTask[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [logs, setLogs] = useState<CrossProjectLog[]>([]);
+  const [recentQuotes, setRecentQuotes] = useState<RecentQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [taskFilters, setTaskFilters] = useState<TaskFilterState>({ priority: '', assigneeId: '', projectId: '' });
   const [doneExpanded, setDoneExpanded] = useState(false);
 
   useEffect(() => {
+    fetchSettings();
     loadAll();
   }, []);
 
   async function loadAll() {
     setLoading(true);
-    await Promise.all([loadTasks(), loadLogs()]);
+    await Promise.all([loadTasks(), loadLogs(), loadRecentQuotes()]);
     setLoading(false);
+  }
+
+  async function loadRecentQuotes() {
+    const { data } = await supabase
+      .from('quotations')
+      .select('id, project_id, name, quote_date, total_amount, status, project_type, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(5);
+    setRecentQuotes(data || []);
   }
 
   async function loadTasks() {
@@ -326,6 +362,7 @@ export function HomePage() {
     return (
       <div className="space-y-5">
         <div className="glass-indigo rounded-2xl h-24 animate-pulse" />
+        <div className="glass-white rounded-2xl h-28 animate-pulse" />
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
           <div className="glass-white rounded-2xl h-96 animate-pulse" />
           <div className="glass-white rounded-2xl h-96 animate-pulse" />
@@ -370,6 +407,72 @@ export function HomePage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Recent Quotes ─────────────────────────────────────────────────── */}
+      <div className="glass-white overflow-hidden p-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100/80">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-indigo-100">
+              <FolderOpen className="h-4 w-4 text-indigo-600" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-900">Recent Quotes</h2>
+            {recentQuotes.length > 0 && (
+              <span className="text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                {recentQuotes.length}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => navigate('/projects')}
+            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          >
+            View all
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {recentQuotes.length === 0 ? (
+          <div className="py-10 text-center text-slate-400">
+            <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-20" />
+            <p className="text-sm font-medium">No quotes yet</p>
+          </div>
+        ) : (
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            {recentQuotes.map(q => (
+              <div
+                key={q.id}
+                onClick={() => navigate(`/projects/${q.project_id}/quotations/${q.id}`)}
+                className="group p-4 rounded-xl border border-slate-200/60 hover:border-blue-400/60 hover:shadow-md cursor-pointer transition-all bg-white/60 backdrop-blur-sm"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-slate-900 truncate flex-1 mr-2 leading-snug">
+                    {q.name}
+                  </h3>
+                  <ArrowRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-600 transition-colors flex-shrink-0 mt-0.5" />
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${QUOTE_STATUS_COLORS[q.status] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                    {q.status}
+                  </span>
+                  {q.project_type && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                      {q.project_type}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">
+                    {new Date(q.quote_date).toLocaleDateString()}
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">
+                    {formatCurrency(q.total_amount / (exchangeRate || 1), 'USD')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Main grid ─────────────────────────────────────────────────────── */}
