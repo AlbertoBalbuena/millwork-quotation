@@ -17,6 +17,7 @@ import { DocumentationSection } from '../components/DocumentationSection';
 import { BitacoraSection } from '../components/BitacoraSection';
 import { CrossQuotationAnalytics } from '../components/CrossQuotationAnalytics';
 import type { Project, Quotation, TeamMember } from '../types';
+import { useCurrentMember } from '../lib/useCurrentMember';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -36,6 +37,7 @@ function formatRelativeDate(iso: string): string {
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { member: currentMember } = useCurrentMember();
   const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
   const fetchSettings = useSettingsStore(s => s.fetchSettings);
 
@@ -87,6 +89,12 @@ export function ProjectPage() {
 
     if (pErr || !proj) { navigate('/projects', { replace: true }); return; }
 
+    // Resolve last_modified member name if present
+    if (proj.last_modified_by_member_id) {
+      const { data: modMember } = await supabase.from('team_members').select('name').eq('id', proj.last_modified_by_member_id).single();
+      if (modMember) (proj as Record<string, unknown>).last_modified_member_name = modMember.name;
+    }
+
     setProject(proj);
     setQuotations(quots || []);
 
@@ -129,6 +137,8 @@ export function ProjectPage() {
       status: editForm.status,
       project_details: editForm.project_details || null,
       updated_at: new Date().toISOString(),
+      last_modified_by_member_id: currentMember?.id ?? null,
+      last_modified_at: new Date().toISOString(),
     }).eq('id', projectId);
 
     if (error) { alert('Failed to save'); console.error(error); }
@@ -294,6 +304,11 @@ export function ProjectPage() {
             <span>/</span>
           </div>
           <h1 className="text-lg font-semibold text-slate-900 truncate">{project.name}</h1>
+          {(project as Record<string, unknown>).last_modified_at && (project as Record<string, unknown>).last_modified_by_member_id && (
+            <p className="text-xs text-slate-400 mt-0.5">
+              Última modificación: {(project as Record<string, unknown>).last_modified_member_name as string || 'Unknown'} · {formatRelativeDate(((project as Record<string, unknown>).last_modified_at as string).split('T')[0])}
+            </p>
+          )}
         </div>
       </div>
 

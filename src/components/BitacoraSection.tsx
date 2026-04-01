@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCurrentMember } from '../lib/useCurrentMember';
 import {
   ScrollText, Trash2, Pencil, X, Check, Bold, Italic, Underline as UnderlineIcon,
   List, ListOrdered, CheckCircle2, AlertTriangle, Star, Lightbulb,
@@ -931,6 +932,7 @@ interface Props {
 }
 
 export function BitacoraSection({ projectId }: Props) {
+  const { member: currentMember } = useCurrentMember();
   const [logs, setLogs] = useState<ProjectLog[]>([]);
   const [repliesByLog, setRepliesByLog] = useState<Record<string, ProjectLogReply[]>>({});
   const [loading, setLoading] = useState(true);
@@ -942,11 +944,13 @@ export function BitacoraSection({ projectId }: Props) {
   const mentionItemsRef = useRef<MentionItem[]>([]);
   const getMentionItems = useRef(() => mentionItemsRef.current).current;
 
-  // Restore last used author from localStorage
-  const savedAuthor = (() => {
-    try { return JSON.parse(localStorage.getItem(AUTHOR_STORAGE_KEY) ?? 'null') as { id: string; name: string } | null; }
-    catch { return null; }
-  })();
+  // Use current authenticated member, fall back to localStorage
+  const savedAuthor = currentMember
+    ? { id: currentMember.id, name: currentMember.name }
+    : (() => {
+        try { return JSON.parse(localStorage.getItem(AUTHOR_STORAGE_KEY) ?? 'null') as { id: string; name: string } | null; }
+        catch { return null; }
+      })();
 
   // Load mention candidates + team members once
   useEffect(() => {

@@ -6,8 +6,11 @@ import { Input } from '../components/Input';
 import { clearSettingsCache, useSettingsStore } from '../lib/settingsStore';
 import { downloadFullBackup, type BackupSummary } from '../utils/backupExport';
 import type { Setting, TaxByType, CustomType, CustomUnit, TeamMember } from '../types';
+import { useCurrentMember } from '../lib/useCurrentMember';
 
 export function Settings() {
+  const { member: currentMember } = useCurrentMember();
+  const [allMembers, setAllMembers] = useState<TeamMember[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
   const [taxesByType, setTaxesByType] = useState<TaxByType[]>([]);
   const [customTypes, setCustomTypes] = useState<CustomType[]>([]);
@@ -36,6 +39,7 @@ export function Settings() {
     loadCustomTypes();
     loadCustomUnits();
     loadTeamMembers();
+    loadAllMembers();
   }, []);
 
   async function loadSettings() {
@@ -308,6 +312,22 @@ export function Settings() {
     } catch (error) {
       console.error('Error loading team members:', error);
     }
+  }
+
+  async function loadAllMembers() {
+    const { data } = await supabase.from('team_members').select('*').order('display_order');
+    setAllMembers(data || []);
+  }
+
+  async function toggleMemberActive(id: string, isActive: boolean) {
+    await supabase.from('team_members').update({ is_active: !isActive }).eq('id', id);
+    loadAllMembers();
+    loadTeamMembers();
+  }
+
+  async function changeMemberRole(id: string, role: string) {
+    await supabase.from('team_members').update({ role }).eq('id', id);
+    loadAllMembers();
   }
 
   async function addTeamMember() {
@@ -925,6 +945,73 @@ export function Settings() {
           </div>
         </div>
       </div>
+
+      {/* ── Admin: User Management ──────────────────────────────────────── */}
+      {currentMember?.role === 'admin' && (
+        <div className="glass-white rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Usuarios del Sistema</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 px-3 text-slate-500 font-medium">Nombre</th>
+                  <th className="text-left py-2 px-3 text-slate-500 font-medium">Email</th>
+                  <th className="text-left py-2 px-3 text-slate-500 font-medium">Rol</th>
+                  <th className="text-center py-2 px-3 text-slate-500 font-medium">Vinculado</th>
+                  <th className="text-center py-2 px-3 text-slate-500 font-medium">Estado</th>
+                  <th className="text-right py-2 px-3 text-slate-500 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allMembers.map(m => {
+                  const isSelf = m.id === currentMember.id;
+                  return (
+                    <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2.5 px-3 font-medium text-slate-800">
+                        {m.name}
+                        {isSelf && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Tú</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-500">{m.email || '—'}</td>
+                      <td className="py-2.5 px-3">
+                        <select
+                          value={m.role || 'user'}
+                          onChange={e => changeMemberRole(m.id, e.target.value)}
+                          disabled={isSelf}
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 disabled:opacity-50"
+                        >
+                          <option value="user">user</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {m.auth_user_id ? (
+                          <span className="text-green-600 font-bold">✓</span>
+                        ) : (
+                          <span className="text-slate-300">✗</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${m.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {m.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          onClick={() => toggleMemberActive(m.id, m.is_active)}
+                          disabled={isSelf}
+                          className="text-xs text-slate-500 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {m.is_active ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
