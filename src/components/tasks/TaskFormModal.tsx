@@ -11,19 +11,20 @@ interface Props {
   tags: TaskTag[];
   displayOrder: number;
   parentTaskId?: string;
+  currentMemberId?: string;
   onCreated: () => void;
   onClose: () => void;
 }
 
 export function TaskFormModal({
-  projectId, teamMembers, tags, displayOrder, parentTaskId, onCreated, onClose,
+  projectId, teamMembers, tags, displayOrder, parentTaskId, currentMemberId, onCreated, onClose,
 }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status] = useState<TaskStatus>('pending');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
-  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(currentMemberId ? [currentMemberId] : []);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 

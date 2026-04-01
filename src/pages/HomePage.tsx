@@ -14,6 +14,7 @@ import { TASK_PRIORITY_CONFIG } from '../types';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { formatCurrency } from '../lib/calculations';
 import { useSettingsStore } from '../lib/settingsStore';
+import { useCurrentMember } from '../lib/useCurrentMember';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -225,10 +226,19 @@ const QUOTE_STATUS_COLORS: Record<string, string> = {
   'Cancelled':  'bg-gray-100 text-gray-600 border-gray-200',
 };
 
+function getGreeting(name: string): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return `Buenos días, ${name}`;
+  if (hour >= 12 && hour < 18) return `Buenas tardes, ${name}`;
+  return `Buenas noches, ${name}`;
+}
+
 export function HomePage() {
   const navigate = useNavigate();
+  const { member } = useCurrentMember();
   const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
   const fetchSettings = useSettingsStore(s => s.fetchSettings);
+  const [myTasksOnly, setMyTasksOnly] = useState(() => localStorage.getItem('homepage_tasks_filter') !== 'all');
   const [tasks, setTasks] = useState<CrossProjectTask[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [logs, setLogs] = useState<CrossProjectLog[]>([]);
@@ -348,6 +358,15 @@ export function HomePage() {
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
+  // My tasks filter
+  const myTasks = member ? tasks.filter(t => t.assignees.some(a => a.id === member.id)) : tasks;
+  const visibleTasks = myTasksOnly ? myTasks : tasks;
+
+  function toggleMyTasks(on: boolean) {
+    setMyTasksOnly(on);
+    localStorage.setItem('homepage_tasks_filter', on ? 'mine' : 'all');
+  }
+
   function applyFilters(list: CrossProjectTask[]): CrossProjectTask[] {
     return list.filter(t => {
       if (taskFilters.priority && t.priority !== taskFilters.priority) return false;
@@ -357,33 +376,33 @@ export function HomePage() {
     });
   }
 
-  // Raw counts (hero stats — always unfiltered)
+  // Raw counts (hero stats — reflect myTasks toggle)
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const sevenDaysOut = new Date(today); sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
 
-  const inProgressAll = tasks.filter(t => t.status === 'in_progress').length;
-  const inReviewAll   = tasks.filter(t => t.status === 'in_review').length;
-  const pendingAll    = tasks.filter(t => t.status === 'pending').length;
-  const doneAll       = tasks.filter(t => t.status === 'done' || t.status === 'cancelled').length;
-  const overdueAll    = tasks.filter(t => t.due_date && new Date(t.due_date) < today && t.status !== 'done' && t.status !== 'cancelled').length;
-  const blockedAll    = tasks.filter(t => t.status === 'blocked').length;
+  const inProgressAll = visibleTasks.filter(t => t.status === 'in_progress').length;
+  const inReviewAll   = visibleTasks.filter(t => t.status === 'in_review').length;
+  const pendingAll    = visibleTasks.filter(t => t.status === 'pending').length;
+  const doneAll       = visibleTasks.filter(t => t.status === 'done' || t.status === 'cancelled').length;
+  const overdueAll    = visibleTasks.filter(t => t.due_date && new Date(t.due_date) < today && t.status !== 'done' && t.status !== 'cancelled').length;
+  const blockedAll    = visibleTasks.filter(t => t.status === 'blocked').length;
 
   // Filtered task lists (subsections)
   const isActive = (t: CrossProjectTask) => t.status !== 'done' && t.status !== 'cancelled';
 
-  const overdueTasks  = applyFilters(tasks.filter(t => t.due_date && new Date(t.due_date) < today && isActive(t)));
-  const blockedTasks  = applyFilters(tasks.filter(t => t.status === 'blocked'));
-  const workingOnIt   = applyFilters(tasks.filter(t => t.status === 'in_progress'));
-  const inReviewTasks = applyFilters(tasks.filter(t => t.status === 'in_review'));
+  const overdueTasks  = applyFilters(visibleTasks.filter(t => t.due_date && new Date(t.due_date) < today && isActive(t)));
+  const blockedTasks  = applyFilters(visibleTasks.filter(t => t.status === 'blocked'));
+  const workingOnIt   = applyFilters(visibleTasks.filter(t => t.status === 'in_progress'));
+  const inReviewTasks = applyFilters(visibleTasks.filter(t => t.status === 'in_review'));
   const upcomingTasks = applyFilters(
-    tasks.filter(t => t.due_date && new Date(t.due_date) >= today && new Date(t.due_date) <= sevenDaysOut && isActive(t))
+    visibleTasks.filter(t => t.due_date && new Date(t.due_date) >= today && new Date(t.due_date) <= sevenDaysOut && isActive(t))
   ).sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime());
-  const toDo          = applyFilters(tasks.filter(t => t.status === 'pending'));
-  const allDoneTasks  = tasks.filter(t => t.status === 'done' || t.status === 'cancelled');
+  const toDo          = applyFilters(visibleTasks.filter(t => t.status === 'pending'));
+  const allDoneTasks  = visibleTasks.filter(t => t.status === 'done' || t.status === 'cancelled');
   const filteredDone  = applyFilters(allDoneTasks);
 
   const allProjects = [
-    ...new Map(tasks.map(t => [t.project_id, { id: t.project_id, name: t.project_name }])).values(),
+    ...new Map(visibleTasks.map(t => [t.project_id, { id: t.project_id, name: t.project_name }])).values(),
   ];
 
   const hasActiveFilters = taskFilters.priority || taskFilters.assigneeId || taskFilters.projectId;
@@ -458,7 +477,7 @@ export function HomePage() {
       <div className="glass-indigo px-6 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Home</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{member ? getGreeting(member.name) : 'Home'}</h1>
             <p className="text-sm text-slate-500 mt-0.5">Track tasks and activity across all your projects</p>
           </div>
 
@@ -627,14 +646,33 @@ export function HomePage() {
             )}
           </div>
 
-          {tasks.length === 0 ? (
+          {visibleTasks.length === 0 ? (
             <div className="py-16 text-center text-slate-400">
               <CheckSquare className="h-10 w-10 mx-auto mb-3 opacity-20" />
-              <p className="text-sm font-medium">No tasks across any project yet</p>
+              <p className="text-sm font-medium">{myTasksOnly ? 'No tienes tareas asignadas en este momento' : 'No tasks across any project yet'}</p>
             </div>
           ) : (
             <>
               {/* Filter bar */}
+              <div className="px-5 py-3 border-b border-slate-100/80 bg-slate-50/60 flex items-center gap-2 flex-wrap">
+                {/* My Tasks / All toggle */}
+                {member && (
+                  <div className="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden mr-2">
+                    <button
+                      onClick={() => toggleMyTasks(true)}
+                      className={`px-3 py-1 text-xs font-medium transition-colors ${myTasksOnly ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Mis Tareas ({myTasks.length})
+                    </button>
+                    <button
+                      onClick={() => toggleMyTasks(false)}
+                      className={`px-3 py-1 text-xs font-medium transition-colors ${!myTasksOnly ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Todas ({tasks.length})
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="px-5 py-3 border-b border-slate-100/80 bg-slate-50/60 flex items-center gap-2 flex-wrap">
                 <Filter className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
 
@@ -937,8 +975,8 @@ export function HomePage() {
                                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${cfg.badgeBg} ${cfg.color}`}>
                                   {cfg.label}
                                 </span>
-                                {log.author_name && (
-                                  <span className="text-[10px] text-slate-500 font-medium truncate">{log.author_name}</span>
+                                {(log.author_name || true) && (
+                                  <span className="text-[10px] text-slate-500 font-medium truncate">{log.author_name || 'Usuario anterior'}</span>
                                 )}
                                 <span className="text-[10px] text-slate-400 flex items-center gap-0.5 ml-auto flex-shrink-0">
                                   <Clock className="h-2.5 w-2.5" />

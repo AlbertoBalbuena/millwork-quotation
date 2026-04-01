@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckSquare, List, LayoutGrid, Calendar, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../Button';
+import { useCurrentMember } from '../../lib/useCurrentMember';
 import type {
   TeamMember, EnhancedTask, TaskTag,
   TaskStatus, TaskPriority, TaskView,
@@ -30,6 +31,7 @@ export interface TaskFilterState {
 }
 
 export function TasksSection({ projectId, teamMembers }: Props) {
+  const { member: currentMember } = useCurrentMember();
   const [tasks, setTasks] = useState<EnhancedTask[]>([]);
   const [tags, setTags] = useState<TaskTag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,6 +295,7 @@ export function TasksSection({ projectId, teamMembers }: Props) {
           teamMembers={teamMembers}
           tags={tags}
           displayOrder={tasks.length}
+          currentMemberId={currentMember?.id}
           onCreated={handleTaskCreated}
           onClose={() => setShowAddModal(false)}
         />
