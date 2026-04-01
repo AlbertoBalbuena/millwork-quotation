@@ -58,9 +58,10 @@ export function TaskCard({ task, selected, onSelect, onStatusChange, compact }: 
     <div
       onClick={() => onSelect(task.id)}
       className={`
-        group relative cursor-pointer rounded-lg border-l-4 border border-slate-200 bg-white p-3 transition-all hover:shadow-sm
+        task-enter group relative cursor-pointer rounded-xl border-l-4 bg-white/70 backdrop-blur-sm p-3 shadow-sm
+        hover:shadow-md hover:border-blue-200/60 transition-all duration-200
         ${priorityCfg.border}
-        ${selected ? 'ring-2 ring-blue-400 ring-offset-1' : ''}
+        ${selected ? 'ring-2 ring-blue-400/70 ring-offset-1 border-blue-200/60' : 'border border-white/80'}
         ${isDone ? 'opacity-60' : ''}
       `}
     >
@@ -90,7 +91,7 @@ export function TaskCard({ task, selected, onSelect, onStatusChange, compact }: 
           {/* Meta row */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {/* Status badge */}
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusCfg.color}`}>
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium backdrop-blur-sm ${statusCfg.color}`}>
               {statusCfg.label}
             </span>
 
@@ -131,7 +132,7 @@ export function TaskCard({ task, selected, onSelect, onStatusChange, compact }: 
                   <span
                     key={a.id}
                     title={a.name}
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ring-1 ring-white ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ring-2 ring-white/80 ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}
                   >
                     {getInitials(a.name)}
                   </span>

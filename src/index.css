@@ -290,4 +290,22 @@ a.bitacora-link:hover {
     background: linear-gradient(135deg, #4f46e5, #2563eb);
     box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
   }
+
+  /* Task card entrance animation */
+  @keyframes taskSlideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .task-enter {
+    animation: taskSlideUp 0.2s ease forwards;
+  }
+
+  /* Task detail panel slide-in from right */
+  @keyframes panelSlideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .panel-enter {
+    animation: panelSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
 }

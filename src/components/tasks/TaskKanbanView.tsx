@@ -55,7 +55,7 @@ export function TaskKanbanView({ tasks, selectedTaskId, onSelect, onStatusChange
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div className="flex gap-3 overflow-x-auto pb-2 px-1 py-1">
       {COLUMN_ORDER.map((status) => {
         const cfg = TASK_STATUS_CONFIG[status];
         const columnTasks = grouped[status] || [];
@@ -64,33 +64,34 @@ export function TaskKanbanView({ tasks, selectedTaskId, onSelect, onStatusChange
         return (
           <div
             key={status}
-            className={`flex-shrink-0 w-60 flex flex-col rounded-xl transition-colors ${
-              isDragTarget ? 'bg-blue-50 ring-2 ring-blue-300' : 'bg-slate-50'
+            className={`flex-shrink-0 w-60 flex flex-col rounded-xl transition-all duration-200 ${
+              isDragTarget ? 'glass-blue ring-2 ring-blue-300/70' : 'glass-white'
             }`}
             onDragOver={(e) => handleDragOver(e, status)}
             onDrop={(e) => handleDrop(e, status)}
             onDragLeave={() => setDragOverStatus(null)}
           >
             {/* Column header */}
-            <div className="flex items-center gap-2 px-3 py-2.5">
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/60">
               <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
               <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex-1">
                 {cfg.label}
               </span>
-              <span className="text-xs text-slate-400 font-medium bg-white rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="text-xs text-slate-400 font-medium bg-white/70 backdrop-blur-sm rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                 {columnTasks.length}
               </span>
             </div>
 
             {/* Cards */}
-            <div className="flex-1 px-2 pb-2 space-y-2 min-h-[80px]">
-              {columnTasks.map((task) => (
+            <div className="flex-1 px-2 pb-2 pt-2 space-y-2 min-h-[80px]">
+              {columnTasks.map((task, i) => (
                 <div
                   key={task.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id)}
                   onDragEnd={handleDragEnd}
-                  className={`cursor-grab active:cursor-grabbing transition-opacity ${
+                  style={{ animationDelay: `${i * 40}ms` }}
+                  className={`task-enter cursor-grab active:cursor-grabbing transition-opacity ${
                     dragTaskId === task.id ? 'opacity-50' : ''
                   }`}
                 >
@@ -104,7 +105,7 @@ export function TaskKanbanView({ tasks, selectedTaskId, onSelect, onStatusChange
                 </div>
               ))}
               {columnTasks.length === 0 && !isDragTarget && (
-                <div className="h-12 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center">
+                <div className="h-12 border-2 border-dashed border-white/80 rounded-lg flex items-center justify-center">
                   <span className="text-[10px] text-slate-300">Drop here</span>
                 </div>
               )}

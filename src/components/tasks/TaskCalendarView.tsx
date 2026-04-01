@@ -41,7 +41,7 @@ export function TaskCalendarView({ tasks, onSelect }: Props) {
       <div className="flex items-center justify-between">
         <button
           onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/70 text-slate-500 transition-all duration-200 backdrop-blur-sm"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -50,16 +50,16 @@ export function TaskCalendarView({ tasks, onSelect }: Props) {
         </h4>
         <button
           onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/70 text-slate-500 transition-all duration-200 backdrop-blur-sm"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
       {/* Grid */}
-      <div className="border border-slate-200 rounded-xl overflow-hidden">
+      <div className="glass-white overflow-hidden">
         {/* Day headers */}
-        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
+        <div className="grid grid-cols-7 bg-white/40 backdrop-blur-sm border-b border-white/60">
           {WEEKDAY_LABELS.map((d) => (
             <div key={d} className="py-2 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
               {d}
@@ -78,8 +78,8 @@ export function TaskCalendarView({ tasks, onSelect }: Props) {
             return (
               <div
                 key={key}
-                className={`min-h-[80px] p-1.5 border-b border-r border-slate-100 ${
-                  !inMonth ? 'bg-slate-50' : 'bg-white'
+                className={`min-h-[80px] p-1.5 border-b border-r border-white/50 transition-colors ${
+                  today ? 'bg-blue-50/70' : !inMonth ? 'bg-white/20' : 'bg-white/40'
                 } ${i % 7 === 6 ? 'border-r-0' : ''}`}
               >
                 {/* Date number */}
