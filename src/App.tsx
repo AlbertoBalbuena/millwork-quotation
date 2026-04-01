@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
+import { HomePage } from './pages/HomePage';
 import { ProductsCatalog } from './pages/ProductsCatalog';
 import { ProductItem } from './pages/ProductItem';
 import { PriceList } from './pages/PriceList';
@@ -52,7 +53,8 @@ function App() {
     <>
       <Layout onLogout={handleLogout}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/projects" element={<ProjectsHub />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route path="/projects/:projectId/quotations/:quotationId" element={<QuotationDetailsPage />} />
