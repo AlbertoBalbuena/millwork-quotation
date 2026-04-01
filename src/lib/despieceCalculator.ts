@@ -1,10 +1,11 @@
 import type { CutPiece } from '../types';
 
-const GAP_FRENTE      = 3;   // mm — overlay gap for doors/fronts
-const GAP_CORREDERA   = 26;  // mm — total drawer slide clearance
-const CLEARANCE_FONDO = 50;  // mm — drawer box doesn't reach back
-const CLEARANCE_ALTO  = 40;  // mm — drawer box shorter than front
-const ANCHO_ARMADOR   = 100; // mm — rail height for base cabinets
+// ── Constants (mm) ───────────────────────────────────────────────────────────
+const DOOR_OVERLAY_GAP   = 3;   // overlay gap between door/drawer face and opening
+const SLIDE_CLEARANCE    = 26;  // total width deducted for drawer slides
+const DRAWER_BACK_CLEAR  = 50;  // drawer box doesn't reach the back panel
+const DRAWER_TOP_CLEAR   = 40;  // drawer box is shorter than its face
+const RAIL_HEIGHT        = 100; // height of front rails (stretchers)
 
 export interface DespieceInput {
   heightIn: number;
@@ -25,10 +26,6 @@ function uid(): string {
   return crypto.randomUUID();
 }
 
-function mm(inches: number): number {
-  return Math.round(inches * 25.4);
-}
-
 export function calculateDespiece(input: DespieceInput): CutPiece[] {
   const {
     heightIn, widthIn, depthIn,
@@ -38,10 +35,12 @@ export function calculateDespiece(input: DespieceInput): CutPiece[] {
     hasDrawers, numDrawers, drawerSectionHeightIn,
   } = input;
 
-  const H = mm(heightIn);
-  const W = mm(widthIn);
-  const D = mm(depthIn);
-  const anchoInt = W - 2 * esp;
+  const H = Math.round(heightIn * 25.4);
+  const W = Math.round(widthIn  * 25.4);
+  const D = Math.round(depthIn  * 25.4);
+
+  // Inner width (between the two side panels)
+  const innerW = W - 2 * esp;
 
   const pieces: CutPiece[] = [];
 
@@ -52,50 +51,78 @@ export function calculateDespiece(input: DespieceInput): CutPiece[] {
     cantidad: number,
     material: CutPiece['material'],
   ) => {
-    pieces.push({ id: uid(), nombre, ancho: Math.round(ancho), alto: Math.round(alto), cantidad, material });
+    pieces.push({
+      id: uid(),
+      nombre,
+      ancho: Math.round(ancho),
+      alto:  Math.round(alto),
+      cantidad,
+      material,
+    });
   };
 
-  // --- Structural pieces ---
-  add('Costados',  D,         H,             2, 'cuerpo');
-  add('Trasero',   anchoInt,  H - 2 * esp,   1, 'cuerpo');
+  // ── Box structure (all cabinet types) ─────────────────────────────────────
+  // Sides: full height × full depth
+  add('Side Panels',   D,        H,         2, 'cuerpo');
 
-  if (cabinetType === 'base') {
-    add('Piso',       anchoInt,     D - esp, 1, 'cuerpo');
-    add('Armadores',  anchoInt,     ANCHO_ARMADOR, 4, 'cuerpo');
-  } else {
-    // wall / tall
-    add('Techo', anchoInt, D, 1, 'cuerpo');
-    add('Piso',  anchoInt, D, 1, 'cuerpo');
+  // Back Panel: inner width × full height (fits between side panels)
+  add('Back Panel',    innerW,   H,         1, 'cuerpo');
+
+  // Top Panel: inner width × (depth minus back panel thickness)
+  add('Top Panel',     innerW,   D - esp,   1, 'cuerpo');
+
+  // Bottom Panel: same dimensions as Top
+  add('Bottom Panel',  innerW,   D - esp,   1, 'cuerpo');
+
+  // ── Front Rails (Stretchers) ───────────────────────────────────────────────
+  // Generated for Base and Tall cabinets whenever drawers are present.
+  // One rail per drawer, spanning the inner width, at the front of the cabinet.
+  if ((cabinetType === 'base' || cabinetType === 'tall') && hasDrawers && numDrawers > 0) {
+    add('Front Rails',   innerW,   RAIL_HEIGHT,   numDrawers, 'cuerpo');
   }
 
+  // ── Shelves ────────────────────────────────────────────────────────────────
+  // Wall/Upper: shelf depth = D − back panel thickness (shelves reach the front edge)
+  // Base/Tall:  shelf depth = D − 2×back panel thickness (back AND front deducted,
+  //             since front rails / stretchers occupy that space at the front)
   if (shelves > 0) {
-    add('Entrepaños', anchoInt - 1, D - 20, shelves, 'cuerpo');
+    const shelfDepth = cabinetType === 'wall'
+      ? D - esp
+      : D - 2 * esp;
+    add('Shelves', innerW, shelfDepth, shelves, 'cuerpo');
   }
 
-  // --- Doors ---
+  // ── Doors ──────────────────────────────────────────────────────────────────
   if (hasDoors && numDoors > 0) {
-    const doorH = doorSectionHeightIn > 0 ? mm(doorSectionHeightIn) : H;
+    const doorH = doorSectionHeightIn > 0 ? Math.round(doorSectionHeightIn * 25.4) : H;
     add(
-      'Puertas',
-      Math.round(W / numDoors) - GAP_FRENTE,
-      doorH - GAP_FRENTE,
+      'Doors',
+      Math.round(W / numDoors) - DOOR_OVERLAY_GAP,
+      doorH - DOOR_OVERLAY_GAP,
       numDoors,
       'frente',
     );
   }
 
-  // --- Drawers ---
+  // ── Drawer Boxes ───────────────────────────────────────────────────────────
   if (hasDrawers && numDrawers > 0) {
-    const drawerH_in = drawerSectionHeightIn > 0 ? drawerSectionHeightIn : heightIn;
-    const altoFrente   = Math.round((drawerH_in / numDrawers) * 25.4);
-    const anchoCajaExt = anchoInt - GAP_CORREDERA;
-    const altoCajaInt  = altoFrente - CLEARANCE_ALTO;
-    const largoGuia    = D - CLEARANCE_FONDO;
+    const drawerH_in  = drawerSectionHeightIn > 0 ? drawerSectionHeightIn : heightIn;
+    const faceHeight  = Math.round((drawerH_in / numDrawers) * 25.4);
+    const boxOuterW   = innerW - SLIDE_CLEARANCE;   // outer width of drawer box
+    const boxInnerH   = faceHeight - DRAWER_TOP_CLEAR;
+    const boxDepth    = D - DRAWER_BACK_CLEAR;       // drawer box depth (guide length)
 
-    add('Frente Cajón', W - GAP_FRENTE,                 altoFrente,  numDrawers,     'frente');
-    add('C.Costados',   largoGuia,                       altoCajaInt, numDrawers * 2, 'cuerpo');
-    add('C.Contras',    anchoCajaExt - 2 * esp,          altoCajaInt, numDrawers * 2, 'cuerpo');
-    add('C.Piso',       anchoCajaExt,                    largoGuia,   numDrawers,     'cuerpo');
+    // Drawer Faces (visible front panel)
+    add('Drawer Faces',        W - DOOR_OVERLAY_GAP,       faceHeight,  numDrawers,     'frente');
+
+    // Drawer Box Sides (2 per drawer, running front-to-back)
+    add('Drawer Box Sides',    boxDepth,                    boxInnerH,   numDrawers * 2, 'cuerpo');
+
+    // Drawer Box Ends (front & back of the box, between the sides)
+    add('Drawer Box Ends',     boxOuterW - 2 * esp,         boxInnerH,   numDrawers * 2, 'cuerpo');
+
+    // Drawer Box Bottom (sits on the bottom of the drawer box frame)
+    add('Drawer Box Bottom',   boxOuterW,                   boxDepth,    numDrawers,     'cuerpo');
   }
 
   return pieces;

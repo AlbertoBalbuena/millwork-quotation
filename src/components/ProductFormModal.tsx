@@ -449,9 +449,9 @@ export function ProductFormModal({ product, onSave, onClose, safeEditMode }: Pro
                     onChange={(e) => setCalcCabinetType(e.target.value as 'base' | 'wall' | 'tall')}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   >
-                    <option value="base">Base (Armadores, sin Techo)</option>
-                    <option value="wall">Wall / Aéreo (con Techo)</option>
-                    <option value="tall">Tall / Torre (con Techo)</option>
+                    <option value="base">Base Cabinet</option>
+                    <option value="wall">Wall / Upper Cabinet</option>
+                    <option value="tall">Tall / Tower Cabinet</option>
                   </select>
                 </div>
                 <div>
