@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   Search,
+  Home,
 } from 'lucide-react';
 import { GlobalSearch } from './GlobalSearch';
 
@@ -40,7 +41,8 @@ export function Layout({ children, onLogout }: LayoutProps) {
   }, []);
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: BarChart3 },
+    { path: '/', label: 'Home', icon: Home },
+    { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { path: '/projects', label: 'Projects', icon: FolderOpen },
     { path: '/products', label: 'Cabinets', icon: Package },
     { path: '/prices', label: 'Price List', icon: DollarSign },
