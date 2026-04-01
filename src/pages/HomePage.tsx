@@ -359,6 +359,7 @@ export function HomePage() {
   const sevenDaysOut = new Date(today); sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
 
   const inProgressAll = tasks.filter(t => t.status === 'in_progress').length;
+  const inReviewAll   = tasks.filter(t => t.status === 'in_review').length;
   const pendingAll    = tasks.filter(t => t.status === 'pending').length;
   const doneAll       = tasks.filter(t => t.status === 'done' || t.status === 'cancelled').length;
   const overdueAll    = tasks.filter(t => t.due_date && new Date(t.due_date) < today && t.status !== 'done' && t.status !== 'cancelled').length;
@@ -370,6 +371,7 @@ export function HomePage() {
   const overdueTasks  = applyFilters(tasks.filter(t => t.due_date && new Date(t.due_date) < today && isActive(t)));
   const blockedTasks  = applyFilters(tasks.filter(t => t.status === 'blocked'));
   const workingOnIt   = applyFilters(tasks.filter(t => t.status === 'in_progress'));
+  const inReviewTasks = applyFilters(tasks.filter(t => t.status === 'in_review'));
   const upcomingTasks = applyFilters(
     tasks.filter(t => t.due_date && new Date(t.due_date) >= today && new Date(t.due_date) <= sevenDaysOut && isActive(t))
   ).sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime());
@@ -448,6 +450,13 @@ export function HomePage() {
                 <span className="text-sm font-bold text-blue-800 tabular-nums">{inProgressAll}</span>
                 <span className="text-xs text-blue-600 font-medium hidden sm:inline">In Progress</span>
               </div>
+              {inReviewAll > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/60 border border-purple-200/60 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0" />
+                  <span className="text-sm font-bold text-purple-800 tabular-nums">{inReviewAll}</span>
+                  <span className="text-xs text-purple-600 font-medium hidden sm:inline">In Review</span>
+                </div>
+              )}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/60 border border-amber-200/60 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
                 <span className="text-sm font-bold text-amber-800 tabular-nums">{pendingAll}</span>
@@ -683,6 +692,15 @@ export function HomePage() {
                   onNavigate={task => navigate(`/projects/${task.project_id}`)}
                   onStatusChange={handleStatusChange}
                 />
+                {inReviewTasks.length > 0 && (
+                  <TaskSubsection
+                    variant="purple"
+                    title="In Review"
+                    tasks={inReviewTasks}
+                    onNavigate={task => navigate(`/projects/${task.project_id}`)}
+                    onStatusChange={handleStatusChange}
+                  />
+                )}
                 {upcomingTasks.length > 0 && (
                   <TaskSubsection
                     variant="purple"
