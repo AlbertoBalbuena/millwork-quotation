@@ -156,11 +156,11 @@ function TaskSubsection({
     : tasks.length;
 
   return (
-    <div className={`rounded-xl border ${v.bg} ${v.border} overflow-hidden`}>
+    <div className={`rounded-xl border ${v.bg} ${v.border} overflow-hidden backdrop-blur-sm`}>
       {/* Subsection header */}
       <button
         onClick={() => (collapsible || tasks.length > 0) && setCollapsed(p => !p)}
-        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-white/30 transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-left bg-gradient-to-r from-white/40 to-transparent hover:from-white/60 transition-all duration-150 border-b border-white/60"
         disabled={!collapsible && tasks.length === 0}
       >
         {collapsible ? (
@@ -176,7 +176,7 @@ function TaskSubsection({
         )}
         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${v.dot}`} />
         <span className={`text-xs font-semibold uppercase tracking-wide flex-1 ${v.label}`}>{title}</span>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${v.badge}`}>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${v.badge}`}>
           {displayCount}
         </span>
       </button>
@@ -184,11 +184,11 @@ function TaskSubsection({
       {/* Tasks list */}
       {!collapsed && (
         tasks.length === 0 ? (
-          <div className="px-4 pb-3 pt-1 text-center">
-            <p className={`text-xs font-medium ${v.emptyDot} opacity-70`}>No tasks here</p>
+          <div className="px-4 pb-3 pt-2 text-center">
+            <p className={`text-xs font-medium ${v.emptyDot} opacity-60`}>No tasks here</p>
           </div>
         ) : (
-          <div className="px-3 pb-3 space-y-1.5">
+          <div className="px-3 pb-3 pt-2 space-y-1.5">
             {tasks.map(task => (
               <div key={task.id} className="group">
                 <TaskCard
@@ -615,13 +615,13 @@ export function HomePage() {
         {/* ── Tasks column ──────────────────────────────────────────────── */}
         <div className="glass-white overflow-hidden p-0">
           {/* Header */}
-          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100/80">
-            <div className="p-1.5 rounded-lg bg-blue-100">
+          <div className="flex items-center gap-2.5 px-5 py-4 bg-gradient-to-r from-indigo-50/40 to-blue-50/20 border-b border-white/60">
+            <div className="p-1.5 rounded-lg bg-blue-100/80 backdrop-blur-sm">
               <CheckSquare className="h-4 w-4 text-blue-600" />
             </div>
             <h2 className="text-base font-semibold text-slate-900">Tasks</h2>
             {tasks.length > 0 && (
-              <span className="text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100/60 px-2 py-0.5 rounded-full">
                 {tasks.length}
               </span>
             )}
@@ -635,13 +635,13 @@ export function HomePage() {
           ) : (
             <>
               {/* Filter bar */}
-              <div className="px-5 py-3 border-b border-slate-100/80 bg-slate-50/60 flex items-center gap-2 flex-wrap">
-                <Filter className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+              <div className="px-5 py-3 border-b border-white/60 bg-gradient-to-r from-indigo-50/30 to-blue-50/20 flex items-center gap-2 flex-wrap">
+                <Filter className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" />
 
                 <select
                   value={taskFilters.priority}
                   onChange={e => setTaskFilters(p => ({ ...p, priority: e.target.value as TaskPriority | '' }))}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="text-xs border border-slate-200/70 rounded-lg px-2 py-1 bg-white/60 backdrop-blur-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-transparent"
                 >
                   <option value="">All priorities</option>
                   {(Object.entries(TASK_PRIORITY_CONFIG) as [TaskPriority, typeof TASK_PRIORITY_CONFIG[TaskPriority]][]).map(([val, cfg]) => (
@@ -652,7 +652,7 @@ export function HomePage() {
                 <select
                   value={taskFilters.assigneeId}
                   onChange={e => setTaskFilters(p => ({ ...p, assigneeId: e.target.value }))}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="text-xs border border-slate-200/70 rounded-lg px-2 py-1 bg-white/60 backdrop-blur-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-transparent"
                 >
                   <option value="">All assignees</option>
                   {teamMembers.filter(m => m.is_active).map(m => (
@@ -664,7 +664,7 @@ export function HomePage() {
                   <select
                     value={taskFilters.projectId}
                     onChange={e => setTaskFilters(p => ({ ...p, projectId: e.target.value }))}
-                    className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-xs border border-slate-200/70 rounded-lg px-2 py-1 bg-white/60 backdrop-blur-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-transparent"
                   >
                     <option value="">All projects</option>
                     {allProjects.map(p => (
@@ -676,7 +676,7 @@ export function HomePage() {
                 {hasActiveFilters && (
                   <button
                     onClick={() => setTaskFilters({ priority: '', assigneeId: '', projectId: '' })}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-slate-700 transition-colors"
+                    className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-white/60 backdrop-blur-sm border border-slate-200/60 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-white/80 transition-all"
                   >
                     <X className="h-3 w-3" />
                     Clear
@@ -738,10 +738,10 @@ export function HomePage() {
                 />
 
                 {/* Done — collapsible */}
-                <div className="rounded-xl border bg-emerald-50/50 border-emerald-100/80 overflow-hidden">
+                <div className="rounded-xl border bg-emerald-50/50 border-emerald-100/80 overflow-hidden backdrop-blur-sm">
                   <button
                     onClick={() => setDoneExpanded(p => !p)}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-white/30 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-left bg-gradient-to-r from-white/40 to-transparent hover:from-white/60 transition-all duration-150 border-b border-white/60"
                   >
                     {doneExpanded
                       ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
@@ -749,7 +749,7 @@ export function HomePage() {
                     }
                     <span className="w-2 h-2 rounded-full flex-shrink-0 bg-emerald-500" />
                     <span className="text-xs font-semibold uppercase tracking-wide flex-1 text-emerald-800">Done</span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border bg-emerald-100 text-emerald-700 border-emerald-200/60">
                       {hasActiveFilters && filteredDone.length !== allDoneTasks.length
                         ? `${filteredDone.length} / ${allDoneTasks.length}`
                         : allDoneTasks.length}
@@ -758,11 +758,11 @@ export function HomePage() {
 
                   {doneExpanded && (
                     filteredDone.length === 0 ? (
-                      <div className="px-4 pb-3 pt-1 text-center">
-                        <p className="text-xs font-medium text-emerald-300 opacity-70">No completed tasks match the current filters</p>
+                      <div className="px-4 pb-3 pt-2 text-center">
+                        <p className="text-xs font-medium text-emerald-400 opacity-70">No completed tasks match the current filters</p>
                       </div>
                     ) : (
-                      <div className="px-3 pb-3 space-y-1.5">
+                      <div className="px-3 pb-3 pt-2 space-y-1.5">
                         {filteredDone.map(task => (
                           <div key={task.id}>
                             <TaskCard
