@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
+import { NewProjectModal } from '../components/NewProjectModal';
 import type { EnhancedTask, TaskStatus, TaskPriority, TeamMember } from '../types';
 import { TASK_PRIORITY_CONFIG } from '../types';
 import { TaskCard } from '../components/tasks/TaskCard';
@@ -236,6 +237,7 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [taskFilters, setTaskFilters] = useState<TaskFilterState>({ priority: '', assigneeId: '', projectId: '' });
   const [doneExpanded, setDoneExpanded] = useState(false);
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -498,9 +500,17 @@ export function HomePage() {
                 );
               })}
             </div>
-            <Link to="/projects" className="ml-auto flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium transition-colors flex-shrink-0">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+            <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 px-2.5 py-1 rounded-lg transition-all"
+              >
+                <span className="text-base leading-none font-bold">+</span> New Project
+              </button>
+              <Link to="/projects" className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium transition-colors">
+                View all <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -885,6 +895,12 @@ export function HomePage() {
 
         </div>{/* end right column */}
       </div>
+
+      <NewProjectModal
+        isOpen={showNewProjectModal}
+        onClose={() => setShowNewProjectModal(false)}
+        onSuccess={(id) => navigate(`/projects/${id}`)}
+      />
     </div>
   );
 }

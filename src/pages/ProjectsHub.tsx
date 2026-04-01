@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, FolderOpen, Tag, MapPin, User, Calendar, FileText, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
+import { NewProjectModal } from '../components/NewProjectModal';
 import { formatCurrency } from '../lib/calculations';
 import { useSettingsStore } from '../lib/settingsStore';
 import type { Project, Quotation } from '../types';
@@ -26,6 +27,7 @@ export function ProjectsHub() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -66,23 +68,12 @@ export function ProjectsHub() {
     }
   }
 
-  async function handleCreateProject() {
-    const name = prompt('Project name:');
-    if (!name?.trim()) return;
+  function handleCreateProject() {
+    setShowCreateModal(true);
+  }
 
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .insert({ name: name.trim() })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-      if (data) navigate(`/projects/${data.id}`);
-    } catch (error) {
-      console.error('Error creating project:', error);
-      alert('Failed to create project');
-    }
+  function handleProjectCreated(projectId: string) {
+    navigate(`/projects/${projectId}`);
   }
 
   const projectTypes = useMemo(() => {
@@ -240,6 +231,12 @@ export function ProjectsHub() {
           })}
         </div>
       )}
+
+      <NewProjectModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleProjectCreated}
+      />
     </div>
   );
 }
