@@ -354,24 +354,6 @@ a.bitacora-link:hover {
   .stagger-11 { animation-delay: 0.33s; }
   .stagger-12 { animation-delay: 0.36s; }
 
-  /* Modal entrance — scale + slide (no opacity to avoid glass-morphism conflicts) */
-  @keyframes modalEnter {
-    from { transform: scale(0.97) translateY(6px); }
-    to   { transform: scale(1) translateY(0); }
-  }
-  .modal-enter {
-    animation: modalEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  /* Backdrop fade in */
-  @keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  .backdrop-enter {
-    animation: backdropFadeIn 0.2s ease forwards;
-  }
-
   /* Stat card number counter feel — subtle scale pulse */
   @keyframes statPop {
     0%   { opacity: 0; transform: scale(0.9); }
