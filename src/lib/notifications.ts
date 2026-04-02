@@ -124,6 +124,8 @@ export async function createNotifications(params: CreateNotificationsParams) {
 
   try {
     await supabase.from('notifications').insert(rows);
+    // Signal the useNotifications hook to refresh immediately (same-client)
+    window.dispatchEvent(new Event('notifications-updated'));
   } catch (err) {
     console.error('Error creating notifications:', err);
   }
