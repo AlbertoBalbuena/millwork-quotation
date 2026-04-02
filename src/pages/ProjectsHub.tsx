@@ -114,6 +114,7 @@ export function ProjectsHub() {
   }
 
   return (
+    <>
     <div className="page-enter">
       <div className="flex justify-between items-start mb-6 hero-enter">
         <div>
@@ -241,11 +242,13 @@ export function ProjectsHub() {
         </div>
       )}
 
+    </div>
+
       <NewProjectModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleProjectCreated}
       />
-    </div>
+    </>
   );
 }

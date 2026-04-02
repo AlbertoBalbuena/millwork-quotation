@@ -333,6 +333,7 @@ export function ProjectPage() {
     .reduce((sum, q) => sum + (q.total_amount || 0), 0);
 
   return (
+    <>
     <div className="space-y-5 page-enter">
       {/* Breadcrumb */}
       <div className="flex items-center gap-3 hero-enter">
@@ -621,6 +622,7 @@ export function ProjectPage() {
       {activeTab === 'analytics' && (
         <CrossQuotationAnalytics quotations={quotations} exchangeRate={exchangeRate} quotationAreas={quotationAreas} />
       )}
+    </div>
 
       <ImportQuotationModal
         isOpen={importModalOpen}
@@ -648,6 +650,6 @@ export function ProjectPage() {
           }
         }}
       />
-    </div>
+    </>
   );
 }

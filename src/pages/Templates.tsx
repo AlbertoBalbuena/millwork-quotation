@@ -170,6 +170,7 @@ export function Templates({ embedded = false }: TemplatesProps) {
   }
 
   return (
+    <>
     <div className="space-y-6 page-enter">
       {!embedded && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -353,6 +354,8 @@ export function Templates({ embedded = false }: TemplatesProps) {
         </>
       )}
 
+    </div>
+
       {previewTemplate && (
         <TemplatePreviewModal
           template={previewTemplate}
@@ -419,7 +422,7 @@ export function Templates({ embedded = false }: TemplatesProps) {
           onClose={() => setShowAnalytics(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 

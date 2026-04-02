@@ -246,6 +246,7 @@ export function PriceList() {
   }
 
   return (
+    <>
     <div className="page-enter">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hero-enter">
         <div>
@@ -343,6 +344,8 @@ export function PriceList() {
         />
       )}
 
+    </div>
+
       {isModalOpen && (
         <PriceListFormModal
           item={editingItem}
@@ -351,8 +354,7 @@ export function PriceList() {
           existingTypes={uniqueTypes}
         />
       )}
-
-    </div>
+    </>
   );
 }
 
