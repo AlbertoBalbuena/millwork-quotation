@@ -73,8 +73,8 @@ interface CreateNotificationsParams {
 export async function createNotifications(params: CreateNotificationsParams) {
   const { recipientIds, actorId, actorName, type, title, body, projectId, referenceType, referenceId } = params;
 
-  // Deduplicate and exclude the actor (don't notify yourself)
-  const unique = [...new Set(recipientIds)].filter((id) => id !== actorId);
+  // Deduplicate recipients
+  const unique = [...new Set(recipientIds)];
   if (!unique.length) return;
 
   const rows = unique.map((recipientId) => ({
