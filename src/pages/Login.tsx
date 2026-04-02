@@ -57,7 +57,7 @@ export function Login() {
 
               {/* Subtitle */}
               <p className="text-center text-[11px] font-medium tracking-[0.25em] uppercase text-gray-400 mb-8">
-                Millwork Quotation System
+                Project Management Platform
               </p>
 
               {/* Divider */}
