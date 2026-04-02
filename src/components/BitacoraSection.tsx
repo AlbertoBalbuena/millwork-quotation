@@ -5,7 +5,7 @@ import {
   ScrollText, Trash2, Pencil, X, Check, Bold, Italic, Underline as UnderlineIcon,
   List, ListOrdered, CheckCircle2, AlertTriangle, Star, Lightbulb,
   ArrowRightCircle, Filter, Clock, Folder, FileText, Package, DollarSign,
-  Heading1, Heading2, Heading3, Type, Link2, Link2Off, User, ChevronDown,
+  Heading1, Heading2, Heading3, Type, Link2, Link2Off, User,
   CornerDownRight, MessageSquare
 } from 'lucide-react';
 import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react';
@@ -25,7 +25,6 @@ import { Button } from './Button';
 import { format } from 'date-fns';
 import type { ProjectLog, ProjectLogReply, TeamMember } from '../types';
 
-const AUTHOR_STORAGE_KEY = 'bitacora_author';
 
 // ---------------------------------------------------------------------------
 // Log type system
@@ -536,18 +535,13 @@ function AuthorAvatar({ name, className = '' }: { name: string; className?: stri
 
 function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }: LogEntryProps) {
   const navigate = useNavigate();
+  const { member: currentMember } = useCurrentMember();
   const logType = (log.log_type as LogType) || 'note';
   const cfg = LOG_TYPES[logType] || LOG_TYPES.note;
   const { Icon } = cfg;
 
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState('');
-  const [replyAuthorId, setReplyAuthorId] = useState<string | null>(() => {
-    try { const s = localStorage.getItem(AUTHOR_STORAGE_KEY); return s ? JSON.parse(s).id : null; } catch { return null; }
-  });
-  const [replyAuthorName, setReplyAuthorName] = useState<string | null>(() => {
-    try { const s = localStorage.getItem(AUTHOR_STORAGE_KEY); return s ? JSON.parse(s).name : null; } catch { return null; }
-  });
   const [postingReply, setPostingReply] = useState(false);
 
   const htmlContent = useMemo(() => renderContent(log.comment), [log.comment]);
@@ -577,12 +571,15 @@ function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }:
     if (!text || postingReply) return;
     setPostingReply(true);
 
+    const authorId = currentMember?.id ?? null;
+    const authorName = currentMember?.name ?? null;
+
     const optimistic: ProjectLogReply = {
       id: crypto.randomUUID(),
       log_id: log.id,
       comment: text,
-      author_id: replyAuthorId,
-      author_name: replyAuthorName,
+      author_id: authorId,
+      author_name: authorName,
       created_at: new Date().toISOString(),
     };
     onReplyAdded(optimistic);
@@ -593,20 +590,14 @@ function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }:
       await supabase.from('project_log_replies').insert({
         log_id: log.id,
         comment: text,
-        author_id: replyAuthorId,
-        author_name: replyAuthorName,
+        author_id: authorId,
+        author_name: authorName,
       });
     } catch (err) {
       console.error('Error posting reply:', err);
     } finally {
       setPostingReply(false);
     }
-  }
-
-  function handleSelectReplyAuthor(memberId: string, memberName: string) {
-    setReplyAuthorId(memberId);
-    setReplyAuthorName(memberName);
-    try { localStorage.setItem(AUTHOR_STORAGE_KEY, JSON.stringify({ id: memberId, name: memberName })); } catch { /* noop */ }
   }
 
   return (
@@ -702,8 +693,8 @@ function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }:
           {showReplyForm && (
             <div className="flex gap-2.5 pl-1 pt-1">
               <div className="flex-shrink-0 mt-0.5">
-                {replyAuthorName
-                  ? <AuthorAvatar name={replyAuthorName} className="w-5 h-5" />
+                {currentMember?.name
+                  ? <AuthorAvatar name={currentMember.name} className="w-5 h-5" />
                   : <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center"><User className="h-2.5 w-2.5 text-slate-400" /></div>
                 }
               </div>
@@ -718,24 +709,10 @@ function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }:
                   className="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white"
                 />
                 <div className="flex items-center gap-2 flex-wrap">
-                  {teamMembers.length > 0 && (
-                    <div className="relative">
-                      <select
-                        value={replyAuthorId ?? ''}
-                        onChange={(e) => {
-                          const m = teamMembers.find((x) => x.id === e.target.value);
-                          if (m) handleSelectReplyAuthor(m.id, m.name);
-                          else { setReplyAuthorId(null); setReplyAuthorName(null); }
-                        }}
-                        className="appearance-none pl-2 pr-6 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
-                      >
-                        <option value="">— No author —</option>
-                        {teamMembers.map((m) => (
-                          <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
-                    </div>
+                  {currentMember && (
+                    <span className="text-xs text-slate-500">
+                      {currentMember.name}
+                    </span>
                   )}
                   <Button size="sm" onClick={handlePostReply} disabled={!replyText.trim() || postingReply}>
                     {postingReply ? 'Posting…' : 'Post Reply'}
@@ -770,7 +747,6 @@ function LogEntry({ log, replies, teamMembers, onEdit, onDelete, onReplyAdded }:
 
 interface EntryFormProps {
   getMentionItems: () => MentionItem[];  // getter so it always reads fresh data from a ref
-  teamMembers: TeamMember[];
   initialContent?: string;
   initialType?: LogType;
   initialAuthorId?: string | null;
@@ -781,10 +757,9 @@ interface EntryFormProps {
   isEdit?: boolean;
 }
 
-function EntryForm({ getMentionItems, teamMembers, initialContent, initialType = 'note', initialAuthorId, initialAuthorName, saving, onSave, onCancel, isEdit }: EntryFormProps) {
+function EntryForm({ getMentionItems, initialContent, initialType = 'note', initialAuthorId, initialAuthorName, saving, onSave, onCancel, isEdit }: EntryFormProps) {
+  const { member: currentMember } = useCurrentMember();
   const [logType, setLogType] = useState<LogType>(initialType);
-  const [authorId, setAuthorId] = useState<string | null>(initialAuthorId ?? null);
-  const [authorName, setAuthorName] = useState<string | null>(initialAuthorName ?? null);
 
   const startContent = initialContent && isRichContent(initialContent)
     ? JSON.parse(initialContent)
@@ -812,12 +787,9 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
     onUpdate: ({ editor }) => setIsEmpty(editor.getText().trim() === ''),
   });
 
-  function handleSelectAuthor(memberId: string, memberName: string) {
-    setAuthorId(memberId);
-    setAuthorName(memberName);
-    // Persist selection for next time
-    try { localStorage.setItem(AUTHOR_STORAGE_KEY, JSON.stringify({ id: memberId, name: memberName })); } catch { /* noop */ }
-  }
+  // For edits, preserve the original author; for new entries, use the current logged-in user
+  const authorId = isEdit ? (initialAuthorId ?? null) : (currentMember?.id ?? null);
+  const authorName = isEdit ? (initialAuthorName ?? null) : (currentMember?.name ?? null);
 
   function handleSave() {
     if (!editor) return;
@@ -874,31 +846,18 @@ function EntryForm({ getMentionItems, teamMembers, initialContent, initialType =
 
       {/* Author + Actions row */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        {/* Author selector */}
+        {/* Current author (auto-set from session) */}
         <div className="flex items-center gap-2 min-w-0">
-          <User className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-          {teamMembers.length > 0 ? (
-            <div className="relative">
-              <select
-                value={authorId ?? ''}
-                onChange={(e) => {
-                  const selected = teamMembers.find((m) => m.id === e.target.value);
-                  if (selected) handleSelectAuthor(selected.id, selected.name);
-                  else { setAuthorId(null); setAuthorName(null); try { localStorage.removeItem(AUTHOR_STORAGE_KEY); } catch { /* noop */ } }
-                }}
-                className="appearance-none pl-2.5 pr-7 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="">— No author —</option>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}{m.role ? ` · ${m.role}` : ''}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
-            </div>
+          {authorName ? (
+            <>
+              <AuthorAvatar name={authorName} className="w-5 h-5" />
+              <span className="text-xs text-slate-600">{authorName}</span>
+            </>
           ) : (
-            <span className="text-xs text-slate-400 italic">No team configured</span>
+            <>
+              <User className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+              <span className="text-xs text-slate-400 italic">No user session</span>
+            </>
           )}
         </div>
 
@@ -932,7 +891,6 @@ interface Props {
 }
 
 export function BitacoraSection({ projectId }: Props) {
-  const { member: currentMember } = useCurrentMember();
   const [logs, setLogs] = useState<ProjectLog[]>([]);
   const [repliesByLog, setRepliesByLog] = useState<Record<string, ProjectLogReply[]>>({});
   const [loading, setLoading] = useState(true);
@@ -943,14 +901,6 @@ export function BitacoraSection({ projectId }: Props) {
   // Mention data is stored only in a ref so the editor's getter closure always reads fresh items
   const mentionItemsRef = useRef<MentionItem[]>([]);
   const getMentionItems = useRef(() => mentionItemsRef.current).current;
-
-  // Use current authenticated member, fall back to localStorage
-  const savedAuthor = currentMember
-    ? { id: currentMember.id, name: currentMember.name }
-    : (() => {
-        try { return JSON.parse(localStorage.getItem(AUTHOR_STORAGE_KEY) ?? 'null') as { id: string; name: string } | null; }
-        catch { return null; }
-      })();
 
   // Load mention candidates + team members once
   useEffect(() => {
@@ -1136,9 +1086,6 @@ export function BitacoraSection({ projectId }: Props) {
       <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
         <EntryForm
           getMentionItems={getMentionItems}
-          teamMembers={teamMembers}
-          initialAuthorId={savedAuthor?.id ?? null}
-          initialAuthorName={savedAuthor?.name ?? null}
           saving={saving}
           onSave={addLog}
         />
@@ -1193,7 +1140,6 @@ export function BitacoraSection({ projectId }: Props) {
                 <p className="text-xs text-slate-400 mb-3">Editing entry</p>
                 <EntryForm
                   getMentionItems={getMentionItems}
-                  teamMembers={teamMembers}
                   initialContent={log.comment}
                   initialType={(log.log_type as LogType) || 'note'}
                   initialAuthorId={log.author_id ?? null}
