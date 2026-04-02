@@ -1,40 +1,33 @@
 import { useAuth } from '../lib/auth';
+import { Grainient } from '../components/Grainient';
 
 export function Login() {
   const { signInWithGoogle, loading } = useAuth();
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#f0f2f5]">
-      {/* ── Animated mesh gradient background ─────────────────────────────── */}
+    <div className="min-h-screen relative overflow-hidden">
+      {/* ── Grainient animated background ─────────────────────────────────── */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 mesh-bg" />
-        <div className="absolute inset-0 dot-grid opacity-[0.04]" />
-      </div>
-
-      {/* ── Gradient orbs ─────────────────────────────────────────────────── */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] -top-32 -left-32 bg-blue-400/15 rounded-full blur-[120px] animate-orb1" />
-        <div className="absolute w-[400px] h-[400px] top-1/4 -right-20 bg-indigo-400/15 rounded-full blur-[100px] animate-orb2" />
-        <div className="absolute w-[350px] h-[350px] -bottom-20 left-1/4 bg-violet-400/10 rounded-full blur-[100px] animate-orb3" />
-        <div className="absolute w-[300px] h-[300px] bottom-1/3 right-1/4 bg-cyan-400/10 rounded-full blur-[80px] animate-orb4" />
-      </div>
-
-      {/* ── Floating particles ────────────────────────────────────────────── */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-black/[0.03] animate-particle"
-            style={{
-              width: `${4 + (i % 3) * 3}px`,
-              height: `${4 + (i % 3) * 3}px`,
-              left: `${10 + i * 11}%`,
-              bottom: `-${10 + (i % 4) * 5}px`,
-              animationDelay: `${i * 1.5}s`,
-              animationDuration: `${12 + (i % 3) * 4}s`,
-            }}
-          />
-        ))}
+        <Grainient
+          color1="#dbeafe"
+          color2="#a5b4fc"
+          color3="#e0e7ff"
+          timeSpeed={0.15}
+          warpStrength={0.8}
+          warpFrequency={4}
+          warpSpeed={1.5}
+          warpAmplitude={40}
+          blendAngle={0}
+          blendSoftness={0.08}
+          rotationAmount={300}
+          noiseScale={1.8}
+          grainAmount={0.06}
+          grainScale={2}
+          contrast={1.3}
+          gamma={1}
+          saturation={0.9}
+          zoom={0.85}
+        />
       </div>
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
@@ -46,7 +39,7 @@ export function Login() {
             <div className="absolute -inset-[1px] rounded-[28px] bg-gradient-to-br from-blue-300/30 via-transparent to-indigo-300/30 animate-shimmer opacity-60 group-hover:opacity-100 transition-opacity duration-700" />
 
             <div className="relative backdrop-blur-2xl bg-white/70 rounded-[28px] border border-white/60 shadow-[0_8px_64px_rgba(0,0,0,0.08)] p-8 md:p-10">
-              {/* Logo - directly displayed without container */}
+              {/* Logo */}
               <div className="flex justify-center mb-6">
                 <img
                   src="/evita_logo.png"
@@ -93,7 +86,7 @@ export function Login() {
           </div>
 
           {/* Footer */}
-          <p className="text-center text-[10px] text-gray-400 mt-8 tracking-wide">
+          <p className="text-center text-[10px] text-gray-400/80 mt-8 tracking-wide">
             &copy; 2025 Evita Cabinets
           </p>
         </div>
@@ -101,25 +94,6 @@ export function Login() {
 
       {/* ── Animations ────────────────────────────────────────────────────── */}
       <style>{`
-        .mesh-bg {
-          background:
-            radial-gradient(ellipse 80% 60% at 20% 40%, rgba(147,180,255,0.15) 0%, transparent 70%),
-            radial-gradient(ellipse 60% 80% at 80% 20%, rgba(167,139,250,0.12) 0%, transparent 70%),
-            radial-gradient(ellipse 70% 50% at 50% 90%, rgba(130,170,255,0.10) 0%, transparent 70%);
-          animation: meshShift 20s ease-in-out infinite alternate;
-        }
-
-        .dot-grid {
-          background-image: radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px);
-          background-size: 32px 32px;
-        }
-
-        @keyframes meshShift {
-          0%   { filter: hue-rotate(0deg); transform: scale(1); }
-          50%  { filter: hue-rotate(15deg); transform: scale(1.05); }
-          100% { filter: hue-rotate(-10deg); transform: scale(1); }
-        }
-
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(24px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -135,43 +109,6 @@ export function Login() {
         .animate-shimmer {
           animation: shimmer 4s ease-in-out infinite;
         }
-
-        @keyframes particle {
-          0%   { transform: translateY(0) translateX(0); opacity: 0; }
-          10%  { opacity: 1; }
-          90%  { opacity: 1; }
-          100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
-        }
-        .animate-particle {
-          animation: particle 16s linear infinite;
-        }
-
-        @keyframes orb1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33%      { transform: translate(60px, 40px) scale(1.1); }
-          66%      { transform: translate(-30px, -20px) scale(0.95); }
-        }
-        .animate-orb1 { animation: orb1 18s ease-in-out infinite; }
-
-        @keyframes orb2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33%      { transform: translate(-40px, 60px) scale(1.05); }
-          66%      { transform: translate(20px, -40px) scale(0.9); }
-        }
-        .animate-orb2 { animation: orb2 22s ease-in-out infinite; }
-
-        @keyframes orb3 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33%      { transform: translate(50px, -30px) scale(1.1); }
-          66%      { transform: translate(-40px, 50px) scale(0.95); }
-        }
-        .animate-orb3 { animation: orb3 20s ease-in-out infinite; }
-
-        @keyframes orb4 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50%      { transform: translate(-30px, -40px) scale(1.08); }
-        }
-        .animate-orb4 { animation: orb4 15s ease-in-out infinite; }
       `}</style>
     </div>
   );
