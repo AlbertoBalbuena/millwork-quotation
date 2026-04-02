@@ -4,19 +4,19 @@ export function Login() {
   const { signInWithGoogle, loading } = useAuth();
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#0a0e1a]">
+    <div className="min-h-screen relative overflow-hidden bg-[#f0f2f5]">
       {/* ── Animated mesh gradient background ─────────────────────────────── */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 mesh-bg" />
-        <div className="absolute inset-0 dot-grid opacity-[0.07]" />
+        <div className="absolute inset-0 dot-grid opacity-[0.04]" />
       </div>
 
       {/* ── Gradient orbs ─────────────────────────────────────────────────── */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute w-[500px] h-[500px] -top-32 -left-32 bg-blue-600/20 rounded-full blur-[120px] animate-orb1" />
-        <div className="absolute w-[400px] h-[400px] top-1/4 -right-20 bg-indigo-500/20 rounded-full blur-[100px] animate-orb2" />
-        <div className="absolute w-[350px] h-[350px] -bottom-20 left-1/4 bg-violet-500/15 rounded-full blur-[100px] animate-orb3" />
-        <div className="absolute w-[300px] h-[300px] bottom-1/3 right-1/4 bg-cyan-500/10 rounded-full blur-[80px] animate-orb4" />
+        <div className="absolute w-[500px] h-[500px] -top-32 -left-32 bg-blue-400/15 rounded-full blur-[120px] animate-orb1" />
+        <div className="absolute w-[400px] h-[400px] top-1/4 -right-20 bg-indigo-400/15 rounded-full blur-[100px] animate-orb2" />
+        <div className="absolute w-[350px] h-[350px] -bottom-20 left-1/4 bg-violet-400/10 rounded-full blur-[100px] animate-orb3" />
+        <div className="absolute w-[300px] h-[300px] bottom-1/3 right-1/4 bg-cyan-400/10 rounded-full blur-[80px] animate-orb4" />
       </div>
 
       {/* ── Floating particles ────────────────────────────────────────────── */}
@@ -24,7 +24,7 @@ export function Login() {
         {[...Array(8)].map((_, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-white/[0.04] animate-particle"
+            className="absolute rounded-full bg-black/[0.03] animate-particle"
             style={{
               width: `${4 + (i % 3) * 3}px`,
               height: `${4 + (i % 3) * 3}px`,
@@ -43,40 +43,35 @@ export function Login() {
           {/* ── Glass card ──────────────────────────────────────────────── */}
           <div className="relative group">
             {/* Glow ring */}
-            <div className="absolute -inset-[1px] rounded-[28px] bg-gradient-to-br from-blue-400/30 via-transparent to-indigo-400/30 animate-shimmer opacity-60 group-hover:opacity-100 transition-opacity duration-700" />
+            <div className="absolute -inset-[1px] rounded-[28px] bg-gradient-to-br from-blue-300/30 via-transparent to-indigo-300/30 animate-shimmer opacity-60 group-hover:opacity-100 transition-opacity duration-700" />
 
-            <div className="relative backdrop-blur-2xl bg-white/[0.06] rounded-[28px] border border-white/[0.08] shadow-[0_8px_64px_rgba(0,0,0,0.4)] p-8 md:p-10">
-              {/* Logo */}
+            <div className="relative backdrop-blur-2xl bg-white/70 rounded-[28px] border border-white/60 shadow-[0_8px_64px_rgba(0,0,0,0.08)] p-8 md:p-10">
+              {/* Logo - directly displayed without container */}
               <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-blue-500/20 rounded-2xl blur-xl animate-pulse-slow" />
-                  <div className="relative w-16 h-16 flex items-center justify-center rounded-2xl bg-white/[0.08] border border-white/[0.1] backdrop-blur-sm">
-                    <img
-                      src="/evita_logo.png"
-                      alt="Evita Cabinets"
-                      className="h-10 w-auto object-contain brightness-0 invert opacity-90"
-                    />
-                  </div>
-                </div>
+                <img
+                  src="/evita_logo.png"
+                  alt="Evita Cabinets"
+                  className="h-14 w-auto object-contain"
+                />
               </div>
 
               {/* Subtitle */}
-              <p className="text-center text-[11px] font-medium tracking-[0.25em] uppercase text-white/40 mb-8">
+              <p className="text-center text-[11px] font-medium tracking-[0.25em] uppercase text-gray-400 mb-8">
                 Millwork Quotation System
               </p>
 
               {/* Divider */}
-              <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
+              <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-8" />
 
               {/* Google sign-in button */}
               <button
                 onClick={signInWithGoogle}
                 disabled={loading}
-                className="w-full relative group/btn flex items-center justify-center gap-3 bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.1] hover:border-white/[0.2] text-white/80 hover:text-white font-medium py-3.5 px-5 rounded-2xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                className="w-full relative group/btn flex items-center justify-center gap-3 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 font-medium py-3.5 px-5 rounded-2xl transition-all duration-300 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 {loading ? (
                   <div className="flex items-center gap-3">
-                    <svg className="animate-spin h-5 w-5 text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
@@ -98,7 +93,7 @@ export function Login() {
           </div>
 
           {/* Footer */}
-          <p className="text-center text-[10px] text-white/20 mt-8 tracking-wide">
+          <p className="text-center text-[10px] text-gray-400 mt-8 tracking-wide">
             &copy; 2025 Evita Cabinets
           </p>
         </div>
@@ -108,14 +103,14 @@ export function Login() {
       <style>{`
         .mesh-bg {
           background:
-            radial-gradient(ellipse 80% 60% at 20% 40%, rgba(56,100,220,0.12) 0%, transparent 70%),
-            radial-gradient(ellipse 60% 80% at 80% 20%, rgba(99,60,200,0.10) 0%, transparent 70%),
-            radial-gradient(ellipse 70% 50% at 50% 90%, rgba(30,80,180,0.08) 0%, transparent 70%);
+            radial-gradient(ellipse 80% 60% at 20% 40%, rgba(147,180,255,0.15) 0%, transparent 70%),
+            radial-gradient(ellipse 60% 80% at 80% 20%, rgba(167,139,250,0.12) 0%, transparent 70%),
+            radial-gradient(ellipse 70% 50% at 50% 90%, rgba(130,170,255,0.10) 0%, transparent 70%);
           animation: meshShift 20s ease-in-out infinite alternate;
         }
 
         .dot-grid {
-          background-image: radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px);
+          background-image: radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px);
           background-size: 32px 32px;
         }
 
@@ -149,10 +144,6 @@ export function Login() {
         }
         .animate-particle {
           animation: particle 16s linear infinite;
-        }
-
-        .animate-pulse-slow {
-          animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
         @keyframes orb1 {
