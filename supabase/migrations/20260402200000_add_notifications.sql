@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
   reference_type text,
   reference_id uuid,
+  project_name text,
   is_read boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -54,3 +55,6 @@ CREATE POLICY "Authenticated users can insert notifications"
 -- ============================================================================
 
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+
+-- Required for Supabase Realtime filtered subscriptions
+ALTER TABLE notifications REPLICA IDENTITY FULL;

@@ -755,6 +755,7 @@ export type Database = {
           id: string
           is_read: boolean
           project_id: string | null
+          project_name: string | null
           recipient_id: string
           reference_id: string | null
           reference_type: string | null
@@ -769,6 +770,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           project_id?: string | null
+          project_name?: string | null
           recipient_id: string
           reference_id?: string | null
           reference_type?: string | null
@@ -783,6 +785,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           project_id?: string | null
+          project_name?: string | null
           recipient_id?: string
           reference_id?: string | null
           reference_type?: string | null

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabase';
 import { useCurrentMember } from './useCurrentMember';
 import type { AppNotification } from '../types';
@@ -16,6 +16,7 @@ export function useNotifications(): UseNotificationsResult {
   const { member } = useCurrentMember();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastFetchRef = useRef(0);
 
   const memberId = member?.id;
 
@@ -29,6 +30,7 @@ export function useNotifications(): UseNotificationsResult {
       .limit(50);
     setNotifications(data || []);
     setLoading(false);
+    lastFetchRef.current = Date.now();
   }, [memberId]);
 
   // Initial load
@@ -56,7 +58,11 @@ export function useNotifications(): UseNotificationsResult {
         },
         (payload) => {
           const newNotif = payload.new as AppNotification;
-          setNotifications((prev) => [newNotif, ...prev]);
+          setNotifications((prev) => {
+            // Avoid duplicates
+            if (prev.some((n) => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev];
+          });
         }
       )
       .subscribe();
@@ -65,6 +71,18 @@ export function useNotifications(): UseNotificationsResult {
       supabase.removeChannel(channel);
     };
   }, [memberId]);
+
+  // Light poll every 15s as backup for realtime (handles same-client inserts)
+  useEffect(() => {
+    if (!memberId) return;
+    const interval = setInterval(() => {
+      // Only poll if last fetch was > 10s ago (avoid overlap with manual refresh)
+      if (Date.now() - lastFetchRef.current > 10000) {
+        refresh();
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [memberId, refresh]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
