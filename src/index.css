@@ -311,22 +311,22 @@ a.bitacora-link:hover {
 
   /* ── System-wide animations ─────────────────────────────────────────── */
 
-  /* Page entrance — fade in + slide up */
+  /* Page entrance — fade in only (no transform to avoid breaking fixed modals) */
   @keyframes pageEnter {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
   .page-enter {
-    animation: pageEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: pageEnter 0.4s ease forwards;
   }
 
-  /* Section entrance — fade in + subtle slide up */
+  /* Section entrance — fade in (no transform to avoid breaking fixed children) */
   @keyframes sectionEnter {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
   .section-enter {
-    animation: sectionEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: sectionEnter 0.35s ease forwards;
     opacity: 0;
   }
 
@@ -365,13 +365,13 @@ a.bitacora-link:hover {
     opacity: 0;
   }
 
-  /* Hero section entrance */
+  /* Hero section entrance — fade only (no transform to preserve fixed positioning) */
   @keyframes heroEnter {
-    from { opacity: 0; transform: translateY(-10px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
   .hero-enter {
-    animation: heroEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: heroEnter 0.4s ease forwards;
   }
 
   /* Skeleton shimmer effect */
