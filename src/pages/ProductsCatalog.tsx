@@ -222,6 +222,7 @@ export function ProductsCatalog() {
   }
 
   return (
+    <>
     <div className="page-enter">
       <div className="mb-6 hero-enter">
         <h1 className="text-3xl font-bold text-slate-900">Cabinets Catalog</h1>
@@ -407,6 +408,9 @@ export function ProductsCatalog() {
         </div>
       )}
 
+    </div>}
+    </div>
+
       {isModalOpen && !safeEditMode && (
         <ProductFormModal
           product={editingProduct}
@@ -425,8 +429,7 @@ export function ProductsCatalog() {
           pendingUpdates={pendingUpdates}
         />
       )}
-    </div>}
-    </div>
+    </>
   );
 }
 

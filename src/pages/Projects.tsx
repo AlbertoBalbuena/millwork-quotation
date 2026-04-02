@@ -435,6 +435,7 @@ export function Projects() {
   }
 
   return (
+    <>
     <div className="page-enter">
       <div className="mb-6">
         <div className="flex justify-between items-start mb-6 hero-enter">
@@ -756,6 +757,8 @@ export function Projects() {
         </div>
       )}
 
+    </div>
+
       {isModalOpen && (
         <ProjectFormModal
           project={editingProject}
@@ -769,7 +772,7 @@ export function Projects() {
         onClose={() => setIsImportModalOpen(false)}
         onImportComplete={handleImportComplete}
       />
-    </div>
+    </>
   );
 }
 

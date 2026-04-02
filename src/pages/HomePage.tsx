@@ -477,6 +477,7 @@ export function HomePage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="space-y-5 page-enter">
 
       {/* ── Hero stat bar ─────────────────────────────────────────────────── */}
@@ -1018,11 +1019,13 @@ export function HomePage() {
         </div>{/* end right column */}
       </div>
 
+    </div>
+
       <NewProjectModal
         isOpen={showNewProjectModal}
         onClose={() => setShowNewProjectModal(false)}
         onSuccess={(id) => navigate(`/projects/${id}`)}
       />
-    </div>
+    </>
   );
 }
