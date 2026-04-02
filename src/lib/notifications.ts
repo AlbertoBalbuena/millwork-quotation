@@ -66,16 +66,24 @@ interface CreateNotificationsParams {
   title: string;
   body?: string | null;
   projectId: string | null;
+  projectName?: string | null;
   referenceType: string;
   referenceId: string;
 }
 
 export async function createNotifications(params: CreateNotificationsParams) {
-  const { recipientIds, actorId, actorName, type, title, body, projectId, referenceType, referenceId } = params;
+  const { recipientIds, actorId, actorName, type, title, body, projectId, projectName, referenceType, referenceId } = params;
 
   // Deduplicate recipients
   const unique = [...new Set(recipientIds)];
   if (!unique.length) return;
+
+  // Look up project name if not provided
+  let resolvedProjectName = projectName ?? null;
+  if (!resolvedProjectName && projectId) {
+    const { data: proj } = await supabase.from('projects').select('name').eq('id', projectId).single();
+    resolvedProjectName = proj?.name ?? null;
+  }
 
   const rows = unique.map((recipientId) => ({
     recipient_id: recipientId,
@@ -85,6 +93,7 @@ export async function createNotifications(params: CreateNotificationsParams) {
     title,
     body: body ? body.slice(0, 200) : null,
     project_id: projectId,
+    project_name: resolvedProjectName,
     reference_type: referenceType,
     reference_id: referenceId,
   }));

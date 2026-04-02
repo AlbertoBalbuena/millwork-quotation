@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Bell, ClipboardList, ScrollText, MessageSquare, CheckCheck } from 'lucide-react';
+import { X, Bell, ClipboardList, ScrollText, MessageSquare, CheckCheck, FolderOpen } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNotifications } from '../lib/useNotifications';
 import type { AppNotification } from '../types';
@@ -20,6 +20,17 @@ function getIconStyle(type: string) {
   if (TASK_TYPES.includes(type)) return { bg: 'bg-blue-100/70', text: 'text-blue-600', ring: 'ring-blue-200/50' };
   if (type.includes('task_comment')) return { bg: 'bg-amber-100/70', text: 'text-amber-600', ring: 'ring-amber-200/50' };
   return { bg: 'bg-violet-100/70', text: 'text-violet-600', ring: 'ring-violet-200/50' };
+}
+
+function getActionLabel(type: string): string {
+  switch (type) {
+    case 'task_assigned': return 'assigned you a task';
+    case 'mention_log': return 'mentioned you in a log entry';
+    case 'mention_log_reply': return 'mentioned you in a log reply';
+    case 'mention_task_comment': return 'mentioned you in a task comment';
+    case 'mention_task_comment_reply': return 'mentioned you in a task reply';
+    default: return 'sent you a notification';
+  }
 }
 
 interface Props {
@@ -68,7 +79,7 @@ export function NotificationPanel({ open, onClose }: Props) {
 
       {/* Panel */}
       <div
-        className="fixed right-0 top-0 z-[61] h-full w-full sm:w-[380px] flex flex-col animate-slide-in-right overflow-hidden"
+        className="fixed right-0 top-0 z-[61] h-full w-full sm:w-[400px] flex flex-col animate-slide-in-right overflow-hidden"
         style={{
           background: 'rgba(255, 255, 255, 0.78)',
           backdropFilter: 'blur(28px)',
@@ -171,21 +182,42 @@ export function NotificationPanel({ open, onClose }: Props) {
                       <Icon className={`h-4 w-4 ${style.text}`} />
                     </div>
                     <div className="flex-1 min-w-0">
+                      {/* Actor + action */}
                       <div className="flex items-start gap-2">
                         <p className={`text-[13px] leading-snug ${isUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>
-                          {n.title}
+                          {n.actor_name ? (
+                            <><span className="text-indigo-600">{n.actor_name}</span> {getActionLabel(n.type)}</>
+                          ) : (
+                            n.title
+                          )}
                         </p>
                         {isUnread && (
                           <span className="flex-shrink-0 w-2 h-2 rounded-full bg-indigo-500 mt-1.5 ring-2 ring-indigo-200/50" />
                         )}
                       </div>
-                      {n.actor_name && (
-                        <p className="text-[11px] text-slate-500 mt-0.5">by {n.actor_name}</p>
+
+                      {/* Title detail (task name or log preview) */}
+                      {n.title && n.actor_name && (
+                        <p className={`text-xs mt-0.5 leading-snug ${isUnread ? 'text-slate-700' : 'text-slate-500'}`}>
+                          {n.title}
+                        </p>
                       )}
+
+                      {/* Body preview */}
                       {n.body && (
                         <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>
                       )}
-                      <p className="text-[10px] text-slate-400/80 mt-1.5 font-medium">{formatTime(n.created_at)}</p>
+
+                      {/* Footer: project name + time */}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {n.project_name && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-500 bg-indigo-50/60 px-1.5 py-0.5 rounded">
+                            <FolderOpen className="h-2.5 w-2.5" />
+                            {n.project_name}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400/80 font-medium">{formatTime(n.created_at)}</span>
+                      </div>
                     </div>
                   </button>
                 );
