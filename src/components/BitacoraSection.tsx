@@ -4,7 +4,7 @@ import { useCurrentMember } from '../lib/useCurrentMember';
 import {
   ScrollText, Trash2, Pencil, X, Check, Bold, Italic, Underline as UnderlineIcon,
   List, ListOrdered, AlertTriangle, RefreshCw, CheckCircle, XCircle, Trophy, Radio,
-  Filter, Clock, Folder, FileText, Package, DollarSign,
+  Filter, Clock, Folder, FileText, Package, DollarSign, Users,
   Heading1, Heading2, Heading3, Type, Link2, Link2Off, User,
   CornerDownRight, MessageSquare
 } from 'lucide-react';
@@ -61,7 +61,7 @@ const LOG_TYPE_ORDER: LogType[] = ['note', 'change', 'decision', 'risk', 'issue'
 interface MentionItem {
   id: string;   // encoded: "project:{uuid}" | "quotation:{projectId}:{id}" | "cabinet:{sku}" | "price_item:{id}"
   label: string;
-  type: 'project' | 'quotation' | 'cabinet' | 'price_item';
+  type: 'project' | 'quotation' | 'cabinet' | 'price_item' | 'department';
   subtitle?: string;
 }
 
@@ -69,7 +69,8 @@ const MENTION_TYPE_CONFIG = {
   project:    { groupLabel: 'Projects',   Icon: Folder,    iconColor: 'text-violet-600', iconBg: 'bg-violet-100' },
   quotation:  { groupLabel: 'Quotations', Icon: FileText,  iconColor: 'text-blue-600',   iconBg: 'bg-blue-100'   },
   cabinet:    { groupLabel: 'Cabinets',   Icon: Package,   iconColor: 'text-amber-600',  iconBg: 'bg-amber-100'  },
-  price_item: { groupLabel: 'Price List', Icon: DollarSign,iconColor: 'text-green-600',  iconBg: 'bg-green-100'  },
+  price_item:  { groupLabel: 'Price List',  Icon: DollarSign, iconColor: 'text-green-600',   iconBg: 'bg-green-100'   },
+  department:  { groupLabel: 'Departments', Icon: Users,      iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
 } as const;
 
 function isUuid(s: string): boolean {
@@ -906,12 +907,13 @@ export function BitacoraSection({ projectId }: Props) {
   // Load mention candidates + team members once
   useEffect(() => {
     async function loadMentions() {
-      const [{ data: projects }, { data: quotations }, { data: cabinets }, { data: priceItems }, { data: members }] = await Promise.all([
+      const [{ data: projects }, { data: quotations }, { data: cabinets }, { data: priceItems }, { data: members }, { data: depts }] = await Promise.all([
         supabase.from('projects').select('id, name, customer').order('name'),
         supabase.from('quotations').select('id, name, project_id, version_number, version_label').order('name'),
         supabase.from('products_catalog').select('id, sku, description').order('description'),
         supabase.from('price_list').select('id, concept_description').eq('is_active', true).order('concept_description'),
         supabase.from('team_members').select('*').eq('is_active', true).order('display_order'),
+        supabase.from('departments').select('id, name, slug').order('display_order'),
       ]);
 
       setTeamMembers(members || []);
@@ -939,6 +941,11 @@ export function BitacoraSection({ projectId }: Props) {
           id: `price_item:${i.id}`,
           label: i.concept_description,
           type: 'price_item' as const,
+        })),
+        ...(depts || []).map((d) => ({
+          id: `department:${d.id}`,
+          label: d.name,
+          type: 'department' as const,
         })),
       ];
 
