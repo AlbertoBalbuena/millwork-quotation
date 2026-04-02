@@ -42,7 +42,14 @@ export function useNotifications(): UseNotificationsResult {
     refresh();
   }, [memberId, refresh]);
 
-  // Realtime subscription for new notifications
+  // Layer 1: Same-client instant feedback via custom DOM event
+  useEffect(() => {
+    const handler = () => { refresh(); };
+    window.addEventListener('notifications-updated', handler);
+    return () => window.removeEventListener('notifications-updated', handler);
+  }, [refresh]);
+
+  // Layer 2: Realtime subscription for cross-client notifications
   useEffect(() => {
     if (!memberId) return;
 
@@ -59,28 +66,30 @@ export function useNotifications(): UseNotificationsResult {
         (payload) => {
           const newNotif = payload.new as AppNotification;
           setNotifications((prev) => {
-            // Avoid duplicates
             if (prev.some((n) => n.id === newNotif.id)) return prev;
             return [newNotif, ...prev];
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Notification realtime subscription error');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [memberId]);
 
-  // Light poll every 15s as backup for realtime (handles same-client inserts)
+  // Layer 3: Poll every 8s as final fallback
   useEffect(() => {
     if (!memberId) return;
     const interval = setInterval(() => {
-      // Only poll if last fetch was > 10s ago (avoid overlap with manual refresh)
-      if (Date.now() - lastFetchRef.current > 10000) {
+      if (Date.now() - lastFetchRef.current > 6000) {
         refresh();
       }
-    }, 15000);
+    }, 8000);
     return () => clearInterval(interval);
   }, [memberId, refresh]);
 
