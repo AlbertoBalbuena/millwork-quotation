@@ -131,7 +131,7 @@ export function OptimizerSidebar() {
   const [pNombre, setPNombre] = useState('');
   const [pMat, setPMat] = useState('');
   const [pGrosor, setPGrosor] = useState('18');
-  const [pVeta, setPVeta] = useState(false);
+  const [pVeta, setPVeta] = useState<'none' | 'horizontal' | 'vertical'>('none');
   const [pArea, setPArea] = useState('');
 
   // ── Stock add state ───────────────────────────────────────
@@ -158,7 +158,7 @@ export function OptimizerSidebar() {
       nombre: pNombre, material: pMat || (store.stocks[0]?.nombre ?? 'Default'),
       grosor: toMM(parseFloat(pGrosor) || 18, unit),
       ancho, alto, cantidad: parseInt(pCant) || 1,
-      vetaHorizontal: pVeta,
+      veta: pVeta,
       cubrecanto: { sup: 0, inf: 0, izq: 0, der: 0 },
       area: pArea || undefined,
     });
@@ -482,11 +482,15 @@ export function OptimizerSidebar() {
               <label className="block text-xs font-medium text-slate-500 mb-1">Thick.</label>
               <input value={pGrosor} onChange={e => setPGrosor(e.target.value)} className={inputCls + ' text-center'} />
             </div>
-            <label className="flex items-center gap-1.5 cursor-pointer pb-2 shrink-0" title="Fixed grain direction">
-              <input type="checkbox" checked={pVeta} onChange={e => setPVeta(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600" />
-              <span className="text-xs text-slate-500 whitespace-nowrap">Grain</span>
-            </label>
+            <div className="shrink-0 pb-0.5">
+              <label className="block text-xs font-medium text-slate-500 mb-1">Grain</label>
+              <select value={pVeta} onChange={e => setPVeta(e.target.value as 'none' | 'horizontal' | 'vertical')}
+                className="text-xs border border-slate-200/70 rounded-lg px-2 py-2 bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="none">—</option>
+                <option value="horizontal">↔ Horiz</option>
+                <option value="vertical">↕ Vert</option>
+              </select>
+            </div>
             <button onClick={addPiece} disabled={!pAncho || !pAlto}
               className="flex items-center justify-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0">
               <Plus className="h-4 w-4" />Add
@@ -546,11 +550,13 @@ export function OptimizerSidebar() {
                           onChange={e => store.updatePiece(p.id, { cantidad: Math.max(1, parseInt(e.target.value) || 1) })}
                           className="w-full bg-transparent text-sm text-center font-semibold border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded px-1 py-0.5 outline-none tabular-nums text-slate-700" />
                       </td>
-                      <td className="py-1.5 px-3 text-center">
-                        <button onClick={() => store.updatePiece(p.id, { vetaHorizontal: !p.vetaHorizontal })}
-                          className={`text-xs px-1.5 py-0.5 rounded ${p.vetaHorizontal ? 'bg-amber-100 text-amber-700 font-medium' : 'text-slate-300 hover:bg-slate-100'}`}>
-                          {p.vetaHorizontal ? 'Fixed' : '—'}
-                        </button>
+                      <td className="py-1 px-2 text-center">
+                        <select value={p.veta} onChange={e => store.updatePiece(p.id, { veta: e.target.value as 'none' | 'horizontal' | 'vertical' })}
+                          className={`text-xs border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded bg-transparent cursor-pointer py-0.5 px-1 transition-colors ${p.veta !== 'none' ? 'text-amber-700 font-medium' : 'text-slate-300'}`}>
+                          <option value="none">—</option>
+                          <option value="horizontal">↔</option>
+                          <option value="vertical">↕</option>
+                        </select>
                       </td>
                       <td className="py-1.5 px-1 w-9 text-center">
                         <EdgeBandCell value={p.cubrecanto.sup} side="Top" onChange={v => store.updatePiece(p.id, { cubrecanto: { ...p.cubrecanto, sup: v } })} />

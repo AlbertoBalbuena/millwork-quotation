@@ -41,8 +41,8 @@ export function PieceList({ pieces, onRemove }: Props) {
                   <td className="px-2 py-1.5 text-center text-slate-700">{fmtNum(p.grosor, unit)}</td>
                   <td className="px-2 py-1.5 text-center font-semibold text-slate-700">{p.cantidad}</td>
                   <td className="px-2 py-1.5 text-center">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${p.vetaHorizontal ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {p.vetaHorizontal ? 'Fixed' : 'Free'}
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${p.veta !== 'none' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {p.veta === 'none' ? '—' : p.veta === 'horizontal' ? '↔' : '↕'}
                     </span>
                   </td>
                   <td className="px-2 py-1.5 text-slate-600 max-w-24 truncate">{p.nombre || '—'}</td>

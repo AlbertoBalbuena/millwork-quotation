@@ -91,7 +91,7 @@ export function ImportCabinetsModal({ isOpen, onClose }: Props) {
           ancho: cp.ancho,
           alto: cp.alto,
           cantidad: cp.cantidad * cabinetQty,
-          vetaHorizontal: false,
+          veta: 'none',
           cubrecanto: cp.cubrecanto || { sup: 0, inf: 0, izq: 0, der: 0 },
           area: areaName,
         });

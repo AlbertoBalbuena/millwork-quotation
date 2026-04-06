@@ -33,7 +33,7 @@ export function CutListView({ result }: Props) {
                       <td className="px-3 py-1.5 text-center text-slate-500">{fmtNum(p.x, unit)}</td>
                       <td className="px-3 py-1.5 text-center text-slate-500">{fmtNum(p.y, unit)}</td>
                       <td className="px-3 py-1.5 text-center text-slate-500">{p.rotated ? 'Yes' : '—'}</td>
-                      <td className="px-3 py-1.5 text-center"><span className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.piece.vetaHorizontal ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{p.piece.vetaHorizontal ? 'Fixed' : 'Free'}</span></td>
+                      <td className="px-3 py-1.5 text-center"><span className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.piece.veta !== 'none' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{p.piece.veta === 'none' ? '—' : p.piece.veta === 'horizontal' ? '↔' : '↕'}</span></td>
                       <td className="px-3 py-1.5 text-center text-slate-500">{edgeBands || '—'}</td>
                     </tr>
                   );

@@ -274,7 +274,7 @@ class Optimizer {
 
     for (const p of pcs) {
       const fitsN = (s: { ancho: number; alto: number }) => p.ancho <= s.ancho && p.alto <= s.alto;
-      const fitsR = (s: { ancho: number; alto: number }) => !p.vetaHorizontal && p.alto <= s.ancho && p.ancho <= s.alto;
+      const fitsR = (s: { ancho: number; alto: number }) => p.veta === 'none' && p.alto <= s.ancho && p.ancho <= s.alto;
 
       let bestBoard: Board | null = null;
       let bestS = Infinity, bestS2 = Infinity, bestRot = false;
@@ -314,7 +314,7 @@ class Optimizer {
           nombre: st.nombre, costo: st.costo, isRemnant: !!st.isRemnant,
         }, this.trim);
         const fn = p.ancho <= st.ancho && p.alto <= st.alto;
-        const fr = !p.vetaHorizontal && p.alto <= st.ancho && p.ancho <= st.alto;
+        const fr = p.veta === 'none' && p.alto <= st.ancho && p.ancho <= st.alto;
         if (fn && nb.place(p, p.ancho, p.alto, false, p._idx, heuristic)) {
           boards.push(nb); if (st.isRemnant) st._used = true;
           if (st.stockId) usageCount[st.stockId] = (usageCount[st.stockId] || 0) + 1;
@@ -382,7 +382,7 @@ class Optimizer {
             let ok = false;
             for (const tb of copies) {
               if (tb.place(pp.piece, pp.w, pp.h, pp.rotated, pp.idx, h)) { ok = true; break; }
-              if (!pp.piece.vetaHorizontal) {
+              if (pp.piece.veta === 'none') {
                 if (tb.place(pp.piece, pp.h, pp.w, !pp.rotated, pp.idx, h)) { ok = true; break; }
               }
             }
@@ -405,7 +405,7 @@ class Optimizer {
               for (const p of tgt.placed) nt.place(p.piece, p.w, p.h, p.rotated, p.idx, 'baf');
               const fits =
                 nt.place(pp.piece, pp.w, pp.h, pp.rotated, pp.idx, 'baf') ||
-                (!pp.piece.vetaHorizontal && nt.place(pp.piece, pp.h, pp.w, !pp.rotated, pp.idx, 'baf'));
+                (pp.piece.veta === 'none' && nt.place(pp.piece, pp.h, pp.w, !pp.rotated, pp.idx, 'baf'));
               if (fits) {
                 const ns = new Board(src.ancho, src.alto, src.sierra, src.material, src.grosor, src.stockInfo, this.trim);
                 let srcOk = true;
@@ -552,11 +552,11 @@ export function renderBoardThumbnail(
     ctx.fillStyle = color;
     _roundRect(ctx, x + .5, y + .5, w - 1, h - 1, 2); ctx.fill();
 
-    if (p.piece.vetaHorizontal) {
+    if (p.piece.veta !== 'none') {
       ctx.save(); ctx.globalAlpha = .15; ctx.strokeStyle = '#fff'; ctx.lineWidth = .5; ctx.beginPath();
-      const dir = p.rotated ? 'V' : 'H';
-      if (dir === 'H') { for (let dy = 4; dy < h; dy += 5) { ctx.moveTo(x + 2, y + dy); ctx.lineTo(x + w - 2, y + dy); } }
-      else             { for (let dx = 4; dx < w; dx += 5) { ctx.moveTo(x + dx, y + 2); ctx.lineTo(x + dx, y + h - 2); } }
+      const isH = (p.piece.veta === 'horizontal') !== p.rotated; // flip direction if rotated
+      if (isH) { for (let dy = 4; dy < h; dy += 5) { ctx.moveTo(x + 2, y + dy); ctx.lineTo(x + w - 2, y + dy); } }
+      else     { for (let dx = 4; dx < w; dx += 5) { ctx.moveTo(x + dx, y + 2); ctx.lineTo(x + dx, y + h - 2); } }
       ctx.stroke(); ctx.restore();
     }
 
@@ -724,12 +724,13 @@ export function renderBoardCAD(
     ctx.strokeRect(px + 0.75, py + 0.75, pw - 1.5, ph - 1.5);
 
     // ── Grain direction on piece ────────────────────────────
-    if (showGrain && p.piece.vetaHorizontal) {
+    if (showGrain && p.piece.veta !== 'none') {
       ctx.save();
       ctx.globalAlpha = 0.12;
       ctx.strokeStyle = '#92400e';
       ctx.lineWidth = 0.7;
-      if (p.rotated) {
+      const drawVertical = (p.piece.veta === 'horizontal') === p.rotated; // horizontal grain + rotated = draw vertical lines
+      if (drawVertical) {
         const step = Math.max(3, 5 * zoom);
         for (let dx = step; dx < pw; dx += step) {
           ctx.beginPath(); ctx.moveTo(px + dx, py + 2); ctx.lineTo(px + dx, py + ph - 2); ctx.stroke();

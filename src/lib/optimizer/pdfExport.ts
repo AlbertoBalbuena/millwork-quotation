@@ -388,7 +388,7 @@ export async function exportOptimizerPDF(
         [fmtNum(p.piece.alto, unit), 'center'],
         [`S${item.boardIdx + 1}`, 'center'],
         [p.rotated ? t.yes : '—', 'center'],
-        [p.piece.vetaHorizontal ? t.fixed : t.free, 'center'],
+        [p.piece.veta === 'none' ? '—' : p.piece.veta === 'horizontal' ? 'H' : 'V', 'center'],
         [cb.sup > 0 ? EB_LABELS[cb.sup] : '—', 'center'],
         [cb.inf > 0 ? EB_LABELS[cb.inf] : '—', 'center'],
         [cb.izq > 0 ? EB_LABELS[cb.izq] : '—', 'center'],

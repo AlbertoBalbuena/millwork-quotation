@@ -148,7 +148,15 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   loadProject: (json) => {
     try {
       const data = JSON.parse(json);
-      set({ projectName: data.projectName || '', clientName: data.clientName || '', pieces: data.pieces || [], stocks: data.stocks || [DEFAULT_STOCK], remnants: data.remnants || [], areas: data.areas || [], globalSierra: data.globalSierra || 3.2, minOffcut: data.minOffcut || 200, boardTrim: data.boardTrim ?? 5, ebConfig: data.ebConfig || EMPTY_EB });
+      // Migrate old vetaHorizontal → veta
+      const pieces = (data.pieces || []).map((p: any) => {
+        if ('vetaHorizontal' in p && !('veta' in p)) {
+          const { vetaHorizontal, ...rest } = p;
+          return { ...rest, veta: vetaHorizontal ? 'horizontal' : 'none' };
+        }
+        return p;
+      });
+      set({ projectName: data.projectName || '', clientName: data.clientName || '', pieces, stocks: data.stocks || [DEFAULT_STOCK], remnants: data.remnants || [], areas: data.areas || [], globalSierra: data.globalSierra || 3.2, minOffcut: data.minOffcut || 200, boardTrim: data.boardTrim ?? 5, ebConfig: data.ebConfig || EMPTY_EB });
     } catch (error) { alert('Error loading project: ' + String(error)); }
   },
 
