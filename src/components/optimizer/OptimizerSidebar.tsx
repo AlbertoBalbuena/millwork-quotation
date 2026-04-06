@@ -8,6 +8,77 @@ import { supabase } from '../../lib/supabase';
 const sectionHeaderCls = "flex items-center gap-2 px-3 py-2 bg-slate-100 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-200/60 transition-colors";
 const cellInput = "w-full bg-transparent text-xs px-1.5 py-1 border border-transparent focus:border-blue-400 focus:bg-white rounded outline-none text-center tabular-nums";
 
+// ── Compact autocomplete for tight spaces ────────────────────
+function CompactAutocomplete({ options, value, onChange, placeholder, className = '' }: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [hlIdx, setHlIdx] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const selected = options.find(o => o.value === value);
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); } };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+  useEffect(() => { setHlIdx(0); }, [search]);
+  useEffect(() => {
+    if (open && listRef.current && hlIdx >= 0) {
+      const el = listRef.current.children[hlIdx] as HTMLElement;
+      el?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [hlIdx, open]);
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (!open) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHlIdx(i => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHlIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hlIdx]) { onChange(filtered[hlIdx].value); setOpen(false); setSearch(''); } }
+    else if (e.key === 'Escape') { setOpen(false); setSearch(''); }
+  };
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      {open ? (
+        <input ref={inputRef} value={search} onChange={e => setSearch(e.target.value)} onKeyDown={handleKey}
+          placeholder="Search..." onClick={e => e.stopPropagation()}
+          className="w-full text-[10px] border border-blue-400 bg-white rounded px-1 py-0.5 outline-none" />
+      ) : (
+        <button onClick={() => setOpen(true)}
+          className="w-full text-[10px] text-left text-slate-600 truncate cursor-pointer hover:text-blue-600 py-0.5">
+          {selected?.label || placeholder || 'Select...'}
+        </button>
+      )}
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-0.5 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-auto">
+          <div ref={listRef}>
+            {filtered.length > 0 ? filtered.map((o, i) => (
+              <div key={o.value} onClick={() => { onChange(o.value); setOpen(false); setSearch(''); }}
+                className={`px-2 py-1 text-[10px] cursor-pointer truncate ${i === hlIdx ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'} ${value === o.value ? 'font-semibold' : ''}`}>
+                {o.label}
+              </div>
+            )) : (
+              <div className="px-2 py-2 text-[10px] text-slate-400 text-center">No results</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionHeader({ icon: Icon, title, open, onToggle }: {
   icon: React.ComponentType<{ className?: string }>; title: string; open: boolean; onToggle: () => void;
 }) {
@@ -98,7 +169,7 @@ export function OptimizerSidebar() {
   const [edgebandItems, setEdgebandItems] = useState<PriceListItem[]>([]);
   useEffect(() => {
     supabase.from('price_list').select('id, concept_description, price, dimensions, material')
-      .eq('unit', 'Sheet').eq('is_active', true)
+      .in('unit', ['Sheet', 'Slab']).eq('is_active', true)
       .then(({ data }) => { if (data) setSheetMaterials(data); });
     supabase.from('price_list').select('id, concept_description, price, dimensions, material')
       .eq('type', 'Edgeband').eq('is_active', true)
@@ -373,13 +444,12 @@ export function OptimizerSidebar() {
                   </td>
                   <td className="px-1 py-0.5">
                     {sheetMaterials.length > 0 ? (
-                      <select value={s.materialId || ''} onChange={e => handleSelectSheet(e.target.value, s.id)}
-                        className="w-full text-[10px] border-0 bg-transparent text-slate-600 truncate cursor-pointer p-0">
-                        <option value="">{s.nombre}</option>
-                        {sheetMaterials.map(m => (
-                          <option key={m.id} value={m.id}>{m.concept_description}</option>
-                        ))}
-                      </select>
+                      <CompactAutocomplete
+                        value={s.materialId || ''}
+                        onChange={val => handleSelectSheet(val, s.id)}
+                        placeholder={s.nombre}
+                        options={sheetMaterials.map(m => ({ value: m.id, label: m.concept_description }))}
+                      />
                     ) : (
                       <span className="text-xs text-slate-500 truncate">{s.nombre}</span>
                     )}
@@ -445,20 +515,22 @@ export function OptimizerSidebar() {
                 return (
                   <div key={key} className="mb-1.5">
                     <label className="text-[10px] text-slate-500 font-semibold">Type {label} ({lineStyle})</label>
-                    <select value={selected.id} onChange={e => {
-                      const item = edgebandItems.find(i => i.id === e.target.value);
-                      store.setEbConfig({
-                        ...store.ebConfig,
-                        [key]: item ? { id: item.id, name: item.concept_description, price: item.price } : { id: '', name: '', price: 0 },
-                      });
-                    }} className="w-full text-xs border border-slate-200 rounded px-1.5 py-1 bg-white text-slate-700 mt-0.5">
-                      <option value="">Not assigned</option>
-                      {edgebandItems.map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.concept_description} — ${item.price}/m {item.dimensions ? `(${item.dimensions})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <CompactAutocomplete
+                      value={selected.id}
+                      onChange={val => {
+                        const item = edgebandItems.find(i => i.id === val);
+                        store.setEbConfig({
+                          ...store.ebConfig,
+                          [key]: item ? { id: item.id, name: item.concept_description, price: item.price } : { id: '', name: '', price: 0 },
+                        });
+                      }}
+                      placeholder="Not assigned"
+                      options={edgebandItems.map(item => ({
+                        value: item.id,
+                        label: `${item.concept_description} — $${item.price}/m${item.dimensions ? ` (${item.dimensions})` : ''}`,
+                      }))}
+                      className="mt-0.5"
+                    />
                   </div>
                 );
               })}
