@@ -50,7 +50,7 @@ export function OptimizerPage() {
         ancho:     toMM(anchoRaw,  unit),
         alto:      toMM(altoRaw,   unit),
         cantidad:  parseInt(cols[headers.indexOf('cantidad')] || '1') || 1,
-        vetaHorizontal: /^(si|sí|yes|true|1)$/i.test(cols[headers.indexOf('veta')] || ''),
+        veta: /^(h|horiz|horizontal)$/i.test(cols[headers.indexOf('veta')] || '') ? 'horizontal' : /^(v|vert|vertical)$/i.test(cols[headers.indexOf('veta')] || '') ? 'vertical' : /^(si|sí|yes|true|1|fija|fixed)$/i.test(cols[headers.indexOf('veta')] || '') ? 'horizontal' : 'none',
         cubrecanto: { sup: 0, inf: 0, izq: 0, der: 0 },
       });
       count++;
@@ -122,7 +122,7 @@ export function OptimizerPage() {
         ancho:          toMM(anchoRaw, unit),
         alto:           toMM(altoRaw,  unit),
         cantidad:       iCant   >= 0 ? parseInt(String(row[iCant]  || '1')) || 1 : 1,
-        vetaHorizontal: iVeta   >= 0 ? /^fija$/i.test(String(row[iVeta] || '').trim()) : false,
+        veta: iVeta >= 0 ? (/^(h|horiz|horizontal)$/i.test(String(row[iVeta] || '').trim()) ? 'horizontal' : /^(v|vert|vertical)$/i.test(String(row[iVeta] || '').trim()) ? 'vertical' : /^(fija|fixed|si|sí|yes|true|1)$/i.test(String(row[iVeta] || '').trim()) ? 'horizontal' : 'none') : 'none',
         cubrecanto: {
           sup: iTapeBS >= 0 ? isTruthy(String(row[iTapeBS] ?? '')) : false,
           inf: iTapeBI >= 0 ? isTruthy(String(row[iTapeBI] ?? '')) : false,
@@ -196,7 +196,7 @@ export function OptimizerPage() {
               </button>
               <div className="border-t border-slate-100 my-1" />
               <button onClick={() => {
-                const csv = 'nombre,ancho,alto,grosor,material,cantidad,veta\nSide Panel,610,762,18,Melamina,2,no\nBack Panel,726,762,18,Melamina,1,no\nShelf,726,574,18,Melamina,1,no\nDoor,378,759,18,MDF,2,si\n';
+                const csv = 'nombre,ancho,alto,grosor,material,cantidad,veta\nSide Panel,610,762,18,Melamina,2,horizontal\nBack Panel,726,762,18,Melamina,1,none\nShelf,726,574,18,Melamina,1,none\nDoor,378,759,18,MDF,2,vertical\n';
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);

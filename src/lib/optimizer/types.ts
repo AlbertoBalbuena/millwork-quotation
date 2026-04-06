@@ -15,7 +15,8 @@ export interface Pieza {
   ancho: number;    // mm
   alto: number;     // mm
   cantidad: number;
-  vetaHorizontal: boolean;
+  /** Grain direction: 'none'=free rotation, 'horizontal'=along width, 'vertical'=along height */
+  veta: 'none' | 'horizontal' | 'vertical';
   /** Edge banding per side: 0=none, 1=type A, 2=type B, 3=type C */
   cubrecanto: Cubrecanto;
   /** Project area grouping (e.g. "Kitchen", "Closet") */
