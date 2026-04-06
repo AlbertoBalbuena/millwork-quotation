@@ -499,14 +499,16 @@ export function OptimizerSidebar() {
               <label className="block text-xs font-medium text-slate-500 mb-1">Thick.</label>
               <input value={pGrosor} onChange={e => setPGrosor(e.target.value)} className={inputCls + ' text-center'} />
             </div>
-            <div className="shrink-0 pb-0.5">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Grain</label>
-              <select value={pVeta} onChange={e => setPVeta(e.target.value as 'none' | 'horizontal' | 'vertical')}
-                className="text-xs border border-slate-200/70 rounded-lg px-2 py-2 bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="none">—</option>
-                <option value="horizontal">↔ Horiz</option>
-                <option value="vertical">↕ Vert</option>
-              </select>
+            <div className="shrink-0 flex items-end pb-0.5">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Grain</label>
+                <button type="button" onClick={() => setPVeta(v => v === 'none' ? 'horizontal' : v === 'horizontal' ? 'vertical' : 'none')}
+                  title={`Grain: ${pVeta} — click to cycle`}
+                  className={`w-10 h-[38px] rounded-lg text-sm font-bold flex items-center justify-center transition-all border
+                    ${pVeta === 'none' ? 'border-slate-200/70 bg-white/60 text-slate-300' : 'border-amber-300 bg-amber-50 text-amber-700'}`}>
+                  {pVeta === 'none' ? '—' : pVeta === 'horizontal' ? '↔' : '↕'}
+                </button>
+              </div>
             </div>
             <button onClick={addPiece} disabled={!pAncho || !pAlto}
               className="flex items-center justify-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0">
@@ -568,12 +570,14 @@ export function OptimizerSidebar() {
                           className="w-full bg-transparent text-sm text-center font-semibold border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded px-1 py-0.5 outline-none tabular-nums text-slate-700" />
                       </td>
                       <td className="py-1 px-2 text-center">
-                        <select value={p.veta} onChange={e => store.updatePiece(p.id, { veta: e.target.value as 'none' | 'horizontal' | 'vertical' })}
-                          className={`text-xs border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded bg-transparent cursor-pointer py-0.5 px-1 transition-colors ${p.veta !== 'none' ? 'text-amber-700 font-medium' : 'text-slate-300'}`}>
-                          <option value="none">—</option>
-                          <option value="horizontal">↔</option>
-                          <option value="vertical">↕</option>
-                        </select>
+                        <button onClick={() => {
+                          const next = p.veta === 'none' ? 'horizontal' : p.veta === 'horizontal' ? 'vertical' : 'none';
+                          store.updatePiece(p.id, { veta: next });
+                        }} title={`Grain: ${p.veta} — click to cycle`}
+                          className={`w-7 h-6 rounded text-xs font-bold flex items-center justify-center mx-auto transition-all
+                            ${p.veta !== 'none' ? 'bg-amber-100 text-amber-700 ring-1 ring-offset-1 ring-amber-300' : 'bg-slate-50 text-slate-300 hover:bg-slate-100'}`}>
+                          {p.veta === 'none' ? '—' : p.veta === 'horizontal' ? '↔' : '↕'}
+                        </button>
                       </td>
                       <td className="py-1.5 px-1 w-9 text-center">
                         <EdgeBandCell value={p.cubrecanto.sup} side="Top" onChange={v => store.updatePiece(p.id, { cubrecanto: { ...p.cubrecanto, sup: v } })} />
