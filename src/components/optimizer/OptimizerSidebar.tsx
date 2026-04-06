@@ -4,7 +4,7 @@ import { useOptimizerStore } from '../../hooks/useOptimizerStore';
 import { toMM, fromMM } from '../../lib/optimizer/units';
 import { Pieza } from '../../lib/optimizer/types';
 import { supabase } from '../../lib/supabase';
-import { EdgeBandPopover } from '../EdgeBandPopover';
+import { EdgeBandInline } from '../EdgeBandPopover';
 
 // ── Compact autocomplete ────────────────────────────────────
 function CompactAutocomplete({ options, value, onChange, placeholder, className = '' }: {
@@ -226,21 +226,146 @@ export function OptimizerSidebar() {
     if (cb.der > 0) totalEB += (p.alto + 30) * p.cantidad;
   });
 
-  // ── Options popover state ──────────────────────────────────
-  const [optionsOpen, setOptionsOpen] = useState(false);
-  const optRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!optionsOpen) return;
-    const handler = (e: MouseEvent) => { if (optRef.current && !optRef.current.contains(e.target as Node)) setOptionsOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [optionsOpen]);
+  // ── Sidebar collapse state ─────────────────────────────────
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="flex flex-col xl:flex-row gap-4 min-h-0">
+    <div className="flex h-full overflow-hidden">
 
-      {/* ═══ LEFT COLUMN: Parts + Stock Sheets ═══════════════ */}
-      <div className="flex-1 min-w-0 space-y-4">
+      {/* ═══ LEFT SIDEBAR: Areas + Options (collapsible) ═════ */}
+      <div className={`shrink-0 border-r border-slate-200/60 bg-white/40 backdrop-blur-sm overflow-y-auto transition-all duration-200 ${sidebarOpen ? 'w-72' : 'w-0'}`}>
+        {sidebarOpen && (
+          <div className="w-72 p-3 space-y-3">
+            {/* Areas */}
+            <Section icon={FolderOpen} title="Areas" className="stagger-1">
+              <div className="px-4 py-3">
+                <div className="flex gap-2">
+                  <input value={newArea} onChange={e => setNewArea(e.target.value)} placeholder="e.g. Kitchen, Closet..."
+                    onKeyDown={e => { if (e.key === 'Enter' && newArea.trim()) { store.addArea(newArea.trim()); setNewArea(''); } }}
+                    className={inputCls} />
+                  <button onClick={() => { if (newArea.trim()) { store.addArea(newArea.trim()); setNewArea(''); } }}
+                    className="px-2.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shrink-0">
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                {store.areas.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {store.areas.map(a => (
+                      <span key={a} className="inline-flex items-center gap-1 text-xs bg-blue-600/10 text-blue-800 px-2 py-0.5 rounded-full font-medium border border-blue-600/15">
+                        {a}
+                        <button onClick={() => store.removeArea(a)} className="text-blue-400 hover:text-red-500 transition-colors"><X className="h-2.5 w-2.5" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {store.areas.length === 0 && (
+                  <p className="text-xs text-slate-400 mt-2">No areas defined.</p>
+                )}
+              </div>
+            </Section>
+
+            {/* Options */}
+            <Section icon={Settings} title="Options" className="stagger-2">
+              <div className="px-4 py-3 space-y-3">
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Kerf (mm)</label>
+                    <input type="number" step="0.1" value={store.globalSierra} onChange={e => store.setGlobalSierra(+e.target.value)}
+                      className={inputCls + ' text-center'} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Min. offcut (mm)</label>
+                    <input type="number" value={store.minOffcut} onChange={e => store.setMinOffcut(+e.target.value)}
+                      className={inputCls + ' text-center'} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Board trim (mm)</label>
+                    <input type="number" min={0} max={50} step={1} value={store.boardTrim}
+                      onChange={e => store.setBoardTrim(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className={inputCls + ' text-center'} />
+                  </div>
+                </div>
+
+                {edgebandItems.length > 0 && (
+                  <div className="pt-3 border-t border-slate-100/60">
+                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Edge Banding</div>
+                    <div className="space-y-2">
+                      {(['a', 'b', 'c'] as const).map(key => {
+                        const label = key.toUpperCase();
+                        const lineStyle = key === 'a' ? '━━' : key === 'b' ? '╌╌' : '····';
+                        const selected = store.ebConfig[key];
+                        return (
+                          <div key={key}>
+                            <label className="text-xs text-slate-500 font-medium">Type {label} ({lineStyle})</label>
+                            <CompactAutocomplete
+                              value={selected.id}
+                              onChange={val => {
+                                const item = edgebandItems.find(i => i.id === val);
+                                store.setEbConfig({
+                                  ...store.ebConfig,
+                                  [key]: item ? { id: item.id, name: item.concept_description, price: item.price } : { id: '', name: '', price: 0 },
+                                });
+                              }}
+                              placeholder="Not assigned"
+                              options={edgebandItems.map(item => ({
+                                value: item.id,
+                                label: `${item.concept_description} — $${item.price}/m${item.dimensions ? ` (${item.dimensions})` : ''}`,
+                              }))}
+                              className="mt-0.5"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Section>
+
+            {/* Remnants */}
+            <Section icon={Layers} title="Remnants" defaultOpen={false} className="stagger-3">
+              <div className="px-4 py-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={remMat} onChange={e => setRemMat(e.target.value)} className={inputCls}>
+                    {stockNames.length > 0 ? stockNames.map(m => <option key={m}>{m}</option>) : <option>Default</option>}
+                  </select>
+                  <input value={remGrosor} onChange={e => setRemGrosor(e.target.value)} placeholder="Thick." className={inputCls + ' text-center'} />
+                  <input value={remAncho} onChange={e => setRemAncho(e.target.value)} placeholder="Width" className={inputCls + ' text-center'} />
+                  <input value={remAlto} onChange={e => setRemAlto(e.target.value)} placeholder="Height" className={inputCls + ' text-center'} />
+                </div>
+                <button onClick={() => {
+                  store.addRemnant({ material: remMat || 'Default',
+                    grosor: toMM(parseFloat(remGrosor) || 18, unit),
+                    ancho: toMM(parseFloat(remAncho) || 0, unit), alto: toMM(parseFloat(remAlto) || 0, unit) });
+                }} className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-200/70 hover:bg-white/60 text-slate-600 text-xs rounded-lg transition-colors">
+                  <Plus className="h-3.5 w-3.5" />Add Remnant
+                </button>
+                {store.remnants.length > 0 && (
+                  <div className="space-y-1 pt-2 mt-2 border-t border-slate-100/60">
+                    {store.remnants.map(r => (
+                      <div key={r.id} className="flex justify-between items-center text-xs group">
+                        <span className="text-slate-600">{r.material} — {parseFloat(fromMM(r.ancho, unit).toFixed(0))}×{parseFloat(fromMM(r.alto, unit).toFixed(0))}</span>
+                        <button onClick={() => store.removeRemnant(r.id)}
+                          className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Section>
+          </div>
+        )}
+      </div>
+
+      {/* Sidebar toggle */}
+      <button onClick={() => setSidebarOpen(v => !v)}
+        className="shrink-0 w-5 flex items-center justify-center hover:bg-slate-100 transition-colors border-r border-slate-200/60"
+        title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${sidebarOpen ? '-rotate-90' : 'rotate-90'}`} />
+      </button>
+
+      {/* ═══ MAIN CONTENT: Parts + Stock Sheets ═════════════ */}
+      <div className="flex-1 min-w-0 overflow-y-auto p-4 space-y-4">
 
       <Section icon={LayoutList} title="Parts">
         {/* Add piece form */}
@@ -332,7 +457,7 @@ export function OptimizerSidebar() {
                         </button>
                       </td>
                       <td className="py-1.5 px-3 text-center">
-                        <EdgeBandPopover cubrecanto={p.cubrecanto} onUpdate={cb => store.updatePiece(p.id, { cubrecanto: cb })} />
+                        <EdgeBandInline cubrecanto={p.cubrecanto} onUpdate={cb => store.updatePiece(p.id, { cubrecanto: cb })} />
                       </td>
                       <td className="py-1.5 px-3 text-slate-600 text-xs">
                         <span className="inline-block bg-slate-100 px-2 py-0.5 rounded text-slate-600">{material}</span>
@@ -453,142 +578,7 @@ export function OptimizerSidebar() {
         )}
       </Section>
 
-      </div>{/* end LEFT COLUMN */}
-
-      {/* ═══ RIGHT COLUMN: Areas + Options ═══════════════════ */}
-      <div className="xl:w-72 xl:shrink-0 space-y-4">
-
-        {/* ─── Areas ──────────────────────────────────────── */}
-        <Section icon={FolderOpen} title="Areas" className="stagger-1">
-          <div className="px-5 py-4">
-            <div className="flex gap-2">
-              <input value={newArea} onChange={e => setNewArea(e.target.value)} placeholder="e.g. Kitchen, Closet..."
-                onKeyDown={e => { if (e.key === 'Enter' && newArea.trim()) { store.addArea(newArea.trim()); setNewArea(''); } }}
-                className={inputCls} />
-              <button onClick={() => { if (newArea.trim()) { store.addArea(newArea.trim()); setNewArea(''); } }}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shrink-0">
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-            {store.areas.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {store.areas.map(a => (
-                  <span key={a} className="inline-flex items-center gap-1.5 text-sm bg-blue-600/10 text-blue-800 px-2.5 py-1 rounded-full font-medium border border-blue-600/15">
-                    {a}
-                    <button onClick={() => store.removeArea(a)} className="text-blue-400 hover:text-red-500 transition-colors"><X className="h-3 w-3" /></button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {store.areas.length === 0 && (
-              <p className="text-sm text-slate-400 mt-2">No areas defined. Parts will be ungrouped.</p>
-            )}
-          </div>
-        </Section>
-
-        {/* ─── Options (popover) ─────────────────────────── */}
-        <div ref={optRef} className="relative stagger-2">
-          <button onClick={() => setOptionsOpen(v => !v)}
-            className={`glass-white w-full flex items-center gap-2.5 px-5 py-3.5 hover:shadow-lg transition-all duration-200 cursor-pointer ${optionsOpen ? 'shadow-lg' : ''}`}>
-            <Settings className="h-4 w-4 text-slate-400 shrink-0" />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1 text-left">Options</span>
-            <div className="flex items-center gap-2 text-xs text-slate-400 tabular-nums">
-              <span>Kerf {store.globalSierra}</span>
-              <span>·</span>
-              <span>Trim {store.boardTrim}</span>
-            </div>
-            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${optionsOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {optionsOpen && (
-            <div className="absolute z-50 top-full left-0 right-0 mt-1 glass-white shadow-xl p-5 space-y-4" style={{ borderRadius: 14 }}>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Kerf (mm)</label>
-                  <input type="number" step="0.1" value={store.globalSierra} onChange={e => store.setGlobalSierra(+e.target.value)}
-                    className={inputCls + ' text-center'} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Min. offcut (mm)</label>
-                  <input type="number" value={store.minOffcut} onChange={e => store.setMinOffcut(+e.target.value)}
-                    className={inputCls + ' text-center'} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Board trim (mm)</label>
-                  <input type="number" min={0} max={50} step={1} value={store.boardTrim}
-                    onChange={e => store.setBoardTrim(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className={inputCls + ' text-center'} />
-                </div>
-              </div>
-
-              {edgebandItems.length > 0 && (
-                <div className="pt-3 border-t border-slate-100/60">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Edge Banding</div>
-                  <div className="space-y-2">
-                    {(['a', 'b', 'c'] as const).map(key => {
-                      const label = key.toUpperCase();
-                      const lineStyle = key === 'a' ? '━━' : key === 'b' ? '╌╌' : '····';
-                      const selected = store.ebConfig[key];
-                      return (
-                        <div key={key}>
-                          <label className="text-xs text-slate-500 font-medium">Type {label} ({lineStyle})</label>
-                          <CompactAutocomplete
-                            value={selected.id}
-                            onChange={val => {
-                              const item = edgebandItems.find(i => i.id === val);
-                              store.setEbConfig({
-                                ...store.ebConfig,
-                                [key]: item ? { id: item.id, name: item.concept_description, price: item.price } : { id: '', name: '', price: 0 },
-                              });
-                            }}
-                            placeholder="Not assigned"
-                            options={edgebandItems.map(item => ({
-                              value: item.id,
-                              label: `${item.concept_description} — $${item.price}/m${item.dimensions ? ` (${item.dimensions})` : ''}`,
-                            }))}
-                            className="mt-0.5"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Remnants */}
-              <div className="pt-3 border-t border-slate-100/60">
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Remnants</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select value={remMat} onChange={e => setRemMat(e.target.value)} className={inputCls}>
-                    {stockNames.length > 0 ? stockNames.map(m => <option key={m}>{m}</option>) : <option>Default</option>}
-                  </select>
-                  <input value={remGrosor} onChange={e => setRemGrosor(e.target.value)} placeholder="Thickness" className={inputCls + ' text-center'} />
-                  <input value={remAncho} onChange={e => setRemAncho(e.target.value)} placeholder="Width" className={inputCls + ' text-center'} />
-                  <input value={remAlto} onChange={e => setRemAlto(e.target.value)} placeholder="Height" className={inputCls + ' text-center'} />
-                </div>
-                <button onClick={() => {
-                  store.addRemnant({ material: remMat || 'Default',
-                    grosor: toMM(parseFloat(remGrosor) || 18, unit),
-                    ancho: toMM(parseFloat(remAncho) || 0, unit), alto: toMM(parseFloat(remAlto) || 0, unit) });
-                }} className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200/70 hover:bg-white/60 text-slate-600 text-sm rounded-lg transition-colors">
-                  <Plus className="h-4 w-4" />Add Remnant
-                </button>
-                {store.remnants.length > 0 && (
-                  <div className="space-y-1.5 pt-2 mt-2 border-t border-slate-100/60">
-                    {store.remnants.map(r => (
-                      <div key={r.id} className="flex justify-between items-center text-sm group">
-                        <span className="text-slate-600">{r.material} — {parseFloat(fromMM(r.ancho, unit).toFixed(0))}×{parseFloat(fromMM(r.alto, unit).toFixed(0))}</span>
-                        <button onClick={() => store.removeRemnant(r.id)}
-                          className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><X className="h-3.5 w-3.5" /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-      </div>{/* end RIGHT COLUMN */}
+      </div>{/* end MAIN CONTENT */}
     </div>
   );
 }
