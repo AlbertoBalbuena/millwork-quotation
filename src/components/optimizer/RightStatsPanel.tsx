@@ -159,7 +159,7 @@ export function RightStatsPanel({ result, selectedIdx, onSelectBoard }: Props) {
           value={`${(boardAreaWaste / 1e6).toFixed(4)} m²`}
           sub={`${(100 - board.usage).toFixed(0)}%`}
         />
-        <StatRow label="Panels placed" value={String(board.placed.length)} />
+        <StatRow label="Parts placed" value={String(board.placed.length)} />
         <StatRow label="Offcuts"        value={String(board.offcuts.length)} />
         <StatRow label="Cuts"           value={String(cuts.length)} />
         <StatRow label="Cut length"     value={fmtDim(boardCutLen, unit)} />
@@ -172,7 +172,7 @@ export function RightStatsPanel({ result, selectedIdx, onSelectBoard }: Props) {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="text-left py-1 px-4 font-medium text-slate-400 w-7">#</th>
-                <th className="text-left py-1 font-medium text-slate-400">Panel</th>
+                <th className="text-left py-1 font-medium text-slate-400">Part</th>
                 <th className="text-center py-1 font-medium text-slate-400 w-8">Tipo</th>
                 <th className="text-right py-1 px-4 font-medium text-slate-400">Pos.</th>
               </tr>

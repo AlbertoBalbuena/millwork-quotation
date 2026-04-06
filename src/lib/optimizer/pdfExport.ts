@@ -52,7 +52,7 @@ export function exportOptimizerPDF(
   doc.setTextColor(148, 163, 184);
   const stats = [
     `Sheets: ${result.boards.length}`,
-    `Panels: ${result.totalPieces}`,
+    `Parts: ${result.totalPieces}`,
     `Efficiency: ${result.efficiency.toFixed(1)}%`,
     `Total cost: $${result.totalCost.toFixed(2)}`,
     `Edge banding: ${(totalEB / 1000).toFixed(2)} linear m`,
@@ -72,7 +72,7 @@ export function exportOptimizerPDF(
     doc.text(`Sheet ${boardIdx + 1}`, 20, 20);
     doc.setFontSize(10); doc.setFont('Helvetica', 'normal'); doc.setTextColor(71, 85, 105);
     doc.text(`Material: ${board.material} | Thickness: ${fmtDim(board.grosor, unit)} | Size: ${fmtDim(board.ancho, unit)}×${fmtDim(board.alto, unit)}`, 20, 28);
-    doc.text(`Usage: ${board.usage.toFixed(1)}% | Cost: $${board.stockInfo.costo.toFixed(2)} | ${board.placed.length} panels | Trim: ${board.trim}mm`, 20, 35);
+    doc.text(`Usage: ${board.usage.toFixed(1)}% | Cost: $${board.stockInfo.costo.toFixed(2)} | ${board.placed.length} parts | Trim: ${board.trim}mm`, 20, 35);
 
     const maxBoardW = pageW - 50, maxBoardH = pageH - 75;
     const scale = Math.min(maxBoardW / board.ancho, maxBoardH / board.alto);
@@ -114,14 +114,14 @@ export function exportOptimizerPDF(
       const pw = piece.w * scale, ph = piece.h * scale;
       const rgb = hexToRgb(PIECE_COLORS[piece.idx % PIECE_COLORS.length]);
 
-      // Panel fill — 20% opacity like CAD (globalAlpha=0.18)
+      // Part fill — 20% opacity like CAD (globalAlpha=0.18)
       doc.saveGraphicsState();
       doc.setGState(new (doc as any).GState({ opacity: 0.20 }));
       doc.setFillColor(rgb.r, rgb.g, rgb.b);
       doc.rect(px + 0.3, py + 0.3, pw - 0.6, ph - 0.6, 'F');
       doc.restoreGraphicsState();
 
-      // Panel border — full color like CAD
+      // Part border — full color like CAD
       doc.setDrawColor(rgb.r, rgb.g, rgb.b);
       doc.setLineWidth(0.5);
       doc.rect(px + 0.3, py + 0.3, pw - 0.6, ph - 0.6, 'S');
@@ -257,7 +257,7 @@ export function exportOptimizerPDF(
       (['sup', 'inf', 'izq', 'der'] as const).forEach(s => { if (cb[s] > 0) ebParts.push(`${s[0].toUpperCase()}:${EB_LABELS[cb[s]]}`); });
       [
         [`${pIdx + 1}`, 'center'],
-        [p.piece.nombre || 'Panel', 'left'],
+        [p.piece.nombre || 'Part', 'left'],
         [fmtNum(p.piece.ancho, unit), 'center'],
         [fmtNum(p.piece.alto, unit), 'center'],
         [`S${item.boardIdx + 1}`, 'center'],
