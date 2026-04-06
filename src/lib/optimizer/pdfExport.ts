@@ -19,6 +19,17 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
   } catch { return null; }
 }
 
+/** Convert 0-based index to letter code: 0→A, 1→B, ..., 25→Z, 26→AA, 27→AB */
+function partLabel(idx: number): string {
+  let label = '';
+  let n = idx;
+  do {
+    label = String.fromCharCode(65 + (n % 26)) + label;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return label;
+}
+
 export type PdfLang = 'en' | 'es';
 
 const i18n: Record<PdfLang, Record<string, string>> = {
@@ -42,7 +53,8 @@ const i18n: Record<PdfLang, Record<string, string>> = {
     usage: 'Usage',
     cost: 'Cost',
     trim: 'Trim',
-    cutList: 'Cut List',
+    cutListByArea: 'Cut List by Area',
+    cutListByMaterial: 'Cut List by Material',
     area: 'Area',
     unassigned: 'Unassigned',
     name: 'Name',
@@ -85,7 +97,8 @@ const i18n: Record<PdfLang, Record<string, string>> = {
     usage: 'Uso',
     cost: 'Costo',
     trim: 'Recorte',
-    cutList: 'Lista de Corte',
+    cutListByArea: 'Lista de Corte por Área',
+    cutListByMaterial: 'Lista de Corte por Material',
     area: 'Área',
     unassigned: 'Sin asignar',
     name: 'Nombre',
@@ -134,6 +147,14 @@ export async function exportOptimizerPDF(
     if (cb.inf > 0) totalEB += p.piece.ancho + 30;
     if (cb.izq > 0) totalEB += p.piece.alto + 30;
     if (cb.der > 0) totalEB += p.piece.alto + 30;
+  }));
+
+  // Build global piece index → letter mapping
+  const pieceLetterMap = new Map<string, string>();
+  let globalPieceIdx = 0;
+  result.boards.forEach(b => b.placed.forEach(p => {
+    const key = `${p.piece.id}-${p.x}-${p.y}`;
+    pieceLetterMap.set(key, partLabel(globalPieceIdx++));
   }));
 
   // Load logo
@@ -197,10 +218,14 @@ export async function exportOptimizerPDF(
     doc.rect(0, 0, pageW, pageH, 'F');
 
     doc.setFontSize(16); doc.setTextColor(15, 23, 42); doc.setFont('Helvetica', 'bold');
-    doc.text(`${t.sheet} ${boardIdx + 1}`, 20, 20);
+    doc.text(projectName || t.unnamed, 20, 20);
     doc.setFontSize(10); doc.setFont('Helvetica', 'normal'); doc.setTextColor(71, 85, 105);
     doc.text(`${t.material}: ${board.material} | ${t.thickness}: ${fmtDim(board.grosor, unit)} | ${t.size}: ${fmtDim(board.ancho, unit)}×${fmtDim(board.alto, unit)}`, 20, 28);
-    doc.text(`${t.usage}: ${board.usage.toFixed(1)}% | ${t.cost}: $${board.stockInfo.costo.toFixed(2)} | ${board.placed.length} ${t.parts.toLowerCase()} | ${t.trim}: ${board.trim}mm`, 20, 35);
+    doc.text(`${t.usage}: ${board.usage.toFixed(1)}% | ${board.placed.length} ${t.parts.toLowerCase()} | ${t.trim}: ${board.trim}mm`, 20, 35);
+
+    // Sheet number footer — bottom right
+    doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+    doc.text(`${t.sheet} ${boardIdx + 1}`, pageW - 15, pageH - 8, { align: 'right' });
 
     const maxBoardW = pageW - 50, maxBoardH = pageH - 75;
     const scale = Math.min(maxBoardW / board.ancho, maxBoardH / board.alto);
@@ -274,8 +299,10 @@ export async function exportOptimizerPDF(
       drawEB(edges.right, px + pw - inset, py + inset, px + pw - inset, py + ph - inset);
 
       if (pw > 12 && ph > 8) {
+        const pieceKey = `${piece.piece.id}-${piece.x}-${piece.y}`;
+        const pLetter = pieceLetterMap.get(pieceKey) || '';
         const dimFz = Math.min(7, Math.max(4, pw / 6)) * labelScale;
-        const dimText = `${fmtNum(piece.piece.ancho, unit)}×${fmtNum(piece.piece.alto, unit)}`;
+        const dimText = `${pLetter}  ${fmtNum(piece.piece.ancho, unit)}×${fmtNum(piece.piece.alto, unit)}`;
         const hasName = piece.piece.nombre && ph > 10;
         const nameFz = Math.min(5, Math.max(3, pw / 8)) * labelScale;
 
@@ -346,63 +373,70 @@ export async function exportOptimizerPDF(
     doc.text(fmtDim(board.alto, unit), dimX - 3, startY + boardH / 2, { align: 'center', angle: 90 });
   });
 
-  // ── Cut list (grouped by area) ────────────────────────────
-  doc.addPage();
-  doc.setFontSize(14); doc.setFont('Helvetica', 'bold'); doc.setTextColor(15, 23, 42);
-  doc.text(t.cutList, 20, 20);
-  let cutListY = 30;
+  // ── Shared cut list rendering function ─────────────────────
   const colX = [10, 22, 55, 78, 101, 120, 136, 148, 156, 164, 172, 200];
-
-  // Collect all placed pieces with their board index
   const allPieces: { piece: typeof result.boards[0]['placed'][0]; boardIdx: number; board: typeof result.boards[0] }[] = [];
   result.boards.forEach((board, boardIdx) => board.placed.forEach(piece => allPieces.push({ piece, boardIdx, board })));
 
-  // Group by area
+  const renderCutList = (title: string, groups: Map<string, typeof allPieces>, groupLabel: string) => {
+    doc.addPage();
+    doc.setFontSize(14); doc.setFont('Helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+    doc.text(title, 20, 20);
+    let y = 30;
+    let globalIdx = 0;
+
+    groups.forEach((items, groupName) => {
+      if (y > pageH - 25) { doc.addPage(); y = 20; }
+      doc.setFontSize(11); doc.setFont('Helvetica', 'bold'); doc.setTextColor(15, 23, 42);
+      doc.text(`${groupLabel}: ${groupName}`, 20, y);
+      y += 7;
+      doc.setFontSize(7); doc.setTextColor(71, 85, 105); doc.setFont('Helvetica', 'bold');
+      ['#', t.name, t.width, t.height, t.sheet, t.rot, t.grain, 'T', 'B', 'L', 'R', t.material].forEach((h, i) => {
+        doc.text(h, colX[i], y, { align: i === 1 || i === 11 ? 'left' : 'center' });
+      });
+      y += 5;
+      doc.setFont('Helvetica', 'normal');
+      items.forEach((item) => {
+        if (y > pageH - 10) { doc.addPage(); y = 20; }
+        doc.setTextColor(30, 41, 59);
+        const p = item.piece;
+        const cb = p.piece.cubrecanto;
+        const pKey = `${p.piece.id}-${p.x}-${p.y}`;
+        const letter = pieceLetterMap.get(pKey) || partLabel(globalIdx);
+        globalIdx++;
+        [
+          [letter, 'center'],
+          [p.piece.nombre || t.part, 'left'],
+          [fmtNum(p.piece.ancho, unit), 'center'],
+          [fmtNum(p.piece.alto, unit), 'center'],
+          [`S${item.boardIdx + 1}`, 'center'],
+          [p.rotated ? t.yes : '—', 'center'],
+          [p.piece.veta === 'none' ? '—' : p.piece.veta === 'horizontal' ? 'H' : 'V', 'center'],
+          [cb.sup > 0 ? EB_LABELS[cb.sup] : '—', 'center'],
+          [cb.inf > 0 ? EB_LABELS[cb.inf] : '—', 'center'],
+          [cb.izq > 0 ? EB_LABELS[cb.izq] : '—', 'center'],
+          [cb.der > 0 ? EB_LABELS[cb.der] : '—', 'center'],
+          [p.piece.material || '—', 'left'],
+        ].forEach(([text, align], i) => {
+          doc.text(text as string, colX[i], y, { align: align as 'left' | 'center' });
+        });
+        y += 4.5;
+      });
+      y += 5;
+    });
+    return y;
+  };
+
+  // ── Cut list by Area ──────────────────────────────────────
   const byArea = new Map<string, typeof allPieces>();
   allPieces.forEach(item => {
     const area = item.piece.piece.area || t.unassigned;
     if (!byArea.has(area)) byArea.set(area, []);
     byArea.get(area)!.push(item);
   });
+  let cutListY = renderCutList(t.cutListByArea, byArea, t.area);
 
-  byArea.forEach((items, area) => {
-    if (cutListY > pageH - 25) { doc.addPage(); cutListY = 20; }
-    doc.setFontSize(11); doc.setFont('Helvetica', 'bold'); doc.setTextColor(15, 23, 42);
-    doc.text(`${t.area}: ${area}`, 20, cutListY);
-    cutListY += 7;
-    doc.setFontSize(7); doc.setTextColor(71, 85, 105); doc.setFont('Helvetica', 'bold');
-    ['#', t.name, t.width, t.height, t.sheet, t.rot, t.grain, 'T', 'B', 'L', 'R', t.material].forEach((h, i) => {
-      doc.text(h, colX[i], cutListY, { align: i === 1 || i === 11 ? 'left' : 'center' });
-    });
-    cutListY += 5;
-    doc.setFont('Helvetica', 'normal');
-    items.forEach((item, pIdx) => {
-      if (cutListY > pageH - 10) { doc.addPage(); cutListY = 20; }
-      doc.setTextColor(30, 41, 59);
-      const p = item.piece;
-      const cb = p.piece.cubrecanto;
-      [
-        [`${pIdx + 1}`, 'center'],
-        [p.piece.nombre || t.part, 'left'],
-        [fmtNum(p.piece.ancho, unit), 'center'],
-        [fmtNum(p.piece.alto, unit), 'center'],
-        [`S${item.boardIdx + 1}`, 'center'],
-        [p.rotated ? t.yes : '—', 'center'],
-        [p.piece.veta === 'none' ? '—' : p.piece.veta === 'horizontal' ? 'H' : 'V', 'center'],
-        [cb.sup > 0 ? EB_LABELS[cb.sup] : '—', 'center'],
-        [cb.inf > 0 ? EB_LABELS[cb.inf] : '—', 'center'],
-        [cb.izq > 0 ? EB_LABELS[cb.izq] : '—', 'center'],
-        [cb.der > 0 ? EB_LABELS[cb.der] : '—', 'center'],
-        [p.piece.material || '—', 'left'],
-      ].forEach(([text, align], i) => {
-        doc.text(text as string, colX[i], cutListY, { align: align as 'left' | 'center' });
-      });
-      cutListY += 4.5;
-    });
-    cutListY += 5;
-  });
-
-  // ── Edge banding summary ──────────────────────────────────
+  // ── Edge banding summary (on same page as area cut list) ──
   if (totalEB > 0) {
     if (cutListY > pageH - 40) { doc.addPage(); cutListY = 20; }
     cutListY += 5;
@@ -414,8 +448,8 @@ export async function exportOptimizerPDF(
     result.boards.forEach(b => b.placed.forEach(p => {
       const cb = p.piece.cubrecanto;
       (['sup', 'inf', 'izq', 'der'] as const).forEach(side => {
-        const t = cb[side];
-        if (t > 0) byType[t] = (byType[t] || 0) + ((side === 'sup' || side === 'inf') ? p.piece.ancho + 30 : p.piece.alto + 30);
+        const tt = cb[side];
+        if (tt > 0) byType[tt] = (byType[tt] || 0) + ((side === 'sup' || side === 'inf') ? p.piece.ancho + 30 : p.piece.alto + 30);
       });
     }));
 
@@ -425,14 +459,9 @@ export async function exportOptimizerPDF(
       2: ebConfig?.b?.name ? `${t.typeBDashed.split('(')[0].trim()} — ${ebConfig.b.name}` : t.typeBDashed,
       3: ebConfig?.c?.name ? `${t.typeCDotted.split('(')[0].trim()} — ${ebConfig.c.name}` : t.typeCDotted,
     };
-    const ebPrices: Record<number, number> = { 1: ebConfig?.a?.price || 0, 2: ebConfig?.b?.price || 0, 3: ebConfig?.c?.price || 0 };
-    let ebTotalCost = 0;
-    [1, 2, 3].forEach(t => {
-      if (byType[t] > 0) {
-        const meters = byType[t] / 1000;
-        const cost = meters * ebPrices[t];
-        ebTotalCost += cost;
-        doc.text(`${ebNames[t]}: ${meters.toFixed(2)} m`, 25, cutListY);
+    [1, 2, 3].forEach(tt => {
+      if (byType[tt] > 0) {
+        doc.text(`${ebNames[tt]}: ${(byType[tt] / 1000).toFixed(2)} m`, 25, cutListY);
         cutListY += 5;
       }
     });
@@ -442,6 +471,15 @@ export async function exportOptimizerPDF(
     doc.setFont('Helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
     doc.text(t.ebWasteNote, 25, cutListY);
   }
+
+  // ── Cut list by Material ──────────────────────────────────
+  const byMaterial = new Map<string, typeof allPieces>();
+  allPieces.forEach(item => {
+    const mat = item.piece.piece.material || t.unassigned;
+    if (!byMaterial.has(mat)) byMaterial.set(mat, []);
+    byMaterial.get(mat)!.push(item);
+  });
+  renderCutList(t.cutListByMaterial, byMaterial, t.material);
 
   const filePrefix = lang === 'es' ? 'optimizacion' : 'optimization';
   doc.save(`${filePrefix}_${(projectName || 'project').replace(/\s+/g, '_')}.pdf`);

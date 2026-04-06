@@ -139,7 +139,7 @@ export function OptimizerSidebar() {
       .then(({ data }) => { if (data) setEdgebandItems(data); });
   }, []);
 
-  const stockNames = Array.from(new Set(store.stocks.map(s => s.nombre))).filter(Boolean);
+  const stockNames = Array.from(new Set([...store.stocks.map(s => s.nombre), ...store.pieces.map(p => p.material)])).filter(Boolean);
 
   // ── Piece add state ───────────────────────────────────────
   const [pAncho, setPAncho] = useState('');
@@ -555,12 +555,12 @@ export function OptimizerSidebar() {
                           placeholder="—" className="w-full bg-transparent text-sm border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded px-1 py-0.5 outline-none text-slate-800" />
                       </td>
                       <td className="py-1 px-2">
-                        <input type="number" defaultValue={parseFloat(fromMM(p.ancho, unit).toFixed(3))}
+                        <input type="number" key={`w-${p.id}-${unit}`} defaultValue={parseFloat(fromMM(p.ancho, unit).toFixed(3))}
                           onBlur={e => { const v = parseFloat(e.target.value); if (v > 0) store.updatePiece(p.id, { ancho: toMM(v, unit) }); }}
                           className="w-full bg-transparent text-sm text-right border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded px-1 py-0.5 outline-none tabular-nums text-slate-700" />
                       </td>
                       <td className="py-1 px-2">
-                        <input type="number" defaultValue={parseFloat(fromMM(p.alto, unit).toFixed(3))}
+                        <input type="number" key={`h-${p.id}-${unit}`} defaultValue={parseFloat(fromMM(p.alto, unit).toFixed(3))}
                           onBlur={e => { const v = parseFloat(e.target.value); if (v > 0) store.updatePiece(p.id, { alto: toMM(v, unit) }); }}
                           className="w-full bg-transparent text-sm text-right border border-transparent hover:border-slate-200/70 focus:border-blue-500 rounded px-1 py-0.5 outline-none tabular-nums text-slate-700" />
                       </td>
