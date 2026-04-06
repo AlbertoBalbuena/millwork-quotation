@@ -168,7 +168,7 @@ export function exportOptimizerPDF(
         const bgY = py + ph / 2 - bgH / 2;
 
         doc.saveGraphicsState();
-        doc.setGState(new (doc as any).GState({ opacity: 0.55 }));
+        doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
         doc.setFillColor(255, 255, 255);
         doc.rect(bgX, bgY, bgW, bgH, 'F');
         doc.setGState(new (doc as any).GState({ opacity: 1 }));
