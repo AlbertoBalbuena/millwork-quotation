@@ -275,8 +275,8 @@ export function OptimizerSidebar() {
   return (
     <div className="flex-1 overflow-y-auto bg-white">
 
-      {/* ═══ PANELS ═════════════════════════════════════════ */}
-      <SectionHeader icon={LayoutList} title="Panels" open={panelsOpen} onToggle={() => setPanelsOpen(v => !v)} />
+      {/* ═══ PARTS ══════════════════════════════════════════ */}
+      <SectionHeader icon={LayoutList} title="Parts" open={panelsOpen} onToggle={() => setPanelsOpen(v => !v)} />
       {panelsOpen && (
         <div>
           {/* Area + Material + grain bar */}
@@ -382,7 +382,7 @@ export function OptimizerSidebar() {
             });
             return (
               <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex-wrap gap-1">
-                <span>{store.pieces.length} panel{store.pieces.length !== 1 ? 's' : ''}</span>
+                <span>{store.pieces.length} part{store.pieces.length !== 1 ? 's' : ''}</span>
                 <span>{(store.pieces.reduce((s, p) => s + p.ancho * p.alto * p.cantidad, 0) / 1e6).toFixed(2)} m²</span>
                 {totalEB > 0 && <span className="text-amber-600">EB: {(totalEB / 1000).toFixed(2)}m</span>}
                 {store.pieces.length > 0 && (
