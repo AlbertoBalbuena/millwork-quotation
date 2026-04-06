@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
+import ReactDOM from 'react-dom';
 import { ChevronDown, Layers, Settings, LayoutList, X, Plus, FolderOpen, Trash2 } from 'lucide-react';
 import { useOptimizerStore } from '../../hooks/useOptimizerStore';
 import { toMM, fromMM } from '../../lib/optimizer/units';
@@ -17,6 +18,7 @@ function CompactAutocomplete({ options, value, onChange, placeholder, className 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [hlIdx, setHlIdx] = useState(0);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -25,12 +27,25 @@ function CompactAutocomplete({ options, value, onChange, placeholder, className 
   const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
 
   useEffect(() => {
-    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); } };
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        // Also check if click is inside the fixed dropdown
+        const drop = document.getElementById('ca-dropdown');
+        if (drop && drop.contains(e.target as Node)) return;
+        setOpen(false); setSearch('');
+      }
+    };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+  useEffect(() => {
+    if (open && inputRef.current) inputRef.current.focus();
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setDropPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 220) });
+    }
+  }, [open]);
   useEffect(() => { setHlIdx(0); }, [search]);
   useEffect(() => {
     if (open && listRef.current && hlIdx >= 0) {
@@ -59,8 +74,9 @@ function CompactAutocomplete({ options, value, onChange, placeholder, className 
           {selected?.label || placeholder || 'Select...'}
         </button>
       )}
-      {open && (
-        <div className="absolute z-50 left-0 right-0 mt-0.5 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
+      {open && dropPos && ReactDOM.createPortal(
+        <div id="ca-dropdown" style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999 }}
+          className="bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-auto">
           <div ref={listRef}>
             {filtered.length > 0 ? filtered.map((o, i) => (
               <div key={o.value} onClick={() => { onChange(o.value); setOpen(false); setSearch(''); }}
@@ -71,7 +87,8 @@ function CompactAutocomplete({ options, value, onChange, placeholder, className 
               <div className="px-3 py-2 text-sm text-slate-400 text-center">No results</div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
