@@ -267,10 +267,8 @@ export function OptimizerPage() {
       {/* ── Tab content ──────────────────────────────────── */}
       <div className="flex-1 overflow-hidden min-h-0">
         {store.activeTab === 'setup' ? (
-          <div className="h-full overflow-y-auto bg-slate-50">
-            <div className="max-w-5xl mx-auto p-4">
-              <OptimizerSidebar />
-            </div>
+          <div className="h-full overflow-hidden bg-slate-50">
+            <OptimizerSidebar />
           </div>
         ) : (
           <div className="h-full flex flex-col lg:flex-row overflow-hidden">
