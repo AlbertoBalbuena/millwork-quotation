@@ -273,8 +273,8 @@ class Optimizer {
     const usageCount: Record<string, number> = {};
 
     for (const p of pcs) {
-      const fitsN = (s: { ancho: number; alto: number }) => p.ancho <= s.ancho && p.alto <= s.alto;
-      const fitsR = (s: { ancho: number; alto: number }) => p.veta === 'none' && p.alto <= s.ancho && p.ancho <= s.alto;
+      const fitsN = (s: { ancho: number; alto: number }) => p.veta !== 'vertical' && p.ancho <= s.ancho && p.alto <= s.alto;
+      const fitsR = (s: { ancho: number; alto: number }) => p.veta !== 'horizontal' && p.alto <= s.ancho && p.ancho <= s.alto;
 
       let bestBoard: Board | null = null;
       let bestS = Infinity, bestS2 = Infinity, bestRot = false;
@@ -313,8 +313,8 @@ class Optimizer {
         const nb = new Board(st.ancho, st.alto, sierra, mat, grs, {
           nombre: st.nombre, costo: st.costo, isRemnant: !!st.isRemnant,
         }, this.trim);
-        const fn = p.ancho <= st.ancho && p.alto <= st.alto;
-        const fr = p.veta === 'none' && p.alto <= st.ancho && p.ancho <= st.alto;
+        const fn = p.veta !== 'vertical' && p.ancho <= st.ancho && p.alto <= st.alto;
+        const fr = p.veta !== 'horizontal' && p.alto <= st.ancho && p.ancho <= st.alto;
         if (fn && nb.place(p, p.ancho, p.alto, false, p._idx, heuristic)) {
           boards.push(nb); if (st.isRemnant) st._used = true;
           if (st.stockId) usageCount[st.stockId] = (usageCount[st.stockId] || 0) + 1;
@@ -382,8 +382,11 @@ class Optimizer {
             let ok = false;
             for (const tb of copies) {
               if (tb.place(pp.piece, pp.w, pp.h, pp.rotated, pp.idx, h)) { ok = true; break; }
-              if (pp.piece.veta === 'none') {
-                if (tb.place(pp.piece, pp.h, pp.w, !pp.rotated, pp.idx, h)) { ok = true; break; }
+              {
+                // Can we flip? Only if the alternate orientation is allowed by veta
+                const altRotated = !pp.rotated;
+                const altAllowed = pp.piece.veta === 'none' || (pp.piece.veta === 'horizontal' && !altRotated) || (pp.piece.veta === 'vertical' && altRotated);
+                if (altAllowed && tb.place(pp.piece, pp.h, pp.w, altRotated, pp.idx, h)) { ok = true; break; }
               }
             }
             if (!ok) { allOk = false; break; }
@@ -403,9 +406,11 @@ class Optimizer {
               const tgt = boards[ti];
               const nt = new Board(tgt.ancho, tgt.alto, tgt.sierra, tgt.material, tgt.grosor, tgt.stockInfo, this.trim);
               for (const p of tgt.placed) nt.place(p.piece, p.w, p.h, p.rotated, p.idx, 'baf');
+              const altRot = !pp.rotated;
+              const altOk = pp.piece.veta === 'none' || (pp.piece.veta === 'horizontal' && !altRot) || (pp.piece.veta === 'vertical' && altRot);
               const fits =
                 nt.place(pp.piece, pp.w, pp.h, pp.rotated, pp.idx, 'baf') ||
-                (pp.piece.veta === 'none' && nt.place(pp.piece, pp.h, pp.w, !pp.rotated, pp.idx, 'baf'));
+                (altOk && nt.place(pp.piece, pp.h, pp.w, altRot, pp.idx, 'baf'));
               if (fits) {
                 const ns = new Board(src.ancho, src.alto, src.sierra, src.material, src.grosor, src.stockInfo, this.trim);
                 let srcOk = true;
