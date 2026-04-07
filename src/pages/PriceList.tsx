@@ -10,7 +10,11 @@ import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { AutocompleteSelect } from '../components/AutocompleteSelect';
 import { formatCurrency } from '../lib/calculations';
+import { InventoryStockTable } from '../components/inventory/InventoryStockTable';
+import { InventoryMovementsTable } from '../components/inventory/InventoryMovementsTable';
 import type { PriceListItem, PriceListInsert } from '../types';
+
+type InventoryTab = 'catalog' | 'stock' | 'movements';
 
 type SortField = 'concept_description' | 'type' | 'unit' | 'price' | 'price_last_updated_at';
 type SortDirection = 'asc' | 'desc';
@@ -27,6 +31,7 @@ export function PriceList() {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PriceListItem | null>(null);
+  const [activeTab, setActiveTab] = useState<InventoryTab>('catalog');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -250,17 +255,41 @@ export function PriceList() {
     <div className="page-enter">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hero-enter">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Price List</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Inventory</h1>
           <p className="mt-1 text-slate-500 text-sm">
             {items.length} item{items.length !== 1 ? 's' : ''} &middot; Manage materials, hardware, and pricing
           </p>
         </div>
-        <Button onClick={handleAddNew} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
+        {activeTab === 'catalog' && (
+          <Button onClick={handleAddNew} className="self-start sm:self-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div className="mb-5 flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+        {([
+          { key: 'catalog', label: 'Catalog' },
+          { key: 'stock', label: 'Stock' },
+          { key: 'movements', label: 'Movements' },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              activeTab === tab.key
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'catalog' && (<>
       <div className="mb-5 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -343,6 +372,10 @@ export function PriceList() {
           onDelete={handleDelete}
         />
       )}
+      </>)}
+
+      {activeTab === 'stock' && <InventoryStockTable />}
+      {activeTab === 'movements' && <InventoryMovementsTable />}
 
     </div>
 

@@ -4,7 +4,7 @@ import {
   ArrowLeft, Pencil as Edit2, FileText, FolderOpen, Hammer, BarChart3,
   Plus, Calendar, Tag, User, MapPin, Check, Save, X, Copy, Trash2,
   Receipt, ClipboardList, Files, ScrollText, MoreVertical, TrendingUp,
-  ArrowUpDown, Upload
+  ArrowUpDown, Upload, ShoppingCart
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
@@ -16,6 +16,7 @@ import { TasksSection } from '../components/tasks/TasksSection';
 import { DocumentationSection } from '../components/DocumentationSection';
 import { BitacoraSection } from '../components/BitacoraSection';
 import { CrossQuotationAnalytics } from '../components/CrossQuotationAnalytics';
+import { PurchaseListSection } from '../components/purchases/PurchaseListSection';
 import type { Project, Quotation, TeamMember } from '../types';
 import { useCurrentMember } from '../lib/useCurrentMember';
 
@@ -45,7 +46,7 @@ export function ProjectPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [quotationAreas, setQuotationAreas] = useState<Record<string, { name: string; subtotal: number }[]>>({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'quotations' | 'management' | 'documents' | 'logs' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'quotations' | 'purchases' | 'management' | 'documents' | 'logs' | 'analytics'>('overview');
 
   // Overview editing
   const [editing, setEditing] = useState(false);
@@ -286,6 +287,7 @@ export function ProjectPage() {
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: FolderOpen },
     { id: 'quotations' as const, label: 'Quotations', icon: Receipt },
+    { id: 'purchases' as const, label: 'Purchases', icon: ShoppingCart },
     { id: 'management' as const, label: 'Management', icon: ClipboardList },
     { id: 'documents' as const, label: 'Documents', icon: Files },
     { id: 'logs' as const, label: 'Logs', icon: ScrollText },
@@ -601,6 +603,11 @@ export function ProjectPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Purchases tab */}
+      {activeTab === 'purchases' && (
+        <PurchaseListSection projectId={project.id} />
       )}
 
       {/* Management tab — Tasks */}
