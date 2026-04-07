@@ -27,6 +27,7 @@ import { computeQuotationTotalsSqft } from '../lib/pricing/computeQuotationTotal
 import { computeOptimizerQuotationTotal } from '../lib/optimizer/quotation/computeOptimizerQuotationTotal';
 import type { OptimizerRunSnapshot } from '../lib/optimizer/quotation/types';
 import { QuotationOptimizerTab } from '../components/optimizer/quotation/QuotationOptimizerTab';
+import { OptimizerRunsAnalytics } from '../components/optimizer/quotation/OptimizerRunsAnalytics';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
 import { BulkMaterialChangeModal } from '../components/BulkMaterialChangeModal';
 import { MaterialPriceUpdateModal } from '../components/MaterialPriceUpdateModal';
@@ -1814,6 +1815,8 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                 <ProjectCharts areas={areas} products={products} />
 
                 <MaterialBreakdown areas={areas} />
+
+                <OptimizerRunsAnalytics quotationId={project.id} />
               </>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
