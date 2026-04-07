@@ -34,9 +34,12 @@ const STATUS_STYLES: Record<string, string> = {
   'In Transit': 'bg-amber-100 text-amber-700',
   'In Warehouse': 'bg-green-100 text-green-700',
   Return: 'bg-red-100 text-red-700',
+  Delay: 'bg-orange-100 text-orange-700',
+  Pending: 'bg-yellow-100 text-yellow-700',
 };
 
 const PRIORITY_DOT: Record<string, string> = {
+  Urgent: 'bg-red-600',
   High: 'bg-red-500',
   Medium: 'bg-amber-400',
   Low: 'bg-green-500',
@@ -318,6 +321,7 @@ export function PurchaseItemRow({
             onChange={(e) => handleImmediateUpdate({ priority: e.target.value })}
             className="w-full appearance-none pl-5 pr-2 py-1.5 text-xs font-medium border border-transparent hover:border-slate-200 focus:border-blue-300 rounded-md outline-none transition bg-transparent cursor-pointer"
           >
+            <option value="Urgent">Urgent</option>
             <option value="High">High</option>
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
@@ -334,9 +338,11 @@ export function PurchaseItemRow({
           className={`w-full appearance-none px-2 py-1.5 text-[11px] font-medium rounded-full cursor-pointer outline-none transition ${STATUS_STYLES[item.status ?? 'Ordered']}`}
         >
           <option value="Ordered">Ordered</option>
+          <option value="Pending">Pending</option>
           <option value="Paid">Paid</option>
           <option value="In Transit">In Transit</option>
           <option value="In Warehouse">In Warehouse</option>
+          <option value="Delay">Delay</option>
           <option value="Return">Return</option>
         </select>
       </td>

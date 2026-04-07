@@ -3,17 +3,20 @@ import { formatCurrency } from '../lib/calculations';
 import { format } from 'date-fns';
 
 const PRIORITY_COLOR: Record<string, string> = {
+  Urgent: '#dc2626',
   High: '#ef4444',
   Medium: '#f59e0b',
   Low: '#22c55e',
 };
 
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  Ordered:      { bg: '#f1f5f9', text: '#475569' },
-  Paid:         { bg: '#dbeafe', text: '#1d4ed8' },
-  'In Transit': { bg: '#fef3c7', text: '#92400e' },
+  Ordered:        { bg: '#f1f5f9', text: '#475569' },
+  Pending:        { bg: '#fef9c3', text: '#854d0e' },
+  Paid:           { bg: '#dbeafe', text: '#1d4ed8' },
+  'In Transit':   { bg: '#fef3c7', text: '#92400e' },
   'In Warehouse': { bg: '#dcfce7', text: '#166534' },
-  Return:       { bg: '#fee2e2', text: '#991b1b' },
+  Delay:          { bg: '#ffedd5', text: '#9a3412' },
+  Return:         { bg: '#fee2e2', text: '#991b1b' },
 };
 
 export function printPurchaseList(

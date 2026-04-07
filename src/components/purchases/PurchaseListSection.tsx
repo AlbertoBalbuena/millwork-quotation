@@ -23,11 +23,12 @@ interface PriceListOption {
   price_list_suppliers?: { supplier_price: number | null; is_primary: boolean }[];
 }
 
-const STATUSES = ['All', 'Ordered', 'Paid', 'In Transit', 'In Warehouse', 'Return'] as const;
-const PRIORITIES = ['All', 'High', 'Medium', 'Low'] as const;
+const STATUSES = ['All', 'Ordered', 'Pending', 'Paid', 'In Transit', 'In Warehouse', 'Delay', 'Return'] as const;
+const PRIORITIES = ['All', 'Urgent', 'High', 'Medium', 'Low'] as const;
 type GroupBy = 'none' | 'provider' | 'status' | 'priority';
 
 const PRIORITY_DOT: Record<string, string> = {
+  Urgent: 'bg-red-600',
   High: 'bg-red-500',
   Medium: 'bg-amber-400',
   Low: 'bg-green-500',
@@ -35,9 +36,11 @@ const PRIORITY_DOT: Record<string, string> = {
 
 const STATUS_DOT: Record<string, string> = {
   Ordered: 'bg-slate-400',
+  Pending: 'bg-yellow-400',
   Paid: 'bg-blue-500',
   'In Transit': 'bg-amber-400',
   'In Warehouse': 'bg-green-500',
+  Delay: 'bg-orange-500',
   Return: 'bg-red-500',
 };
 
