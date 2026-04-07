@@ -23,6 +23,7 @@ import { calculateAreaBoxesAndPallets } from '../lib/boxesAndPallets';
 import { useSettingsStore } from '../lib/settingsStore';
 import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
+import { computeQuotationTotalsSqft } from '../lib/pricing/computeQuotationTotalsSqft';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
 import { BulkMaterialChangeModal } from '../components/BulkMaterialChangeModal';
 import { MaterialPriceUpdateModal } from '../components/MaterialPriceUpdateModal';
@@ -256,32 +257,18 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     const _referralRate = opts?.referralRate ?? referralRate;
     const _otherExpenses = opts?.otherExpenses ?? otherExpenses;
 
-    const materialsSubtotal = areasData.reduce((sum, area) => {
-      const qty = area.quantity ?? 1;
-      const cabinetsTotal = area.cabinets.reduce((s, c) => s + c.subtotal, 0);
-      const itemsTotal = area.items.reduce((s, i) => s + i.subtotal, 0);
-      const countertopsTotal = area.countertops.reduce((s, ct) => s + ct.subtotal, 0);
-      const closetItemsTotal = area.closetItems.reduce((s, ci) => s + ci.subtotal_mxn, 0);
-      return sum + (cabinetsTotal + itemsTotal + countertopsTotal + closetItemsTotal) * qty;
-    }, 0);
-
-    const price = _profitMultiplier > 0 && _profitMultiplier < 1
-      ? materialsSubtotal / (1 - _profitMultiplier)
-      : materialsSubtotal;
-    const tariffableSubtotal = areasData.reduce((sum, area) => {
-      if (area.applies_tariff !== true) return sum;
-      const qty = area.quantity ?? 1;
-      return sum + (
-        area.cabinets.reduce((s, c) => s + c.subtotal, 0) +
-        area.items.reduce((s, i) => s + i.subtotal, 0) +
-        area.countertops.reduce((s, ct) => s + ct.subtotal, 0) +
-        area.closetItems.reduce((s, ci) => s + ci.subtotal_mxn, 0)
-      ) * qty;
-    }, 0);
-    const tariffAmount = tariffableSubtotal * _tariffMultiplier;
-    const referralAmount = (price + _installDeliveryMxn) * _referralRate;
-    const taxAmount = (price + tariffAmount + referralAmount) * (_taxPercentage / 100);
-    const fullProjectTotal = price + tariffAmount + referralAmount + taxAmount + _installDeliveryMxn + _otherExpenses;
+    // Math is delegated to a pure helper to keep the rollup testable and
+    // to share it with the optimizer-pricing path (Phase 7). The wrapper
+    // remains responsible for Supabase writes.
+    const totals = computeQuotationTotalsSqft(areasData, {
+      profitMultiplier:  _profitMultiplier,
+      tariffMultiplier:  _tariffMultiplier,
+      referralRate:      _referralRate,
+      taxPercentage:     _taxPercentage,
+      installDeliveryMxn: _installDeliveryMxn,
+      otherExpenses:     _otherExpenses,
+    });
+    const fullProjectTotal = totals.fullProjectTotal;
 
     try {
       await supabase
@@ -290,11 +277,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
         .eq('id', project.id);
 
       for (const area of areasData) {
-        const cabinetsTotal = area.cabinets.reduce((s, c) => s + c.subtotal, 0);
-        const itemsTotal = area.items.reduce((s, i) => s + i.subtotal, 0);
-        const countertopsTotal = area.countertops.reduce((s, ct) => s + ct.subtotal, 0);
-        const closetItemsTotal = area.closetItems.reduce((s, ci) => s + ci.subtotal_mxn, 0);
-        const areaTotal = cabinetsTotal + itemsTotal + countertopsTotal + closetItemsTotal;
+        const areaTotal = totals.perAreaTotal[area.id] ?? 0;
         await supabase
           .from('project_areas')
           .update({ subtotal: areaTotal })
