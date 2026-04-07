@@ -21,6 +21,13 @@ interface Props {
   totalCabinetsCount: number;
   /** Map of area_id → area name, so the per-area breakdown can show labels. */
   areasById: Record<string, string>;
+  /**
+   * Invoked after any action that could have changed the quotation total
+   * (toggle pricing method, save a new run, set a different run active,
+   * stale re-run, delete a run). Triggers the parent ProjectDetails to
+   * re-run updateProjectTotal and write the fresh total to Supabase.
+   */
+  onRecomputeRollup?: () => Promise<void> | void;
 }
 
 interface QuotationHeaderSlice {
@@ -43,7 +50,12 @@ interface QuotationHeaderSlice {
  * only updates the DB column; the user will see the total change once
  * Phase 7 lands.
  */
-export function QuotationOptimizerTab({ quotationId, totalCabinetsCount, areasById }: Props) {
+export function QuotationOptimizerTab({
+  quotationId,
+  totalCabinetsCount,
+  areasById,
+  onRecomputeRollup,
+}: Props) {
   const useStore = useMemo(() => getQuotationOptimizerStore(quotationId), [quotationId]);
 
   // Reactive slices from the per-quotation store.
@@ -129,17 +141,20 @@ export function QuotationOptimizerTab({ quotationId, totalCabinetsCount, areasBy
     try {
       await saveAsRun(name);
       setSaveName('');
+      if (onRecomputeRollup) await onRecomputeRollup();
       await refreshHeader();
     } catch { /* surfaced via lastError */ }
   }
 
   async function handleSetActive(runId: string) {
     await setActive(runId);
+    if (onRecomputeRollup) await onRecomputeRollup();
     await refreshHeader();
   }
 
   async function handleDeleteRun(runId: string) {
     await deleteRun(runId);
+    if (onRecomputeRollup) await onRecomputeRollup();
     await refreshHeader();
   }
 
@@ -154,7 +169,12 @@ export function QuotationOptimizerTab({ quotationId, totalCabinetsCount, areasBy
       // Rollback
       await refreshHeader();
       alert(`Failed to switch pricing method: ${error.message}`);
+      return;
     }
+    // Trigger the parent rollup so total_amount reflects the new choice
+    // immediately (no need to navigate away and back).
+    if (onRecomputeRollup) await onRecomputeRollup();
+    await refreshHeader();
   }
 
   async function handleStaleRerun() {
@@ -166,6 +186,7 @@ export function QuotationOptimizerTab({ quotationId, totalCabinetsCount, areasBy
       if (state.pendingResult) {
         const runNum = state.runs.length + 1;
         await saveAsRun(`Re-run #${runNum}`);
+        if (onRecomputeRollup) await onRecomputeRollup();
         await refreshHeader();
       }
     } catch { /* surfaced via lastError */ }
