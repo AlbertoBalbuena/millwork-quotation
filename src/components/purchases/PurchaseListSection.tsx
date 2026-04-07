@@ -99,8 +99,25 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
   useEffect(() => { loadItems(); }, [loadItems]);
 
   async function handleUpdate(id: string, changes: Record<string, any>) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...changes } : i)));
-    setDetailItem((prev) => prev && prev.id === id ? { ...prev, ...changes } : prev);
+    const recomputes = 'quantity' in changes || 'price' in changes;
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.id !== id) return i;
+        const merged = { ...i, ...changes };
+        if (recomputes) {
+          merged.subtotal = (merged.quantity ?? 0) * (merged.price ?? 0);
+        }
+        return merged;
+      })
+    );
+    setDetailItem((prev) => {
+      if (!prev || prev.id !== id) return prev;
+      const merged = { ...prev, ...changes };
+      if (recomputes) {
+        merged.subtotal = (merged.quantity ?? 0) * (merged.price ?? 0);
+      }
+      return merged;
+    });
     const { error } = await supabase.from('project_purchase_items').update(changes).eq('id', id);
     if (error) loadItems();
   }
