@@ -1734,8 +1734,77 @@ export type Database = {
           },
         ]
       }
+      quotation_optimizer_runs: {
+        Row: {
+          board_count: number
+          cost_per_m2: number
+          created_at: string
+          edgeband_cost: number
+          id: string
+          is_active: boolean
+          is_stale: boolean
+          material_cost: number
+          name: string
+          notes: string | null
+          quotation_id: string
+          result: Json
+          snapshot: Json
+          total_cost: number
+          total_piece_m2: number
+          updated_at: string
+          waste_pct: number
+        }
+        Insert: {
+          board_count?: number
+          cost_per_m2?: number
+          created_at?: string
+          edgeband_cost?: number
+          id?: string
+          is_active?: boolean
+          is_stale?: boolean
+          material_cost?: number
+          name?: string
+          notes?: string | null
+          quotation_id: string
+          result: Json
+          snapshot: Json
+          total_cost?: number
+          total_piece_m2?: number
+          updated_at?: string
+          waste_pct?: number
+        }
+        Update: {
+          board_count?: number
+          cost_per_m2?: number
+          created_at?: string
+          edgeband_cost?: number
+          id?: string
+          is_active?: boolean
+          is_stale?: boolean
+          material_cost?: number
+          name?: string
+          notes?: string | null
+          quotation_id?: string
+          result?: Json
+          snapshot?: Json
+          total_cost?: number
+          total_piece_m2?: number
+          updated_at?: string
+          waste_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_optimizer_runs_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotations: {
         Row: {
+          active_optimizer_run_id: string | null
           address: string | null
           created_at: string | null
           customer: string | null
@@ -1747,12 +1816,15 @@ export type Database = {
           install_delivery_per_box_usd: number | null
           install_delivery_usd: number | null
           name: string
+          optimizer_is_stale: boolean
+          optimizer_total_amount: number | null
           other_expenses: number | null
           other_expenses_label: string | null
           pdf_address: string | null
           pdf_customer: string | null
           pdf_project_brief: string | null
           pdf_project_name: string | null
+          pricing_method: string
           profit_multiplier: number | null
           project_brief: string | null
           project_details: string | null
@@ -1769,6 +1841,7 @@ export type Database = {
           version_number: number | null
         }
         Insert: {
+          active_optimizer_run_id?: string | null
           address?: string | null
           created_at?: string | null
           customer?: string | null
@@ -1780,12 +1853,15 @@ export type Database = {
           install_delivery_per_box_usd?: number | null
           install_delivery_usd?: number | null
           name: string
+          optimizer_is_stale?: boolean
+          optimizer_total_amount?: number | null
           other_expenses?: number | null
           other_expenses_label?: string | null
           pdf_address?: string | null
           pdf_customer?: string | null
           pdf_project_brief?: string | null
           pdf_project_name?: string | null
+          pricing_method?: string
           profit_multiplier?: number | null
           project_brief?: string | null
           project_details?: string | null
@@ -1802,6 +1878,7 @@ export type Database = {
           version_number?: number | null
         }
         Update: {
+          active_optimizer_run_id?: string | null
           address?: string | null
           created_at?: string | null
           customer?: string | null
@@ -1813,12 +1890,15 @@ export type Database = {
           install_delivery_per_box_usd?: number | null
           install_delivery_usd?: number | null
           name?: string
+          optimizer_is_stale?: boolean
+          optimizer_total_amount?: number | null
           other_expenses?: number | null
           other_expenses_label?: string | null
           pdf_address?: string | null
           pdf_customer?: string | null
           pdf_project_brief?: string | null
           pdf_project_name?: string | null
+          pricing_method?: string
           profit_multiplier?: number | null
           project_brief?: string | null
           project_details?: string | null
@@ -1835,6 +1915,13 @@ export type Database = {
           version_number?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quotations_active_optimizer_run_fk"
+            columns: ["active_optimizer_run_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_optimizer_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotations_project_id_fkey"
             columns: ["project_id"]

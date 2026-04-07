@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Pencil as Edit2, Trash2, Copy, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, Hammer, RefreshCw, Search, X, AlertTriangle, GripVertical, ChevronUp, ChevronDown, Info, RotateCcw, FileText, BarChart3, History, SeparatorHorizontal } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil as Edit2, Trash2, Copy, Package, Truck, DollarSign, ListPlus, Calculator, Receipt, Hammer, RefreshCw, Search, X, AlertTriangle, GripVertical, ChevronUp, ChevronDown, Info, RotateCcw, FileText, BarChart3, History, SeparatorHorizontal, Scissors } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchAllProducts } from '../lib/fetchAllProducts';
 import { Button } from '../components/Button';
@@ -23,6 +23,11 @@ import { calculateAreaBoxesAndPallets } from '../lib/boxesAndPallets';
 import { useSettingsStore } from '../lib/settingsStore';
 import { recalculateAreaEdgebandCosts } from '../lib/edgebandRolls';
 import { recalculateAreaSheetMaterialCosts } from '../lib/sheetMaterials';
+import { computeQuotationTotalsSqft } from '../lib/pricing/computeQuotationTotalsSqft';
+import { computeOptimizerQuotationTotal } from '../lib/optimizer/quotation/computeOptimizerQuotationTotal';
+import type { OptimizerRunSnapshot } from '../lib/optimizer/quotation/types';
+import { QuotationOptimizerTab } from '../components/optimizer/quotation/QuotationOptimizerTab';
+import { OptimizerRunsAnalytics } from '../components/optimizer/quotation/OptimizerRunsAnalytics';
 import { SaveTemplateModal } from '../components/SaveTemplateModal';
 import { BulkMaterialChangeModal } from '../components/BulkMaterialChangeModal';
 import { MaterialPriceUpdateModal } from '../components/MaterialPriceUpdateModal';
@@ -63,7 +68,7 @@ export function ProjectDetails({ project: initialProject, parentProject, onBack 
   const [editingCountertop, setEditingCountertop] = useState<AreaCountertop | null>(null);
   const [selectedAreaForCloset, setSelectedAreaForCloset] = useState<string | null>(null);
   const [editingClosetItem, setEditingClosetItem] = useState<AreaClosetItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'pricing' | 'analytics' | 'history'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'pricing' | 'cutlist' | 'analytics' | 'history'>('info');
 
   useEffect(() => {
     setActiveProjectTab(activeTab);
@@ -256,45 +261,102 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     const _referralRate = opts?.referralRate ?? referralRate;
     const _otherExpenses = opts?.otherExpenses ?? otherExpenses;
 
-    const materialsSubtotal = areasData.reduce((sum, area) => {
-      const qty = area.quantity ?? 1;
-      const cabinetsTotal = area.cabinets.reduce((s, c) => s + c.subtotal, 0);
-      const itemsTotal = area.items.reduce((s, i) => s + i.subtotal, 0);
-      const countertopsTotal = area.countertops.reduce((s, ct) => s + ct.subtotal, 0);
-      const closetItemsTotal = area.closetItems.reduce((s, ci) => s + ci.subtotal_mxn, 0);
-      return sum + (cabinetsTotal + itemsTotal + countertopsTotal + closetItemsTotal) * qty;
-    }, 0);
+    // Math is delegated to a pure helper to keep the rollup testable and
+    // to share it with the optimizer-pricing path (Phase 7). The wrapper
+    // remains responsible for Supabase writes.
+    const totals = computeQuotationTotalsSqft(areasData, {
+      profitMultiplier:  _profitMultiplier,
+      tariffMultiplier:  _tariffMultiplier,
+      referralRate:      _referralRate,
+      taxPercentage:     _taxPercentage,
+      installDeliveryMxn: _installDeliveryMxn,
+      otherExpenses:     _otherExpenses,
+    });
+    const sqftProjectTotal = totals.fullProjectTotal;
 
-    const price = _profitMultiplier > 0 && _profitMultiplier < 1
-      ? materialsSubtotal / (1 - _profitMultiplier)
-      : materialsSubtotal;
-    const tariffableSubtotal = areasData.reduce((sum, area) => {
-      if (area.applies_tariff !== true) return sum;
-      const qty = area.quantity ?? 1;
-      return sum + (
-        area.cabinets.reduce((s, c) => s + c.subtotal, 0) +
-        area.items.reduce((s, i) => s + i.subtotal, 0) +
-        area.countertops.reduce((s, ct) => s + ct.subtotal, 0) +
-        area.closetItems.reduce((s, ci) => s + ci.subtotal_mxn, 0)
-      ) * qty;
-    }, 0);
-    const tariffAmount = tariffableSubtotal * _tariffMultiplier;
-    const referralAmount = (price + _installDeliveryMxn) * _referralRate;
-    const taxAmount = (price + tariffAmount + referralAmount) * (_taxPercentage / 100);
-    const fullProjectTotal = price + tariffAmount + referralAmount + taxAmount + _installDeliveryMxn + _otherExpenses;
+    // ── Phase 7: optimizer-pricing rollup branch ────────────────────────
+    // Whenever the quotation has an active optimizer run, recompute the
+    // optimizer grand total in parallel so the ft²-vs-optimizer comparison
+    // card always stays fresh. The fresh value is written to
+    // `optimizer_total_amount`.
+    //
+    // Which value ends up in `total_amount` (the "official" total read by
+    // PDF, dashboards, etc.) depends on `quotations.pricing_method`:
+    //   - 'sqft'      → sqft total (legacy behavior, unchanged)
+    //   - 'optimizer' → optimizer grand total, OR fall back to sqft if the
+    //                    active run is stale / missing (safety net)
+    //
+    // Both the mode and the active_run_id are re-fetched from DB here to
+    // bypass React prop staleness (the user may have toggled the method
+    // from within the Cut-list tab without remounting ProjectDetails).
+    let optimizerGrandTotal: number | null = null;
+    let writeTotal = sqftProjectTotal;
 
     try {
+      const { data: q } = await supabase
+        .from('quotations')
+        .select('pricing_method, active_optimizer_run_id')
+        .eq('id', project.id)
+        .maybeSingle();
+
+      const pricingMethod: 'sqft' | 'optimizer' =
+        (q?.pricing_method as 'sqft' | 'optimizer') ?? 'sqft';
+      const activeRunId = q?.active_optimizer_run_id ?? null;
+
+      if (activeRunId) {
+        const { data: run } = await supabase
+          .from('quotation_optimizer_runs')
+          .select('material_cost, edgeband_cost, is_stale, snapshot')
+          .eq('id', activeRunId)
+          .maybeSingle();
+
+        if (run && !run.is_stale) {
+          const snapshot = run.snapshot as unknown as OptimizerRunSnapshot;
+          const cabinetsCovered = new Set<string>(snapshot?.cabinetsCovered ?? []);
+
+          const optTotals = computeOptimizerQuotationTotal({
+            materialCost: Number(run.material_cost ?? 0),
+            edgebandCost: Number(run.edgeband_cost ?? 0),
+            areasData,
+            cabinetsCovered,
+            multipliers: {
+              profitMultiplier:  _profitMultiplier,
+              tariffMultiplier:  _tariffMultiplier,
+              referralRate:      _referralRate,
+              taxPercentage:     _taxPercentage,
+              installDeliveryMxn: _installDeliveryMxn,
+              otherExpenses:     _otherExpenses,
+            },
+          });
+          optimizerGrandTotal = optTotals.fullProjectTotal;
+          if (pricingMethod === 'optimizer') {
+            writeTotal = optimizerGrandTotal;
+          }
+        } else if (run?.is_stale && pricingMethod === 'optimizer') {
+          console.warn(
+            `[updateProjectTotal] Active optimizer run for quotation ${project.id} is stale; falling back to ft² total.`,
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[updateProjectTotal] optimizer branch failed; keeping sqft total:', err);
+    }
+
+    try {
+      const updatePayload: { total_amount: number; optimizer_total_amount?: number } = {
+        total_amount: writeTotal,
+      };
+      if (optimizerGrandTotal !== null) {
+        updatePayload.optimizer_total_amount = optimizerGrandTotal;
+      }
+
       await supabase
         .from('quotations')
-        .update({ total_amount: fullProjectTotal })
+        .update(updatePayload)
         .eq('id', project.id);
 
       for (const area of areasData) {
-        const cabinetsTotal = area.cabinets.reduce((s, c) => s + c.subtotal, 0);
-        const itemsTotal = area.items.reduce((s, i) => s + i.subtotal, 0);
-        const countertopsTotal = area.countertops.reduce((s, ct) => s + ct.subtotal, 0);
-        const closetItemsTotal = area.closetItems.reduce((s, ci) => s + ci.subtotal_mxn, 0);
-        const areaTotal = cabinetsTotal + itemsTotal + countertopsTotal + closetItemsTotal;
+        const areaTotal = totals.perAreaTotal[area.id] ?? 0;
         await supabase
           .from('project_areas')
           .update({ subtotal: areaTotal })
@@ -1032,6 +1094,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
   const tabs = [
     { id: 'info' as const, label: 'Info', icon: Receipt },
     { id: 'pricing' as const, label: 'Pricing', icon: Calculator },
+    { id: 'cutlist' as const, label: 'Cut-list Pricing', icon: Scissors },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
     { id: 'history' as const, label: 'History', icon: History },
   ];
@@ -1752,6 +1815,8 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                 <ProjectCharts areas={areas} products={products} />
 
                 <MaterialBreakdown areas={areas} />
+
+                <OptimizerRunsAnalytics quotationId={project.id} />
               </>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
@@ -1762,6 +1827,15 @@ const [isEditingDate, setIsEditingDate] = useState(false);
             )}
           </div>
         </ErrorBoundary>
+      )}
+
+      {activeTab === 'cutlist' && (
+        <QuotationOptimizerTab
+          quotationId={project.id}
+          totalCabinetsCount={areas.reduce((s, a) => s + a.cabinets.length, 0)}
+          areasById={Object.fromEntries(areas.map((a) => [a.id, a.name]))}
+          onRecomputeRollup={() => updateProjectTotal(areas)}
+        />
       )}
 
       {activeTab === 'history' && (

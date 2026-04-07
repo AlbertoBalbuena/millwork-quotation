@@ -13,7 +13,7 @@ export interface CutPiece {
   ancho: number;    // mm
   alto: number;     // mm
   cantidad: number;
-  material: 'cuerpo' | 'frente' | 'custom';
+  material: 'cuerpo' | 'frente' | 'back' | 'custom';
   cubrecanto?: Cubrecanto;
 }
 
@@ -34,6 +34,12 @@ export type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
 export type Quotation = Database['public']['Tables']['quotations']['Row'];
 export type QuotationInsert = Database['public']['Tables']['quotations']['Insert'];
 export type QuotationUpdate = Database['public']['Tables']['quotations']['Update'];
+
+// Optimizer-based pricing (alternative to ft² rollup)
+export type PricingMethod = 'sqft' | 'optimizer';
+export type QuotationOptimizerRun = Database['public']['Tables']['quotation_optimizer_runs']['Row'];
+export type QuotationOptimizerRunInsert = Database['public']['Tables']['quotation_optimizer_runs']['Insert'];
+export type QuotationOptimizerRunUpdate = Database['public']['Tables']['quotation_optimizer_runs']['Update'];
 
 export type ProjectArea = Database['public']['Tables']['project_areas']['Row'];
 export type ProjectAreaInsert = Database['public']['Tables']['project_areas']['Insert'];
