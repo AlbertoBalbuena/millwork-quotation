@@ -10,7 +10,11 @@ import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { AutocompleteSelect } from '../components/AutocompleteSelect';
 import { formatCurrency } from '../lib/calculations';
+import { InventoryStockTable } from '../components/inventory/InventoryStockTable';
+import { InventoryMovementsTable } from '../components/inventory/InventoryMovementsTable';
 import type { PriceListItem, PriceListInsert } from '../types';
+
+type ActiveTab = 'Catalog' | 'Stock' | 'Movements';
 
 type SortField = 'concept_description' | 'type' | 'unit' | 'price' | 'price_last_updated_at';
 type SortDirection = 'asc' | 'desc';
@@ -27,6 +31,7 @@ export function PriceList() {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PriceListItem | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('Catalog');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -248,102 +253,129 @@ export function PriceList() {
   return (
     <>
     <div className="page-enter">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hero-enter">
+      {/* Header */}
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hero-enter">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Price List</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Inventory</h1>
           <p className="mt-1 text-slate-500 text-sm">
-            {items.length} item{items.length !== 1 ? 's' : ''} &middot; Manage materials, hardware, and pricing
+            {items.length} item{items.length !== 1 ? 's' : ''} &middot; Catalog, stock levels, and movements
           </p>
         </div>
-        <Button onClick={handleAddNew} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
+        {activeTab === 'Catalog' && (
+          <Button onClick={handleAddNew} className="self-start sm:self-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        )}
       </div>
 
-      <div className="mb-5 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by description, type, or SKU..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2.5 w-full text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 shadow-sm"
-          />
-        </div>
-
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-slate-700 min-w-[160px]"
-        >
-          <option value="">All Types</option>
-          {uniqueTypes.map((type) => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg self-start sm:self-auto">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 p-1 bg-slate-100 rounded-xl w-fit">
+        {(['Catalog', 'Stock', 'Movements'] as ActiveTab[]).map((tab) => (
           <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-            title="List view"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === tab
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <LayoutList className="h-4 w-4" />
+            {tab}
           </button>
-          <button
-            onClick={() => setViewMode('card')}
-            className={`p-2 rounded-md transition-all ${viewMode === 'card' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-            title="Card view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </button>
-        </div>
+        ))}
       </div>
 
-      {filteredItems.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center py-20 px-6">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-            <Search className="h-7 w-7 text-slate-400" />
-          </div>
-          <p className="text-slate-700 font-medium mb-1">No items found</p>
-          <p className="text-sm text-slate-400 text-center max-w-xs">
-            {searchTerm || typeFilter
-              ? 'Try adjusting your search or filters.'
-              : 'Add your first price list item to get started.'}
-          </p>
-          {!searchTerm && !typeFilter && (
-            <button
-              onClick={handleAddNew}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+      {/* Tab content */}
+      {activeTab === 'Stock' && <InventoryStockTable />}
+      {activeTab === 'Movements' && <InventoryMovementsTable />}
+
+      {activeTab === 'Catalog' && (
+        <>
+          <div className="mb-5 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by description, type, or SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 py-2.5 w-full text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 shadow-sm"
+              />
+            </div>
+
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-slate-700 min-w-[160px]"
             >
-              <Plus className="h-4 w-4" />
-              Add Item
-            </button>
-          )}
-        </div>
-      ) : viewMode === 'list' ? (
-        <ListView
-          items={filteredItems}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          onOpenDetail={handleOpenDetail}
-          onEdit={handleEdit}
-          onDuplicate={handleDuplicate}
-          onDelete={handleDelete}
-        />
-      ) : (
-        <CardView
-          items={filteredItems}
-          onOpenDetail={handleOpenDetail}
-          onEdit={handleEdit}
-          onDuplicate={handleDuplicate}
-          onDelete={handleDelete}
-        />
-      )}
+              <option value="">All Types</option>
+              {uniqueTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
 
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg self-start sm:self-auto">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                title="List view"
+              >
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('card')}
+                className={`p-2 rounded-md transition-all ${viewMode === 'card' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Card view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {filteredItems.length === 0 ? (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center py-20 px-6">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <Search className="h-7 w-7 text-slate-400" />
+              </div>
+              <p className="text-slate-700 font-medium mb-1">No items found</p>
+              <p className="text-sm text-slate-400 text-center max-w-xs">
+                {searchTerm || typeFilter
+                  ? 'Try adjusting your search or filters.'
+                  : 'Add your first inventory item to get started.'}
+              </p>
+              {!searchTerm && !typeFilter && (
+                <button
+                  onClick={handleAddNew}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </button>
+              )}
+            </div>
+          ) : viewMode === 'list' ? (
+            <ListView
+              items={filteredItems}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              onOpenDetail={handleOpenDetail}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onDelete={handleDelete}
+            />
+          ) : (
+            <CardView
+              items={filteredItems}
+              onOpenDetail={handleOpenDetail}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onDelete={handleDelete}
+            />
+          )}
+        </>
+      )}
     </div>
 
       {isModalOpen && (
