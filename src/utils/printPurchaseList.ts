@@ -48,6 +48,7 @@ export function printPurchaseList(
     const sc = STATUS_COLOR[status] ?? STATUS_COLOR['Ordered'];
     const pColor = PRIORITY_COLOR[priority] ?? PRIORITY_COLOR['Medium'];
     const deadline = item.deadline ? format(new Date(item.deadline + 'T00:00:00'), 'MMM d, yyyy') : '—';
+    const provider = (item as any).supplier?.name ?? '—';
     return `
       <tr>
         <td>${item.concept || '—'}</td>
@@ -64,6 +65,7 @@ export function printPurchaseList(
         </td>
         <td>${deadline}</td>
         <td>${memberName(item.assigned_to_member_id)}</td>
+        <td>${provider}</td>
       </tr>
     `;
   }).join('');
@@ -110,6 +112,7 @@ export function printPurchaseList(
         <th>Status</th>
         <th>Deadline</th>
         <th>Assigned</th>
+        <th>Provider</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>

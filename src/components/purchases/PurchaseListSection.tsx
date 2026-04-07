@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Printer, ChevronDown } from 'lucide-react';
+import { Plus, Search, Printer, ChevronDown, Layers } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/calculations';
 import { Button } from '../Button';
@@ -25,6 +25,24 @@ interface PriceListOption {
 
 const STATUSES = ['All', 'Ordered', 'Paid', 'In Transit', 'In Warehouse', 'Return'] as const;
 const PRIORITIES = ['All', 'High', 'Medium', 'Low'] as const;
+type GroupBy = 'none' | 'provider' | 'status' | 'priority';
+
+const PRIORITY_DOT: Record<string, string> = {
+  High: 'bg-red-500',
+  Medium: 'bg-amber-400',
+  Low: 'bg-green-500',
+};
+
+const STATUS_DOT: Record<string, string> = {
+  Ordered: 'bg-slate-400',
+  Paid: 'bg-blue-500',
+  'In Transit': 'bg-amber-400',
+  'In Warehouse': 'bg-green-500',
+  Return: 'bg-red-500',
+};
+
+// Total columns: drag + concept + qty + stock + tobuy + unit + price + subtotal + priority + status + provider + actions = 12
+const TOTAL_COLS = 12;
 
 export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
   const [items, setItems] = useState<ProjectPurchaseItemWithDetails[]>([]);
@@ -37,15 +55,15 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
 
   const [consumeItem, setConsumeItem] = useState<ProjectPurchaseItemWithDetails | null>(null);
   const [detailItem, setDetailItem] = useState<ProjectPurchaseItemWithDetails | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
 
-  // Estela Alvarez default assignment
   const estelaId = teamMembers.find((m) => m.name === 'Estela Alvarez')?.id ?? null;
 
-  // Load reference data once
   useEffect(() => {
     async function loadRef() {
       const [pliRes, supRes, tmRes, projRes] = await Promise.all([
@@ -78,17 +96,10 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
   useEffect(() => { loadItems(); }, [loadItems]);
 
   async function handleUpdate(id: string, changes: Record<string, any>) {
-    // Optimistic update
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...changes } : i))
-    );
-    // Sync detailItem if it's the same item
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...changes } : i)));
     setDetailItem((prev) => prev && prev.id === id ? { ...prev, ...changes } : prev);
-    const { error } = await supabase
-      .from('project_purchase_items')
-      .update(changes)
-      .eq('id', id);
-    if (error) loadItems(); // rollback
+    const { error } = await supabase.from('project_purchase_items').update(changes).eq('id', id);
+    if (error) loadItems();
   }
 
   async function handleDelete(id: string) {
@@ -114,7 +125,6 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
       .single();
     if (!error && data) {
       setItems((prev) => [...prev, data as ProjectPurchaseItemWithDetails]);
-      // Focus concept field after render
       setTimeout(() => {
         const rows = document.querySelectorAll('tr[draggable] input[type="text"]');
         const lastInput = rows[rows.length - 1] as HTMLInputElement | undefined;
@@ -123,7 +133,6 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
     }
   }
 
-  // Drag & drop reorder
   function handleDragStart(e: React.DragEvent, id: string) {
     setDragId(id);
     e.dataTransfer.effectAllowed = 'move';
@@ -137,42 +146,73 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
   async function handleDrop(e: React.DragEvent, targetId: string) {
     e.preventDefault();
     if (!dragId || dragId === targetId) return;
-
     const oldItems = [...items];
     const dragIdx = items.findIndex((i) => i.id === dragId);
     const targetIdx = items.findIndex((i) => i.id === targetId);
     if (dragIdx === -1 || targetIdx === -1) return;
-
     const reordered = [...items];
     const [moved] = reordered.splice(dragIdx, 1);
     reordered.splice(targetIdx, 0, moved);
-
     const updated = reordered.map((item, idx) => ({ ...item, display_order: idx }));
     setItems(updated);
     setDragId(null);
-
     for (const item of updated) {
       if (oldItems.find((o) => o.id === item.id)?.display_order !== item.display_order) {
-        await supabase
-          .from('project_purchase_items')
-          .update({ display_order: item.display_order })
-          .eq('id', item.id);
+        await supabase.from('project_purchase_items').update({ display_order: item.display_order }).eq('id', item.id);
       }
     }
   }
 
-  // Filtering
   const filtered = items.filter((i) => {
     if (statusFilter !== 'All' && i.status !== statusFilter) return false;
     if (priorityFilter !== 'All' && i.priority !== priorityFilter) return false;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      if (!i.concept.toLowerCase().includes(term)) return false;
-    }
+    if (searchTerm && !i.concept.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
 
   const filteredTotal = filtered.reduce((sum, i) => sum + (i.subtotal ?? i.quantity * i.price), 0);
+
+  // Group items
+  function getGroupKey(item: ProjectPurchaseItemWithDetails): string {
+    if (groupBy === 'provider') return (item as any).supplier?.name ?? '— No Provider —';
+    if (groupBy === 'status')   return item.status ?? 'Ordered';
+    if (groupBy === 'priority') return item.priority ?? 'Medium';
+    return '';
+  }
+
+  function getGroupDot(key: string): string | null {
+    if (groupBy === 'status')   return STATUS_DOT[key] ?? 'bg-slate-400';
+    if (groupBy === 'priority') return PRIORITY_DOT[key] ?? 'bg-slate-400';
+    return null;
+  }
+
+  const groups: { key: string; items: ProjectPurchaseItemWithDetails[] }[] = [];
+  if (groupBy === 'none') {
+    groups.push({ key: '', items: filtered });
+  } else {
+    const map = new Map<string, ProjectPurchaseItemWithDetails[]>();
+    for (const item of filtered) {
+      const key = getGroupKey(item);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    // Sort group keys
+    const sortedKeys = [...map.keys()].sort((a, b) => {
+      if (groupBy === 'priority') {
+        const order = ['High', 'Medium', 'Low'];
+        return (order.indexOf(a) ?? 99) - (order.indexOf(b) ?? 99);
+      }
+      return a.localeCompare(b);
+    });
+    for (const key of sortedKeys) groups.push({ key, items: map.get(key)! });
+  }
+
+  const GROUP_LABELS: Record<GroupBy, string> = {
+    none: 'Group by',
+    provider: 'Provider',
+    status: 'Status',
+    priority: 'Priority',
+  };
 
   if (loading) {
     return (
@@ -189,7 +229,7 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
     <div className="space-y-4">
       <PurchaseSummaryCards items={items} />
 
-      {/* Filter bar — single compact row */}
+      {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center">
         {/* Status dropdown */}
         <div className="flex items-center gap-1.5">
@@ -219,6 +259,37 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
             </select>
             <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
+        </div>
+
+        {/* Group by */}
+        <div className="relative">
+          <button
+            onClick={() => setShowGroupMenu((v) => !v)}
+            className={`flex items-center gap-1.5 pl-3 pr-2.5 py-2 text-xs font-medium border rounded-lg transition-colors cursor-pointer ${
+              groupBy !== 'none'
+                ? 'border-blue-400 bg-blue-50 text-blue-700'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            {GROUP_LABELS[groupBy]}
+            <ChevronDown className="h-3 w-3 text-slate-400" />
+          </button>
+          {showGroupMenu && (
+            <div className="absolute left-0 top-full mt-1 w-40 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
+              {(['none', 'provider', 'status', 'priority'] as GroupBy[]).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => { setGroupBy(g); setShowGroupMenu(false); }}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    groupBy === g ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {g === 'none' ? 'No grouping' : GROUP_LABELS[g]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1" />
@@ -267,13 +338,14 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                 <th className="text-right px-2 py-2.5 font-semibold text-slate-600 w-[96px]">Subtotal</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-[88px]">Priority</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-[120px]">Status</th>
+                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 w-[130px]">Provider</th>
                 <th className="w-[80px] px-2 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={TOTAL_COLS} className="px-4 py-12 text-center text-slate-400">
                     <p className="text-sm">No purchase items yet.</p>
                     <button
                       onClick={handleAddItem}
@@ -285,22 +357,40 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((item) => (
-                  <PurchaseItemRow
-                    key={item.id}
-                    item={item}
-                    priceListItems={priceListItems}
-                    suppliers={suppliers}
-                    teamMembers={teamMembers}
-                    projectName={projectName}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
-                    onConsumeInventory={(i) => setConsumeItem(i)}
-                    onOpenDetail={(i) => setDetailItem(i)}
-                    onDragStart={handleDragStart}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                  />
+                groups.map(({ key, items: groupItems }) => (
+                  <>
+                    {groupBy !== 'none' && (
+                      <tr key={`group-${key}`} className="bg-slate-50/80 border-b border-slate-200/60">
+                        <td colSpan={TOTAL_COLS} className="px-4 py-2">
+                          <div className="flex items-center gap-2">
+                            {getGroupDot(key) && (
+                              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getGroupDot(key)}`} />
+                            )}
+                            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{key}</span>
+                            <span className="text-xs text-slate-400 font-normal">({groupItems.length})</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {groupItems.map((item) => (
+                      <PurchaseItemRow
+                        key={item.id}
+                        item={item}
+                        priceListItems={priceListItems}
+                        suppliers={suppliers}
+                        teamMembers={teamMembers}
+                        projectName={projectName}
+                        colSpan={TOTAL_COLS}
+                        onUpdate={handleUpdate}
+                        onDelete={handleDelete}
+                        onConsumeInventory={(i) => setConsumeItem(i)}
+                        onOpenDetail={(i) => setDetailItem(i)}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                      />
+                    ))}
+                  </>
                 ))
               )}
             </tbody>
@@ -313,7 +403,7 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                   <td className="px-2 py-3 text-sm font-bold text-slate-900 text-right tabular-nums">
                     {formatCurrency(filteredTotal)}
                   </td>
-                  <td colSpan={3}></td>
+                  <td colSpan={4}></td>
                 </tr>
               </tfoot>
             )}
@@ -321,20 +411,15 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
         </div>
       </div>
 
-      {/* Consume Inventory Modal */}
       {consumeItem && (
         <ConsumeInventoryModal
           item={consumeItem}
           projectName={projectName}
-          onConfirm={() => {
-            setConsumeItem(null);
-            loadItems();
-          }}
+          onConfirm={() => { setConsumeItem(null); loadItems(); }}
           onCancel={() => setConsumeItem(null)}
         />
       )}
 
-      {/* Item Detail Panel */}
       {detailItem && (
         <PurchaseItemDetailPanel
           item={detailItem}

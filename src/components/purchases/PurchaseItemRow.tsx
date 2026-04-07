@@ -19,6 +19,7 @@ interface PurchaseItemRowProps {
   suppliers: { id: string; name: string }[];
   teamMembers: { id: string; name: string }[];
   projectName: string;
+  colSpan: number;
   onUpdate: (id: string, changes: Record<string, any>) => void;
   onDelete: (id: string) => void;
   onConsumeInventory: (item: ProjectPurchaseItemWithDetails) => void;
@@ -45,9 +46,10 @@ const PRIORITY_DOT: Record<string, string> = {
 export function PurchaseItemRow({
   item,
   priceListItems,
-  suppliers: _suppliers,
+  suppliers,
   teamMembers: _teamMembers,
   projectName: _projectName,
+  colSpan: _colSpan,
   onUpdate,
   onDelete,
   onConsumeInventory,
@@ -314,6 +316,20 @@ export function PurchaseItemRow({
           <option value="In Transit">In Transit</option>
           <option value="In Warehouse">In Warehouse</option>
           <option value="Return">Return</option>
+        </select>
+      </td>
+
+      {/* Provider */}
+      <td className="px-2 py-2 w-[130px]">
+        <select
+          value={item.supplier_id ?? ''}
+          onChange={(e) => handleImmediateUpdate({ supplier_id: e.target.value || null })}
+          className="w-full appearance-none px-2 py-1.5 text-xs border border-transparent hover:border-slate-200 focus:border-blue-300 rounded-md outline-none transition bg-transparent cursor-pointer"
+        >
+          <option value="">— None —</option>
+          {suppliers.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
         </select>
       </td>
 
