@@ -19,7 +19,6 @@ interface PurchaseItemRowProps {
   suppliers: { id: string; name: string }[];
   teamMembers: { id: string; name: string }[];
   projectName: string;
-  colSpan: number;
   onUpdate: (id: string, changes: Record<string, any>) => void;
   onDelete: (id: string) => void;
   onConsumeInventory: (item: ProjectPurchaseItemWithDetails) => void;
@@ -46,10 +45,9 @@ const PRIORITY_DOT: Record<string, string> = {
 export function PurchaseItemRow({
   item,
   priceListItems,
-  suppliers,
+  suppliers: _suppliers,
   teamMembers: _teamMembers,
   projectName: _projectName,
-  colSpan: _colSpan,
   onUpdate,
   onDelete,
   onConsumeInventory,
@@ -62,38 +60,63 @@ export function PurchaseItemRow({
   const [showDropdown, setShowDropdown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  // Controlled price state — syncs from props when pricelist item changes
+  const [localPrice, setLocalPrice] = useState<number>(item.price ?? 0);
+
   const conceptRef = useRef<HTMLInputElement>(null);
+  const dropdownPortalRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Sync concept from props when item changes externally
+  // Sync concept from props when changed externally
   useEffect(() => {
     setConceptSearch(item.concept);
   }, [item.concept]);
 
-  // Recalculate dropdown position whenever it opens
+  // Sync price whenever the linked pricelist item changes OR price changes from outside
   useEffect(() => {
-    if (showDropdown && conceptRef.current) {
+    setLocalPrice(item.price ?? 0);
+  }, [item.price_list_item_id, item.price]);
+
+  // Recompute dropdown position
+  function updateDropdownPosition() {
+    if (conceptRef.current) {
       const rect = conceptRef.current.getBoundingClientRect();
       setDropdownStyle({
         position: 'fixed',
         top: rect.bottom + 2,
         left: rect.left,
-        width: Math.max(rect.width, 260),
+        width: Math.max(rect.width, 280),
         zIndex: 9999,
       });
     }
+  }
+
+  // Open dropdown → set initial position
+  useEffect(() => {
+    if (showDropdown) updateDropdownPosition();
   }, [showDropdown]);
 
-  // Close dropdown on scroll or resize to avoid misalignment
+  // Reposition (not close) on scroll/resize
   useEffect(() => {
     if (!showDropdown) return;
-    function close() { setShowDropdown(false); }
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
+    window.addEventListener('scroll', updateDropdownPosition, true);
+    window.addEventListener('resize', updateDropdownPosition);
     return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', updateDropdownPosition, true);
+      window.removeEventListener('resize', updateDropdownPosition);
     };
+  }, [showDropdown]);
+
+  // Click-outside closes dropdown (checks both input and portal div)
+  useEffect(() => {
+    if (!showDropdown) return;
+    function handleMouseDown(e: MouseEvent) {
+      const inInput = conceptRef.current?.contains(e.target as Node) ?? false;
+      const inDropdown = dropdownPortalRef.current?.contains(e.target as Node) ?? false;
+      if (!inInput && !inDropdown) setShowDropdown(false);
+    }
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [showDropdown]);
 
   const debouncedUpdate = useCallback(
@@ -124,19 +147,21 @@ export function PurchaseItemRow({
     setShowDropdown(false);
     const primarySupplier = pli.price_list_suppliers?.find((s) => s.is_primary);
     const price = primarySupplier?.supplier_price ?? pli.price;
+    // Always set price from pricelist; update local state immediately for controlled input
+    setLocalPrice(price);
     const changes: Record<string, any> = {
       concept: pli.concept_description,
       price_list_item_id: pli.id,
-      price: price,
+      price,
     };
     if (!item.unit) changes.unit = pli.unit;
     handleImmediateUpdate(changes);
   }
 
   const filteredPLI = conceptSearch
-    ? priceListItems.filter((p) =>
-        p.concept_description.toLowerCase().includes(conceptSearch.toLowerCase())
-      ).slice(0, 10)
+    ? priceListItems
+        .filter((p) => p.concept_description.toLowerCase().includes(conceptSearch.toLowerCase()))
+        .slice(0, 10)
     : [];
 
   // Stock calculations
@@ -145,40 +170,37 @@ export function PurchaseItemRow({
   const toBuy = hasLinkedItem ? Math.max(0, item.quantity - stockQty) : null;
 
   const canConsume =
-    item.status === 'In Warehouse' &&
-    !item.inventory_committed &&
-    !!item.price_list_item_id;
+    item.status === 'In Warehouse' && !item.inventory_committed && !!item.price_list_item_id;
 
-  // Price pricelist indicator
-  const linkedPriceListItem = hasLinkedItem
-    ? priceListItems.find((p) => p.id === item.price_list_item_id)
-    : null;
-  const listPrice = linkedPriceListItem
-    ? (linkedPriceListItem.price_list_suppliers?.find((s) => s.is_primary)?.supplier_price ?? linkedPriceListItem.price)
+  // Price override indicator
+  const linkedPLI = hasLinkedItem ? priceListItems.find((p) => p.id === item.price_list_item_id) : null;
+  const listPrice = linkedPLI
+    ? (linkedPLI.price_list_suppliers?.find((s) => s.is_primary)?.supplier_price ?? linkedPLI.price)
     : null;
   const isPriceOverridden = listPrice !== null && item.price !== null && Math.abs(item.price - listPrice) > 0.001;
 
-  const dropdown = showDropdown && filteredPLI.length > 0
-    ? createPortal(
-        <div
-          style={dropdownStyle}
-          className="max-h-52 overflow-y-auto bg-white rounded-lg border border-slate-200 shadow-xl"
-        >
-          {filteredPLI.map((pli) => (
-            <button
-              key={pli.id}
-              type="button"
-              onMouseDown={(e) => { e.preventDefault(); handleSelectPriceListItem(pli); }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between"
-            >
-              <span className="truncate">{pli.concept_description}</span>
-              <span className="text-xs text-slate-400 ml-2 flex-shrink-0">{pli.unit}</span>
-            </button>
-          ))}
-        </div>,
-        document.body
-      )
-    : null;
+  const dropdownPortal =
+    showDropdown && filteredPLI.length > 0
+      ? createPortal(
+          <div ref={dropdownPortalRef} style={dropdownStyle} className="max-h-52 overflow-y-auto bg-white rounded-lg border border-slate-200 shadow-xl">
+            {filteredPLI.map((pli) => (
+              <button
+                key={pli.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelectPriceListItem(pli);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors flex items-center justify-between"
+              >
+                <span className="flex-1 truncate pr-2">{pli.concept_description}</span>
+                <span className="text-xs text-slate-400 flex-shrink-0">{pli.unit}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <tr
@@ -196,36 +218,34 @@ export function PurchaseItemRow({
       </td>
 
       {/* Concept */}
-      <td className="px-2 py-2 min-w-[240px]">
-        <div className="relative">
-          <input
-            ref={conceptRef}
-            type="text"
-            value={conceptSearch}
-            onChange={(e) => handleConceptChange(e.target.value)}
-            onFocus={() => conceptSearch && setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-            className="w-full px-2 py-1.5 text-sm border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
-            placeholder="Type to search items..."
-          />
-        </div>
-        {dropdown}
+      <td className="px-2 py-2 min-w-[200px]">
+        <input
+          ref={conceptRef}
+          type="text"
+          value={conceptSearch}
+          onChange={(e) => handleConceptChange(e.target.value)}
+          onFocus={() => conceptSearch && setShowDropdown(true)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowDropdown(false); }}
+          className="w-full px-2 py-1.5 text-sm border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
+          placeholder="Type to search items..."
+        />
+        {dropdownPortal}
       </td>
 
       {/* Qty */}
-      <td className="px-2 py-2 w-[72px]">
+      <td className="px-2 py-2 w-[60px]">
         <input
           type="number"
           min="0.001"
           step="1"
           defaultValue={item.quantity}
           onBlur={(e) => handleFieldChange('quantity', parseFloat(e.target.value) || 1)}
-          className="w-full px-2 py-1.5 text-sm text-right tabular-nums border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
+          className="w-full px-1.5 py-1.5 text-sm text-right tabular-nums border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
         />
       </td>
 
       {/* In Stock */}
-      <td className="px-2 py-2 w-[72px] text-center">
+      <td className="px-2 py-2 w-[64px] text-center">
         {hasLinkedItem ? (
           <span
             className={`text-sm tabular-nums font-medium ${
@@ -241,7 +261,7 @@ export function PurchaseItemRow({
       </td>
 
       {/* To Buy */}
-      <td className="px-2 py-2 w-[72px] text-center">
+      <td className="px-2 py-2 w-[64px] text-center">
         {hasLinkedItem ? (
           toBuy! > 0 ? (
             <span className="text-sm tabular-nums font-medium text-red-500">{toBuy}</span>
@@ -254,29 +274,31 @@ export function PurchaseItemRow({
       </td>
 
       {/* Unit */}
-      <td className="px-2 py-2 w-[64px]">
+      <td className="px-2 py-2 w-[72px]">
         <input
           type="text"
           defaultValue={item.unit ?? ''}
           onBlur={(e) => handleFieldChange('unit', e.target.value)}
-          className="w-full px-2 py-1.5 text-sm border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
+          title={item.unit ?? ''}
+          className="w-full px-1.5 py-1.5 text-sm border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
         />
       </td>
 
-      {/* Price */}
-      <td className="px-2 py-2 w-[108px]">
+      {/* Price — controlled input */}
+      <td className="px-2 py-2 w-[96px]">
         <div className="relative flex items-center">
           <input
             type="number"
             min="0"
             step="0.01"
-            defaultValue={item.price}
-            onBlur={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)}
-            className="w-full px-2 py-1.5 text-sm text-right tabular-nums border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
+            value={localPrice}
+            onChange={(e) => setLocalPrice(parseFloat(e.target.value) || 0)}
+            onBlur={() => handleFieldChange('price', localPrice)}
+            className="w-full px-1.5 py-1.5 text-sm text-right tabular-nums border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
           />
           {isPriceOverridden && (
             <AlertCircle
-              className="absolute -right-0.5 -top-0.5 h-3 w-3 text-amber-400 flex-shrink-0 pointer-events-none"
+              className="absolute -right-0.5 -top-0.5 h-3 w-3 text-amber-400 pointer-events-none"
               title={`Manually overridden (list price: ${formatCurrency(listPrice!)})`}
             />
           )}
@@ -284,32 +306,32 @@ export function PurchaseItemRow({
       </td>
 
       {/* Subtotal */}
-      <td className="px-2 py-2 w-[96px] text-right text-sm tabular-nums text-slate-700 font-medium">
+      <td className="px-2 py-2 w-[88px] text-right text-sm tabular-nums text-slate-700 font-medium">
         {formatCurrency(item.subtotal ?? item.quantity * item.price)}
       </td>
 
       {/* Priority */}
-      <td className="px-2 py-2 w-[88px]">
+      <td className="px-2 py-2 w-[108px]">
         <div className="relative">
           <select
             value={item.priority ?? 'Medium'}
             onChange={(e) => handleImmediateUpdate({ priority: e.target.value })}
-            className="w-full appearance-none pl-5 pr-6 py-1.5 text-xs font-medium border border-transparent hover:border-slate-200 focus:border-blue-300 rounded-md outline-none transition bg-transparent cursor-pointer"
+            className="w-full appearance-none pl-5 pr-2 py-1.5 text-xs font-medium border border-transparent hover:border-slate-200 focus:border-blue-300 rounded-md outline-none transition bg-transparent cursor-pointer"
           >
             <option value="High">High</option>
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
-          <span className={`absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${PRIORITY_DOT[item.priority ?? 'Medium']}`} />
+          <span className={`absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full pointer-events-none ${PRIORITY_DOT[item.priority ?? 'Medium']}`} />
         </div>
       </td>
 
       {/* Status */}
-      <td className="px-2 py-2 w-[120px]">
+      <td className="px-2 py-2 w-[124px]">
         <select
           value={item.status ?? 'Ordered'}
           onChange={(e) => handleImmediateUpdate({ status: e.target.value })}
-          className={`w-full appearance-none px-2.5 py-1.5 text-xs font-medium rounded-full cursor-pointer outline-none transition ${STATUS_STYLES[item.status ?? 'Ordered']}`}
+          className={`w-full appearance-none px-2 py-1.5 text-[11px] font-medium rounded-full cursor-pointer outline-none transition ${STATUS_STYLES[item.status ?? 'Ordered']}`}
         >
           <option value="Ordered">Ordered</option>
           <option value="Paid">Paid</option>
@@ -319,32 +341,26 @@ export function PurchaseItemRow({
         </select>
       </td>
 
-      {/* Provider */}
-      <td className="px-2 py-2 w-[130px]">
-        <select
-          value={item.supplier_id ?? ''}
-          onChange={(e) => handleImmediateUpdate({ supplier_id: e.target.value || null })}
-          className="w-full appearance-none px-2 py-1.5 text-xs border border-transparent hover:border-slate-200 focus:border-blue-300 rounded-md outline-none transition bg-transparent cursor-pointer"
-        >
-          <option value="">— None —</option>
-          {suppliers.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+      {/* Deadline */}
+      <td className="px-2 py-2 w-[110px]">
+        <input
+          type="date"
+          defaultValue={item.deadline ?? ''}
+          onChange={(e) => handleImmediateUpdate({ deadline: e.target.value || null })}
+          className="w-full px-1 py-1.5 text-xs border border-transparent hover:border-slate-200 focus:border-blue-300 rounded-md outline-none transition bg-transparent"
+        />
       </td>
 
       {/* Actions */}
-      <td className="px-2 py-2 w-[80px]">
-        <div className="flex items-center gap-1">
-          {/* Info / detail panel button */}
+      <td className="px-2 py-2 w-[72px]">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => onOpenDetail(item)}
             className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
-            title="More info (assigned, comments)"
+            title="More info (assigned, provider, comments)"
           >
             <Info className="h-3.5 w-3.5" />
           </button>
-
           {canConsume && (
             <button
               onClick={() => onConsumeInventory(item)}

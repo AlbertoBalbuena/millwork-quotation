@@ -41,7 +41,7 @@ const STATUS_DOT: Record<string, string> = {
   Return: 'bg-red-500',
 };
 
-// Total columns: drag + concept + qty + stock + tobuy + unit + price + subtotal + priority + status + provider + actions = 12
+// Total columns: drag + concept + qty + stock + tobuy + unit + price + subtotal + priority + status + deadline + actions = 12
 const TOTAL_COLS = 12;
 
 export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
@@ -336,10 +336,10 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                 <th className="text-left px-2 py-2.5 font-semibold text-slate-600 w-[64px]">Unit</th>
                 <th className="text-right px-2 py-2.5 font-semibold text-slate-600 w-[108px]">Price</th>
                 <th className="text-right px-2 py-2.5 font-semibold text-slate-600 w-[96px]">Subtotal</th>
-                <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-[88px]">Priority</th>
-                <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-[120px]">Status</th>
-                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 w-[130px]">Provider</th>
-                <th className="w-[80px] px-2 py-2.5"></th>
+                <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-[108px]">Priority</th>
+                <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-[124px]">Status</th>
+                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 w-[110px]">Deadline</th>
+                <th className="w-[72px] px-2 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
@@ -403,7 +403,7 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                   <td className="px-2 py-3 text-sm font-bold text-slate-900 text-right tabular-nums">
                     {formatCurrency(filteredTotal)}
                   </td>
-                  <td colSpan={4}></td>
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             )}
@@ -424,6 +424,7 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
         <PurchaseItemDetailPanel
           item={detailItem}
           teamMembers={teamMembers}
+          suppliers={suppliers}
           projectId={projectId}
           estelaId={estelaId}
           onUpdate={handleUpdate}
