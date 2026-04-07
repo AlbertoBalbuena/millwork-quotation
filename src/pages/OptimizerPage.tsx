@@ -35,6 +35,26 @@ export function OptimizerPage() {
     const lines = text.trim().split('\n');
     const headers = lines[0].toLowerCase().split(',').map((h) => h.trim());
     const unit = store.unit;
+
+    // Parse edge banding cell: accepts 0-3, "a"/"b"/"c" (case-insensitive), or truthy → 1
+    const parseEb = (raw: string | undefined): number => {
+      const v = (raw || '').trim().toLowerCase();
+      if (!v) return 0;
+      if (v === 'a') return 1;
+      if (v === 'b') return 2;
+      if (v === 'c') return 3;
+      const n = parseInt(v);
+      if (!isNaN(n) && n >= 0 && n <= 3) return n;
+      if (/^(si|sí|yes|true|x)$/.test(v)) return 1;
+      return 0;
+    };
+
+    const iArea  = headers.indexOf('area');
+    const iEbSup = headers.indexOf('eb_sup');
+    const iEbInf = headers.indexOf('eb_inf');
+    const iEbIzq = headers.indexOf('eb_izq');
+    const iEbDer = headers.indexOf('eb_der');
+
     let count = 0;
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',').map((c) => c.trim());
@@ -43,6 +63,10 @@ export function OptimizerPage() {
       const altoRaw   = parseFloat(cols[headers.indexOf('alto')]   ?? cols[2]);
       const grosorRaw = parseFloat(cols[headers.indexOf('grosor')] || '18') || 18;
       if (!anchoRaw || !altoRaw) continue;
+
+      const area = iArea >= 0 ? (cols[iArea] || '').trim() : '';
+      if (area) store.addArea(area);
+
       store.addPiece({
         nombre:    cols[headers.indexOf('nombre')]   || '',
         material:  cols[headers.indexOf('material')] || 'Melamina',
@@ -51,7 +75,13 @@ export function OptimizerPage() {
         alto:      toMM(altoRaw,   unit),
         cantidad:  parseInt(cols[headers.indexOf('cantidad')] || '1') || 1,
         veta: /^(h|horiz|horizontal)$/i.test(cols[headers.indexOf('veta')] || '') ? 'horizontal' : /^(v|vert|vertical)$/i.test(cols[headers.indexOf('veta')] || '') ? 'vertical' : /^(si|sí|yes|true|1|fija|fixed)$/i.test(cols[headers.indexOf('veta')] || '') ? 'horizontal' : 'none',
-        cubrecanto: { sup: 0, inf: 0, izq: 0, der: 0 },
+        cubrecanto: {
+          sup: iEbSup >= 0 ? parseEb(cols[iEbSup]) : 0,
+          inf: iEbInf >= 0 ? parseEb(cols[iEbInf]) : 0,
+          izq: iEbIzq >= 0 ? parseEb(cols[iEbIzq]) : 0,
+          der: iEbDer >= 0 ? parseEb(cols[iEbDer]) : 0,
+        },
+        area: area || undefined,
       });
       count++;
     }
@@ -97,6 +127,7 @@ export function OptimizerPage() {
     const iAlto   = col(['ALTO', 'ALTURA']);
     const iVeta   = col(['VETA']);
     const iNombre = col(['NOMBRE']);
+    const iArea   = col(['AREA', 'ÁREA', 'AMBIENTE']);
     const iTapeBI = col(['BASE INF', 'BASE A']);
     const iTapeBS = col(['BASE SUP', 'BASE B']);
     const iTapeAI = col(['ALT IZQ', 'ALTURA A']);
@@ -107,7 +138,18 @@ export function OptimizerPage() {
       return;
     }
 
-    const isTruthy = (v: string) => /^(1|si|sí|yes|true|x)$/i.test(v.trim());
+    // Edge banding: 0=none, 1=type A, 2=type B, 3=type C. Accepts a/b/c, 0-3, or truthy→1.
+    const parseEb = (v: string): number => {
+      const s = v.trim().toLowerCase();
+      if (!s) return 0;
+      if (s === 'a') return 1;
+      if (s === 'b') return 2;
+      if (s === 'c') return 3;
+      const n = parseInt(s);
+      if (!isNaN(n) && n >= 0 && n <= 3) return n;
+      if (/^(si|sí|yes|true|x)$/.test(s)) return 1;
+      return 0;
+    };
     let count = 0;
     for (let i = headerIdx + 1; i < rows.length; i++) {
       const row = rows[i];
@@ -115,6 +157,10 @@ export function OptimizerPage() {
       const anchoRaw = parseFloat(String(row[iAncho] ?? 0));
       const altoRaw  = parseFloat(String(row[iAlto]  ?? 0));
       if (!anchoRaw || !altoRaw) continue;
+
+      const area = iArea >= 0 ? String(row[iArea] || '').trim() : '';
+      if (area) store.addArea(area);
+
       store.addPiece({
         nombre:         iNombre >= 0 ? String(row[iNombre] || '').trim() : '',
         material:       iMat    >= 0 ? String(row[iMat]    || 'Melamina').trim() || 'Melamina' : 'Melamina',
@@ -124,11 +170,12 @@ export function OptimizerPage() {
         cantidad:       iCant   >= 0 ? parseInt(String(row[iCant]  || '1')) || 1 : 1,
         veta: iVeta >= 0 ? (/^(h|horiz|horizontal)$/i.test(String(row[iVeta] || '').trim()) ? 'horizontal' : /^(v|vert|vertical)$/i.test(String(row[iVeta] || '').trim()) ? 'vertical' : /^(fija|fixed|si|sí|yes|true|1)$/i.test(String(row[iVeta] || '').trim()) ? 'horizontal' : 'none') : 'none',
         cubrecanto: {
-          sup: iTapeBS >= 0 ? isTruthy(String(row[iTapeBS] ?? '')) : false,
-          inf: iTapeBI >= 0 ? isTruthy(String(row[iTapeBI] ?? '')) : false,
-          izq: iTapeAI >= 0 ? isTruthy(String(row[iTapeAI] ?? '')) : false,
-          der: iTapeAD >= 0 ? isTruthy(String(row[iTapeAD] ?? '')) : false,
+          sup: iTapeBS >= 0 ? parseEb(String(row[iTapeBS] ?? '')) : 0,
+          inf: iTapeBI >= 0 ? parseEb(String(row[iTapeBI] ?? '')) : 0,
+          izq: iTapeAI >= 0 ? parseEb(String(row[iTapeAI] ?? '')) : 0,
+          der: iTapeAD >= 0 ? parseEb(String(row[iTapeAD] ?? '')) : 0,
         },
+        area: area || undefined,
       });
       count++;
     }
@@ -196,7 +243,14 @@ export function OptimizerPage() {
               </button>
               <div className="border-t border-slate-100 my-1" />
               <button onClick={() => {
-                const csv = 'nombre,ancho,alto,grosor,material,cantidad,veta\nSide Panel,610,762,18,Melamina,2,horizontal\nBack Panel,726,762,18,Melamina,1,none\nShelf,726,574,18,Melamina,1,none\nDoor,378,759,18,MDF,2,vertical\n';
+                // veta: none | horizontal | vertical
+                // eb_sup/eb_inf/eb_izq/eb_der: 0=none, 1=type A, 2=type B, 3=type C (also accepts a/b/c)
+                const csv =
+                  'nombre,ancho,alto,grosor,material,cantidad,veta,area,eb_sup,eb_inf,eb_izq,eb_der\n' +
+                  'Side Panel,610,762,18,Melamina,2,horizontal,Kitchen,1,1,0,0\n' +
+                  'Back Panel,726,762,18,Melamina,1,none,Kitchen,0,0,0,0\n' +
+                  'Shelf,726,574,18,Melamina,1,none,Kitchen,1,0,0,0\n' +
+                  'Door,378,759,18,MDF,2,vertical,Kitchen,1,1,1,1\n';
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
