@@ -331,11 +331,15 @@ export function BreakdownBOM({ loadedRun, areas, quotation }: BreakdownBOMProps)
       return sum + area.cabinets.reduce((s, c) => s + (c.labor_cost ?? 0) * qty, 0);
     }, 0);
 
+    // Use the BOM row sum as the authoritative materials cost so the summary
+    // matches the BOM table exactly. price / tax / grand total stay as
+    // computed by computeOptimizerQuotationTotal (they are the pricing truth).
+    const bomTotal = bom.reduce((s, r) => s + r.subtotal, 0);
     return {
-      materialsCostOnly:  totals.materialsSubtotal - totalLaborCost,
+      materialsCostOnly:  bomTotal,
       totalLaborCost,
-      materialsSubtotal:  totals.materialsSubtotal,
-      profitMarginAmount: totals.price - totals.materialsSubtotal,
+      materialsSubtotal:  bomTotal + totalLaborCost,
+      profitMarginAmount: totals.price - (bomTotal + totalLaborCost),
       price:              totals.price,
       tariffAmount:       totals.tariffAmount,
       referralAmount:     totals.referralAmount,
@@ -492,8 +496,8 @@ export function BreakdownBOM({ loadedRun, areas, quotation }: BreakdownBOMProps)
             <FileText className="h-5 w-5 text-slate-500" />
             <h2 className="text-base font-semibold text-slate-800">Project Cost Summary</h2>
           </div>
-          <div className="px-5 py-4">
-            <table className="w-full text-sm max-w-lg">
+          <div className="px-5 py-4 flex justify-end">
+            <table className="text-sm w-full max-w-lg">
               <tbody>
                 <SummaryRow label="Materials Cost"   value={costSummary.materialsCostOnly} />
                 <SummaryRow label="Labor Cost"       value={costSummary.totalLaborCost} />
