@@ -260,7 +260,13 @@ class Optimizer {
         ancho: r.ancho, alto: r.alto, costo: 0, sierra: this.sierra,
         isRemnant: true, remnantId: r.id, _used: r._used,
       }));
-    const stk = this.stocks.map(s => ({ ...s, isRemnant: false, stockId: s.id }));
+    const allStk = this.stocks.map(s => ({ ...s, isRemnant: false, stockId: s.id }));
+    // Prefer stocks whose nombre matches the current material group exactly.
+    // Falls back to all stocks when no name match exists (preserves standalone-
+    // optimizer behavior where piece materials and stock nombres are user-defined
+    // and don't need to match).
+    const matchingStk = allStk.filter(s => s.nombre === mat);
+    const stk = matchingStk.length > 0 ? matchingStk : allStk;
     return [...rems, ...stk.sort((a, b) => a.costo - b.costo)];
   }
 
