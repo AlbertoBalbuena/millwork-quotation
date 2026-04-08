@@ -94,13 +94,27 @@ export function BreakdownBOM({ loadedRun, areas, quotation }: BreakdownBOMProps)
   const exchangeRate = useSettingsStore(s => s.settings.exchangeRateUsdToMxn);
 
   useEffect(() => {
-    supabase
-      .from('price_list')
-      .select('*')
-      .then(({ data }) => {
-        setPriceList(data || []);
+    let cancelled = false;
+    (async () => {
+      const PAGE = 1000;
+      let all: PriceListItem[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('price_list')
+          .select('*')
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      if (!cancelled) {
+        setPriceList(all);
         setLoadingPrices(false);
-      });
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // ── BOM aggregation ──────────────────────────────────────────────────────
