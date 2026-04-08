@@ -36,11 +36,11 @@ export function groupProjectsByGroupId(quotations: Quotation[]): ProjectGroup[] 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    const totalValue = quotationsInGroup.reduce((sum, q) => sum + q.total_amount, 0);
+    const totalValue = quotationsInGroup.reduce((sum, q) => sum + (q.total_amount ?? 0), 0);
     const latestDate = quotationsInGroup.reduce((latest, q) =>
       q.quote_date > latest ? q.quote_date : latest, '');
     const latestUpdatedAt = quotationsInGroup.reduce((latest, q) => {
-      const t = q.updated_at ?? q.created_at;
+      const t = q.updated_at ?? q.created_at ?? '';
       return t > latest ? t : latest;
     }, '');
 

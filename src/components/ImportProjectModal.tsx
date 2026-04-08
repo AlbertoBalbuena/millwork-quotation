@@ -244,7 +244,7 @@ export function ImportProjectModal({ isOpen, onClose, onImportComplete }: Import
                     </p>
                     <p>
                       <span className="font-medium">Total Amount:</span>{' '}
-                      {formatCurrency(validationResult.projectData.project.total_amount)}
+                      {formatCurrency(validationResult.projectData.project.total_amount ?? 0)}
                     </p>
                   </div>
                 </div>

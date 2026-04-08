@@ -377,7 +377,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
 
         if (error) throw error;
       } else {
-        const maxOrder = Math.max(...areas.map((a) => a.display_order), -1);
+        const maxOrder = Math.max(...areas.map((a) => a.display_order ?? 0), -1);
         const { error } = await supabase.from('project_areas').insert([
           {
             ...areaData,
@@ -402,7 +402,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     if (!confirm(`Duplicate area "${area.name}" with all its cabinets and items?`)) return;
 
     try {
-      const maxOrder = Math.max(...areas.map((a) => a.display_order), -1);
+      const maxOrder = Math.max(...areas.map((a) => a.display_order ?? 0), -1);
       const { data: newArea, error: areaError } = await supabase
         .from('project_areas')
         .insert([{
@@ -948,7 +948,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
   }
 
   const cabinetsSubtotal = areas.reduce(
-    (sum, area) => sum + area.cabinets.reduce((s, c) => s + c.subtotal, 0) * (area.quantity ?? 1),
+    (sum, area) => sum + area.cabinets.reduce((s, c) => s + (c.subtotal ?? 0), 0) * (area.quantity ?? 1),
     0
   );
 
@@ -985,7 +985,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     if (area.applies_tariff !== true) return sum;
     const qty = area.quantity ?? 1;
     return sum + (
-      area.cabinets.reduce((s, c) => s + c.subtotal, 0) +
+      area.cabinets.reduce((s, c) => s + (c.subtotal ?? 0), 0) +
       area.items.reduce((s, i) => s + i.subtotal, 0) +
       area.countertops.reduce((s, ct) => s + ct.subtotal, 0) +
       (area.closetItems || []).reduce((s, ci) => s + ci.subtotal_mxn, 0)
@@ -2010,7 +2010,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                         <div className="text-xs sm:text-sm text-slate-600">Area Total</div>
                         {(() => {
                           const rawTotal =
-                            area.cabinets.reduce((sum, c) => sum + c.subtotal, 0) +
+                            area.cabinets.reduce((sum, c) => sum + (c.subtotal ?? 0), 0) +
                             area.countertops.reduce((sum, ct) => sum + ct.subtotal, 0) +
                             area.items.reduce((sum, i) => sum + i.subtotal, 0) +
                             (area.closetItems || []).reduce((sum, ci) => sum + ci.subtotal_mxn, 0);

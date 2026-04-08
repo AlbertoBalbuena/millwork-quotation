@@ -310,7 +310,7 @@ export function PurchaseItemRow({
 
       {/* Subtotal */}
       <td className="px-2 py-2 w-[88px] text-right text-sm tabular-nums text-slate-700 font-medium">
-        {formatCurrency(item.subtotal ?? item.quantity * item.price)}
+        {formatCurrency(item.subtotal ?? item.quantity * (item.price ?? 0))}
       </td>
 
       {/* Priority */}

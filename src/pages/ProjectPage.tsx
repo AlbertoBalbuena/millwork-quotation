@@ -85,8 +85,8 @@ export function ProjectPage() {
   async function loadProject() {
     setLoading(true);
     const [{ data: proj, error: pErr }, { data: quots }] = await Promise.all([
-      supabase.from('projects').select('*').eq('id', projectId).single(),
-      supabase.from('quotations').select('*').eq('project_id', projectId).order('version_number', { ascending: true }),
+      supabase.from('projects').select('*').eq('id', projectId ?? '').single(),
+      supabase.from('quotations').select('*').eq('project_id', projectId ?? '').order('version_number', { ascending: true }),
     ]);
 
     if (pErr || !proj) { navigate('/projects', { replace: true }); return; }

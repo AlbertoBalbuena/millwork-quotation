@@ -318,7 +318,7 @@ export function HomePage() {
           priority: ((s as Record<string, unknown>).priority as TaskPriority) ?? 'medium',
           parent_task_id: s.parent_task_id ?? null,
           assignees: [], tags: [], subtasks: [], comments: [], deliverables: [],
-          project_name: projectsMap.get(s.project_id) ?? '',
+          project_name: projectsMap.get(s.project_id ?? '') ?? '',
         }));
 
       return {
@@ -328,7 +328,7 @@ export function HomePage() {
         parent_task_id: null,
         assignees: taskAssignees,
         tags: [], subtasks: taskSubtasks, comments: [], deliverables: [],
-        project_name: projectsMap.get(raw.project_id) ?? '',
+        project_name: projectsMap.get(raw.project_id ?? '') ?? '',
       };
     });
 

@@ -251,6 +251,7 @@ export async function generateProjectBrief(projectId: string): Promise<string> {
     const cabinetTypes = new Map<string, { description: string; quantity: number }>();
 
     allCabinets.forEach(cabinet => {
+      if (!cabinet.product_sku) return;
       if (!isAccessoryPanel(cabinet.product_sku)) {
         const sku = cabinet.product_sku;
         const product = productMap.get(sku);
@@ -280,6 +281,7 @@ export async function generateProjectBrief(projectId: string): Promise<string> {
     const accessoryTypes = new Map<string, { description: string; quantity: number }>();
 
     allCabinets.forEach(cabinet => {
+      if (!cabinet.product_sku) return;
       if (isAccessoryPanel(cabinet.product_sku)) {
         const sku = cabinet.product_sku;
         const product = productMap.get(sku);

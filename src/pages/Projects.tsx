@@ -128,9 +128,9 @@ export function Projects() {
         case 'name_desc':
           return b.name.localeCompare(a.name);
         case 'amount_desc':
-          return b.total_amount - a.total_amount;
+          return (b.total_amount ?? 0) - (a.total_amount ?? 0);
         case 'amount_asc':
-          return a.total_amount - b.total_amount;
+          return (a.total_amount ?? 0) - (b.total_amount ?? 0);
         default:
           return 0;
       }
@@ -156,9 +156,9 @@ export function Projects() {
         case 'name_desc':
           return b.primaryProject.name.localeCompare(a.primaryProject.name);
         case 'amount_desc':
-          return b.primaryProject.total_amount - a.primaryProject.total_amount;
+          return (b.primaryProject.total_amount ?? 0) - (a.primaryProject.total_amount ?? 0);
         case 'amount_asc':
-          return a.primaryProject.total_amount - b.primaryProject.total_amount;
+          return (a.primaryProject.total_amount ?? 0) - (b.primaryProject.total_amount ?? 0);
         default:
           return 0;
       }
@@ -175,16 +175,16 @@ export function Projects() {
     const disqualified = projects.filter((p) => p.status === 'Discarded').length;
     const cancelled = projects.filter((p) => p.status === 'Cancelled').length;
 
-    const totalValue = projects.reduce((sum, p) => sum + p.total_amount, 0);
+    const totalValue = projects.reduce((sum, p) => sum + (p.total_amount ?? 0), 0);
     const awardedValue = projects
       .filter((p) => p.status === 'Awarded')
-      .reduce((sum, p) => sum + p.total_amount, 0);
+      .reduce((sum, p) => sum + (p.total_amount ?? 0), 0);
     const activeValue = projects
       .filter((p) => p.status === 'Pending' || p.status === 'Estimating')
-      .reduce((sum, p) => sum + p.total_amount, 0);
+      .reduce((sum, p) => sum + (p.total_amount ?? 0), 0);
     const lostValue = projects
       .filter((p) => p.status === 'Lost' || p.status === 'Discarded' || p.status === 'Cancelled')
-      .reduce((sum, p) => sum + p.total_amount, 0);
+      .reduce((sum, p) => sum + (p.total_amount ?? 0), 0);
 
     return {
       total,
@@ -852,7 +852,7 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
     }
   };
 
-  const statusConfig = getStatusConfig(project.status);
+  const statusConfig = getStatusConfig(project.status ?? '');
 
   return (
     <div className="group bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-300 transition-all duration-200 overflow-hidden relative">
@@ -1078,7 +1078,7 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
 
         <div className="pt-3 border-t border-slate-100">
           <div className="text-2xl font-bold text-slate-900 mb-3">
-            {formatCurrency(project.total_amount / exchangeRate, 'USD')}
+            {formatCurrency((project.total_amount ?? 0) / exchangeRate, 'USD')}
           </div>
 
           <div className="flex gap-2">

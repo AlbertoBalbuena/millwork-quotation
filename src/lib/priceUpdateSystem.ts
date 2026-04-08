@@ -101,113 +101,113 @@ export async function analyzeProjectPriceChanges(projectId: string): Promise<Pro
         return Math.abs(newCost - oldCost) > TOLERANCE;
       };
 
-      if (hasSignificantDifference(costs.boxMaterialCost, cabinet.box_material_cost) && cabinet.box_material_id) {
+      if (hasSignificantDifference(costs.boxMaterialCost, (cabinet.box_material_cost ?? 0)) && cabinet.box_material_id) {
         const material = priceList.find(p => p.id === cabinet.box_material_id);
         if (material) {
           materialChanges.push({
             materialType: 'box_material',
             materialId: material.id,
             materialName: material.concept_description,
-            oldCost: cabinet.box_material_cost,
+            oldCost: (cabinet.box_material_cost ?? 0),
             newCost: costs.boxMaterialCost,
-            difference: costs.boxMaterialCost - cabinet.box_material_cost,
-            percentageChange: cabinet.box_material_cost > 0 ? ((costs.boxMaterialCost - cabinet.box_material_cost) / cabinet.box_material_cost) * 100 : 0,
+            difference: costs.boxMaterialCost - (cabinet.box_material_cost ?? 0),
+            percentageChange: (cabinet.box_material_cost ?? 0) > 0 ? ((costs.boxMaterialCost - (cabinet.box_material_cost ?? 0)) / (cabinet.box_material_cost ?? 0)) * 100 : 0,
           });
           affectedMaterialsSet.add(material.id);
         }
       }
 
-      if (hasSignificantDifference(costs.boxEdgebandCost, cabinet.box_edgeband_cost) && cabinet.box_edgeband_id) {
+      if (hasSignificantDifference(costs.boxEdgebandCost, (cabinet.box_edgeband_cost ?? 0)) && cabinet.box_edgeband_id) {
         const material = priceList.find(p => p.id === cabinet.box_edgeband_id);
         if (material) {
           materialChanges.push({
             materialType: 'box_edgeband',
             materialId: material.id,
             materialName: material.concept_description,
-            oldCost: cabinet.box_edgeband_cost,
+            oldCost: (cabinet.box_edgeband_cost ?? 0),
             newCost: costs.boxEdgebandCost,
-            difference: costs.boxEdgebandCost - cabinet.box_edgeband_cost,
-            percentageChange: cabinet.box_edgeband_cost > 0 ? ((costs.boxEdgebandCost - cabinet.box_edgeband_cost) / cabinet.box_edgeband_cost) * 100 : 0,
+            difference: costs.boxEdgebandCost - (cabinet.box_edgeband_cost ?? 0),
+            percentageChange: (cabinet.box_edgeband_cost ?? 0) > 0 ? ((costs.boxEdgebandCost - (cabinet.box_edgeband_cost ?? 0)) / (cabinet.box_edgeband_cost ?? 0)) * 100 : 0,
           });
           affectedMaterialsSet.add(material.id);
         }
       }
 
-      if (hasSignificantDifference(costs.boxInteriorFinishCost, cabinet.box_interior_finish_cost) && cabinet.box_interior_finish_id) {
+      if (hasSignificantDifference(costs.boxInteriorFinishCost, (cabinet.box_interior_finish_cost ?? 0)) && cabinet.box_interior_finish_id) {
         const material = priceList.find(p => p.id === cabinet.box_interior_finish_id);
         if (material) {
           materialChanges.push({
             materialType: 'box_interior_finish',
             materialId: material.id,
             materialName: material.concept_description,
-            oldCost: cabinet.box_interior_finish_cost,
+            oldCost: (cabinet.box_interior_finish_cost ?? 0),
             newCost: costs.boxInteriorFinishCost,
-            difference: costs.boxInteriorFinishCost - cabinet.box_interior_finish_cost,
-            percentageChange: cabinet.box_interior_finish_cost > 0 ? ((costs.boxInteriorFinishCost - cabinet.box_interior_finish_cost) / cabinet.box_interior_finish_cost) * 100 : 0,
+            difference: costs.boxInteriorFinishCost - (cabinet.box_interior_finish_cost ?? 0),
+            percentageChange: (cabinet.box_interior_finish_cost ?? 0) > 0 ? ((costs.boxInteriorFinishCost - (cabinet.box_interior_finish_cost ?? 0)) / (cabinet.box_interior_finish_cost ?? 0)) * 100 : 0,
           });
           affectedMaterialsSet.add(material.id);
         }
       }
 
-      if (hasSignificantDifference(costs.doorsMaterialCost, cabinet.doors_material_cost) && cabinet.doors_material_id) {
+      if (hasSignificantDifference(costs.doorsMaterialCost, (cabinet.doors_material_cost ?? 0)) && cabinet.doors_material_id) {
         const material = priceList.find(p => p.id === cabinet.doors_material_id);
         if (material) {
           materialChanges.push({
             materialType: 'doors_material',
             materialId: material.id,
             materialName: material.concept_description,
-            oldCost: cabinet.doors_material_cost,
+            oldCost: (cabinet.doors_material_cost ?? 0),
             newCost: costs.doorsMaterialCost,
-            difference: costs.doorsMaterialCost - cabinet.doors_material_cost,
-            percentageChange: cabinet.doors_material_cost > 0 ? ((costs.doorsMaterialCost - cabinet.doors_material_cost) / cabinet.doors_material_cost) * 100 : 0,
+            difference: costs.doorsMaterialCost - (cabinet.doors_material_cost ?? 0),
+            percentageChange: (cabinet.doors_material_cost ?? 0) > 0 ? ((costs.doorsMaterialCost - (cabinet.doors_material_cost ?? 0)) / (cabinet.doors_material_cost ?? 0)) * 100 : 0,
           });
           affectedMaterialsSet.add(material.id);
         }
       }
 
-      if (hasSignificantDifference(costs.doorsEdgebandCost, cabinet.doors_edgeband_cost) && cabinet.doors_edgeband_id) {
+      if (hasSignificantDifference(costs.doorsEdgebandCost, (cabinet.doors_edgeband_cost ?? 0)) && cabinet.doors_edgeband_id) {
         const material = priceList.find(p => p.id === cabinet.doors_edgeband_id);
         if (material) {
           materialChanges.push({
             materialType: 'doors_edgeband',
             materialId: material.id,
             materialName: material.concept_description,
-            oldCost: cabinet.doors_edgeband_cost,
+            oldCost: (cabinet.doors_edgeband_cost ?? 0),
             newCost: costs.doorsEdgebandCost,
-            difference: costs.doorsEdgebandCost - cabinet.doors_edgeband_cost,
-            percentageChange: cabinet.doors_edgeband_cost > 0 ? ((costs.doorsEdgebandCost - cabinet.doors_edgeband_cost) / cabinet.doors_edgeband_cost) * 100 : 0,
+            difference: costs.doorsEdgebandCost - (cabinet.doors_edgeband_cost ?? 0),
+            percentageChange: (cabinet.doors_edgeband_cost ?? 0) > 0 ? ((costs.doorsEdgebandCost - (cabinet.doors_edgeband_cost ?? 0)) / (cabinet.doors_edgeband_cost ?? 0)) * 100 : 0,
           });
           affectedMaterialsSet.add(material.id);
         }
       }
 
-      if (hasSignificantDifference(costs.doorsInteriorFinishCost, cabinet.doors_interior_finish_cost) && cabinet.doors_interior_finish_id) {
+      if (hasSignificantDifference(costs.doorsInteriorFinishCost, (cabinet.doors_interior_finish_cost ?? 0)) && cabinet.doors_interior_finish_id) {
         const material = priceList.find(p => p.id === cabinet.doors_interior_finish_id);
         if (material) {
           materialChanges.push({
             materialType: 'doors_interior_finish',
             materialId: material.id,
             materialName: material.concept_description,
-            oldCost: cabinet.doors_interior_finish_cost,
+            oldCost: (cabinet.doors_interior_finish_cost ?? 0),
             newCost: costs.doorsInteriorFinishCost,
-            difference: costs.doorsInteriorFinishCost - cabinet.doors_interior_finish_cost,
-            percentageChange: cabinet.doors_interior_finish_cost > 0 ? ((costs.doorsInteriorFinishCost - cabinet.doors_interior_finish_cost) / cabinet.doors_interior_finish_cost) * 100 : 0,
+            difference: costs.doorsInteriorFinishCost - (cabinet.doors_interior_finish_cost ?? 0),
+            percentageChange: (cabinet.doors_interior_finish_cost ?? 0) > 0 ? ((costs.doorsInteriorFinishCost - (cabinet.doors_interior_finish_cost ?? 0)) / (cabinet.doors_interior_finish_cost ?? 0)) * 100 : 0,
           });
           affectedMaterialsSet.add(material.id);
         }
       }
 
-      if (hasSignificantDifference(costs.hardwareCost, cabinet.hardware_cost)) {
+      if (hasSignificantDifference(costs.hardwareCost, (cabinet.hardware_cost ?? 0))) {
         const hardware = Array.isArray(cabinet.hardware) ? cabinet.hardware : [];
         if (hardware.length > 0) {
           materialChanges.push({
             materialType: 'hardware',
             materialId: 'hardware_combined',
             materialName: 'Hardware (combined)',
-            oldCost: cabinet.hardware_cost,
+            oldCost: (cabinet.hardware_cost ?? 0),
             newCost: costs.hardwareCost,
-            difference: costs.hardwareCost - cabinet.hardware_cost,
-            percentageChange: cabinet.hardware_cost > 0 ? ((costs.hardwareCost - cabinet.hardware_cost) / cabinet.hardware_cost) * 100 : 0,
+            difference: costs.hardwareCost - (cabinet.hardware_cost ?? 0),
+            percentageChange: (cabinet.hardware_cost ?? 0) > 0 ? ((costs.hardwareCost - (cabinet.hardware_cost ?? 0)) / (cabinet.hardware_cost ?? 0)) * 100 : 0,
           });
         }
       }

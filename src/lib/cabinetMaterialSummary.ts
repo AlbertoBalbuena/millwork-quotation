@@ -83,13 +83,13 @@ export async function calculateCabinetMaterialSummary(
     }
   }
 
-  if (cabinet.box_interior_finish_id && cabinet.box_interior_finish_cost > 0 && product) {
+  if (cabinet.box_interior_finish_id && (cabinet.box_interior_finish_cost ?? 0) > 0 && product) {
     const finish = priceListMap.get(cabinet.box_interior_finish_id);
     if (finish) {
       summary.boxInteriorFinish = {
         name: finish.concept_description,
         totalSF: product.box_sf * qty,
-        cost: cabinet.box_interior_finish_cost,
+        cost: (cabinet.box_interior_finish_cost ?? 0),
       };
     }
   }
@@ -116,13 +116,13 @@ export async function calculateCabinetMaterialSummary(
     }
   }
 
-  if (cabinet.doors_interior_finish_id && cabinet.doors_interior_finish_cost > 0 && product) {
+  if (cabinet.doors_interior_finish_id && (cabinet.doors_interior_finish_cost ?? 0) > 0 && product) {
     const finish = priceListMap.get(cabinet.doors_interior_finish_id);
     if (finish) {
       summary.doorsInteriorFinish = {
         name: finish.concept_description,
         totalSF: product.doors_fronts_sf * qty,
-        cost: cabinet.doors_interior_finish_cost,
+        cost: (cabinet.doors_interior_finish_cost ?? 0),
       };
     }
   }

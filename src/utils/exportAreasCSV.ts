@@ -15,7 +15,7 @@ export function prepareAreasForExport(
   areas: (ProjectArea & { cabinets: AreaCabinet[]; items: AreaItem[]; countertops: AreaCountertop[] })[]
 ): AreaExportData[] {
   return areas.map(area => {
-    const cabinetsTotal = area.cabinets.reduce((sum, c) => sum + c.subtotal, 0);
+    const cabinetsTotal = area.cabinets.reduce((sum, c) => sum + (c.subtotal ?? 0), 0);
     const itemsTotal = area.items.reduce((sum, i) => sum + i.subtotal, 0);
     const countertopsTotal = area.countertops.reduce((sum, ct) => sum + ct.subtotal, 0);
     const areaTotal = cabinetsTotal + itemsTotal + countertopsTotal;
@@ -141,12 +141,12 @@ export function generateDetailedAreasCSV(
           escapeCSVField(cabinet.product_sku || ''),
           escapeCSVField(cabinet.description || ''),
           cabinet.quantity.toString(),
-          (cabinet.subtotal / cabinet.quantity).toFixed(2),
-          cabinet.subtotal.toFixed(2),
+          ((cabinet.subtotal ?? 0) / cabinet.quantity).toFixed(2),
+          (cabinet.subtotal ?? 0).toFixed(2),
         ].join(','));
       });
 
-      const cabinetsTotal = area.cabinets.reduce((sum, c) => sum + c.subtotal, 0);
+      const cabinetsTotal = area.cabinets.reduce((sum, c) => sum + (c.subtotal ?? 0), 0);
       csvLines.push(`,,,Cabinets Total:,${cabinetsTotal.toFixed(2)}`);
       csvLines.push('');
     }
@@ -191,7 +191,7 @@ export function generateDetailedAreasCSV(
     }
 
     const areaTotal =
-      area.cabinets.reduce((sum, c) => sum + c.subtotal, 0) +
+      area.cabinets.reduce((sum, c) => sum + (c.subtotal ?? 0), 0) +
       area.countertops.reduce((sum, ct) => sum + ct.subtotal, 0) +
       area.items.reduce((sum, i) => sum + i.subtotal, 0);
 
@@ -202,7 +202,7 @@ export function generateDetailedAreasCSV(
   csvLines.push('');
   const grandTotal = areas.reduce((sum, area) => {
     return sum +
-      area.cabinets.reduce((s, c) => s + c.subtotal, 0) +
+      area.cabinets.reduce((s, c) => s + (c.subtotal ?? 0), 0) +
       area.countertops.reduce((s, ct) => s + ct.subtotal, 0) +
       area.items.reduce((s, i) => s + i.subtotal, 0);
   }, 0);

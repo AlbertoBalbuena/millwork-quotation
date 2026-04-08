@@ -167,8 +167,8 @@ export function Settings() {
       }
 
       for (const product of products) {
-        const newBoxSF = product.original_box_sf * (1 + boxWaste / 100);
-        const newDoorsSF = product.original_doors_fronts_sf * (1 + doorsWaste / 100);
+        const newBoxSF = (product.original_box_sf ?? 0) * (1 + boxWaste / 100);
+        const newDoorsSF = (product.original_doors_fronts_sf ?? 0) * (1 + doorsWaste / 100);
 
         const { error: updateError } = await supabase
           .from('products_catalog')

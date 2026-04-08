@@ -222,7 +222,7 @@ export function ProjectsHub() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-lg font-bold text-slate-900 tabular-nums">
-                          {formatCurrency(latest.total_amount / exchangeRate, 'USD')}
+                          {formatCurrency((latest.total_amount ?? 0) / exchangeRate, 'USD')}
                         </div>
                         <span className="text-xs text-slate-400">Latest quotation</span>
                       </div>

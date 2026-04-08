@@ -36,7 +36,7 @@ export function ProductItem() {
       const { data, error } = await supabase
         .from('products_catalog')
         .select('*')
-        .eq('id', id)
+        .eq('id', id ?? '')
         .single();
 
       if (error || !data) {
@@ -149,7 +149,7 @@ export function ProductItem() {
           </div>
           <div className="flex items-center gap-1.5 text-slate-400">
             <Clock className="h-3.5 w-3.5" />
-            <span className="text-xs">Updated {formatDate(product.updated_at)}</span>
+            <span className="text-xs">Updated {formatDate(product.updated_at ?? '')}</span>
           </div>
         </div>
       </div>
@@ -251,11 +251,11 @@ export function ProductItem() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Created</span>
-                <span>{formatDate(product.created_at)}</span>
+                <span>{formatDate(product.created_at ?? '')}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Updated</span>
-                <span>{formatDate(product.updated_at)}</span>
+                <span>{formatDate(product.updated_at ?? '')}</span>
               </div>
             </div>
           </div>

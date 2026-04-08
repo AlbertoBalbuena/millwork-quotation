@@ -99,7 +99,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
 
       await checkMaterialChange(
@@ -113,7 +113,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
 
       await checkMaterialChange(
@@ -127,7 +127,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
 
       await checkMaterialChange(
@@ -141,7 +141,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
 
       await checkMaterialChange(
@@ -155,7 +155,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
 
       await checkMaterialChange(
@@ -169,7 +169,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
 
       const cabinetAccessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
@@ -227,7 +227,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         materialImpactMap,
         affectedCabinetsSet,
         settingsData,
-        project.created_at
+        project.created_at ?? ''
       );
     }
   }
