@@ -10,7 +10,7 @@ interface Props {
 
 /**
  * Side-by-side comparison of the two quotation totals. Always visible
- * inside the Optimizer tab so the user can see the delta at a
+ * inside the Breakdown tab so the user can see the delta at a
  * glance when switching pricing methods.
  *
  * When optimizerTotal is null (no active run yet), the right side shows
@@ -74,12 +74,12 @@ export function FtVsOptimizerComparisonCard({ sqftTotal, optimizerTotal, activeM
         )}
       </div>
 
-      {/* Optimizer side */}
+      {/* Breakdown side */}
       <div className={`rounded-lg border p-3 ${
         activeMethod === 'optimizer' ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'
       }`}>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Optimizer</span>
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Breakdown</span>
           {activeMethod === 'optimizer' && (
             <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">ACTIVE</span>
           )}
@@ -88,7 +88,7 @@ export function FtVsOptimizerComparisonCard({ sqftTotal, optimizerTotal, activeM
           {hasOptimizer ? formatCurrency(optimizerTotal as number) : '—'}
         </div>
         <div className="text-xs text-slate-400 mt-0.5">
-          {hasOptimizer ? 'From active optimizer run' : 'No active run yet'}
+          {hasOptimizer ? 'From active breakdown run' : 'No active run yet'}
         </div>
       </div>
     </div>

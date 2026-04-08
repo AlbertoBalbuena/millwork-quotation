@@ -9,7 +9,7 @@ interface Props {
 }
 
 /**
- * Collapsible alert panel shown under the Optimizer tab header.
+ * Collapsible alert panel shown under the Breakdown tab header.
  * Lists:
  *  - Coverage summary (e.g. "12 of 30 cabinets covered by optimizer")
  *  - Warnings from the builder (missing tech info, missing materials, etc.)

@@ -1,19 +1,19 @@
-import { Calculator, LayoutDashboard } from 'lucide-react';
+import { Calculator, Layers } from 'lucide-react';
 import type { PricingMethod } from '../../../types';
 
 interface Props {
   value: PricingMethod;
   onChange: (next: PricingMethod) => void;
-  /** Disables the "optimizer" option when there's no active run yet. */
+  /** Disables the "breakdown" option when there's no active run yet. */
   canSelectOptimizer: boolean;
   size?: 'sm' | 'md';
 }
 
 /**
- * Segmented control: ft² ←→ Optimizer.
+ * Segmented control: ft² ←→ Breakdown.
  *
  * Writes to quotations.pricing_method via the onChange callback. The
- * "Optimizer" segment is disabled until the quotation has at least one
+ * "Breakdown" segment is disabled until the quotation has at least one
  * active optimizer run (otherwise there's nothing to flip to).
  *
  * The actual DB write (and the updateProjectTotal re-run) is owned by
@@ -49,10 +49,10 @@ export function PricingMethodToggle({ value, onChange, canSelectOptimizer, size 
               ? 'text-slate-500 hover:bg-slate-50'
               : 'text-slate-300 cursor-not-allowed'
         }`}
-        title={canSelectOptimizer ? undefined : 'Save and activate a run first to enable optimizer pricing.'}
+        title={canSelectOptimizer ? undefined : 'Save and activate a run first to enable breakdown pricing.'}
       >
-        <LayoutDashboard className="h-3.5 w-3.5" />
-        Optimizer
+        <Layers className="h-3.5 w-3.5" />
+        Breakdown
       </button>
     </div>
   );

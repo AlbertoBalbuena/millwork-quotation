@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   DollarSign,
   Percent,
-  Layers as LayersIcon,
+  Layers,
+  LayoutGrid,
   Ruler,
   GitCompareArrows,
-  LayoutDashboard,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -36,7 +36,7 @@ type KpiKey = 'total_cost' | 'waste_pct' | 'board_count' | 'cost_per_m2';
  *  - A versions table with columns: name, created, total cost, waste %,
  *    boards, $/m², active badge. The whole table is scrollable.
  *  - A "Compare" button that opens the same OptimizerComparisonPanel
- *    used by the Optimizer tab.
+ *    used by the Breakdown tab.
  */
 export function OptimizerRunsAnalytics({ quotationId }: Props) {
   const [runs, setRuns] = useState<QuotationOptimizerRun[] | null>(null);
@@ -80,11 +80,11 @@ export function OptimizerRunsAnalytics({ quotationId }: Props) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-1">
-          <LayoutDashboard className="h-4 w-4 text-blue-600" />
-          Optimizer Analytics
+          <Layers className="h-4 w-4 text-blue-600" />
+          Breakdown Analytics
         </div>
         <p className="text-xs text-slate-400">
-          Save at least one optimizer run from the Optimizer tab to see KPIs here.
+          Save at least one breakdown run from the Breakdown tab to see KPIs here.
         </p>
       </div>
     );
@@ -94,8 +94,8 @@ export function OptimizerRunsAnalytics({ quotationId }: Props) {
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <LayoutDashboard className="h-4 w-4 text-blue-600" />
-          <h2 className="text-sm font-semibold text-slate-800">Optimizer Analytics</h2>
+          <Layers className="h-4 w-4 text-blue-600" />
+          <h2 className="text-sm font-semibold text-slate-800">Breakdown Analytics</h2>
           <span className="text-xs text-slate-400">
             {runs.length} run{runs.length !== 1 ? 's' : ''}
             {activeRun && <> · active: <span className="font-medium text-slate-600">{activeRun.name}</span></>}
@@ -138,7 +138,7 @@ export function OptimizerRunsAnalytics({ quotationId }: Props) {
             delta={prevRun ? activeRun.board_count - prevRun.board_count : null}
             deltaFmt={(d) => String(d)}
             lowerIsBetter
-            icon={<LayersIcon className="h-4 w-4" />}
+            icon={<LayoutGrid className="h-4 w-4" />}
           />
           <AnalyticsKpiCard
             label="Cost per m²"
