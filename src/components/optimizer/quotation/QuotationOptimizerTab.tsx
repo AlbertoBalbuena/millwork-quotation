@@ -225,6 +225,7 @@ export function QuotationOptimizerTab({
 
   async function handleSetActive(runId: string) {
     await setActive(runId);
+    await loadRun(runId);
     if (onRecomputeRollup) await onRecomputeRollup();
     await refreshHeader();
   }
