@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Pencil as Edit2, Trash2, Copy, Package, DollarSign, ListPlus, Calculator, Receipt, Hammer, RefreshCw, Search, X, AlertTriangle, GripVertical, ChevronUp, ChevronDown, Info, RotateCcw, FileText, BarChart3, History, SeparatorHorizontal, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil as Edit2, Trash2, Copy, Package, DollarSign, ListPlus, Calculator, Receipt, Hammer, RefreshCw, Search, X, AlertTriangle, GripVertical, ChevronUp, ChevronDown, Info, RotateCcw, FileText, BarChart3, History, SeparatorHorizontal, Layers } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { fetchAllProducts } from '../lib/fetchAllProducts';
 import { Button } from '../components/Button';
@@ -289,7 +289,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     //
     // Both the mode and the active_run_id are re-fetched from DB here to
     // bypass React prop staleness (the user may have toggled the method
-    // from within the Optimizer tab without remounting ProjectDetails).
+    // from within the Breakdown tab without remounting ProjectDetails).
     let optimizerGrandTotal: number | null = null;
     let writeTotal = sqftProjectTotal;
 
@@ -719,7 +719,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
     });
   }
 
-  // Cut-list (Optimizer) PDF export — generates a board-layout PDF from the
+  // Cut-list (Breakdown) PDF export — generates a board-layout PDF from the
   // currently active optimizer run for this quotation. Always queries fresh
   // from DB to bypass any stale React prop state on `project`.
   async function handlePrintCutList(lang: PdfLang) {
@@ -738,7 +738,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
       }
 
       if (!run) {
-        alert('No active optimizer run for this quotation. Save and activate one in the Optimizer tab first.');
+        alert('No active optimizer run for this quotation. Save and activate one in the Breakdown tab first.');
         return;
       }
 
@@ -1148,7 +1148,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
   const tabs = [
     { id: 'info' as const, label: 'Info', icon: Receipt },
     { id: 'pricing' as const, label: 'Pricing', icon: Calculator },
-    { id: 'cutlist' as const, label: 'Optimizer', icon: LayoutDashboard },
+    { id: 'cutlist' as const, label: 'Breakdown', icon: Layers },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
     { id: 'history' as const, label: 'History', icon: History },
   ];

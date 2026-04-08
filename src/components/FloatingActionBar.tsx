@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, TrendingUp, Save, ArrowDownUp,
          Printer, FileSpreadsheet, FileJson, Download,
-         DollarSign, Package, ChevronDown, LayoutDashboard } from 'lucide-react';
+         DollarSign, Package, ChevronDown, Layers } from 'lucide-react';
 
 interface FloatingActionBarProps {
   onAddArea: () => void;
@@ -275,8 +275,8 @@ export function FloatingActionBar({
                 {[
                   { icon: Printer,         label: 'Standard PDF',           sub: 'MXN with full details',         onClick: () => { onPrint(); closeMenus(); } },
                   { icon: DollarSign,      label: 'USD Summary PDF',        sub: 'Price, tariff & tax summary',   onClick: () => { onPrintUSD(); closeMenus(); } },
-                  { icon: LayoutDashboard, label: 'Cut-list PDF (English)', sub: 'Optimizer board layouts',       onClick: () => { onPrintCutListEN(); closeMenus(); } },
-                  { icon: LayoutDashboard, label: 'Cut-list PDF (Español)', sub: 'Optimizer board layouts',       onClick: () => { onPrintCutListES(); closeMenus(); } },
+                  { icon: Layers, label: 'Cut-list PDF (English)', sub: 'Breakdown board layouts',       onClick: () => { onPrintCutListEN(); closeMenus(); } },
+                  { icon: Layers, label: 'Cut-list PDF (Español)', sub: 'Breakdown board layouts',       onClick: () => { onPrintCutListES(); closeMenus(); } },
                 ].map(({ icon: Icon, label, sub, onClick }) => (
                   <button
                     key={label}

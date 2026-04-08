@@ -63,7 +63,7 @@ export function OptimizerComparisonPanel({ isOpen, onClose, runs, activeRunId }:
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <GitCompareArrows className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Compare Optimizer Runs</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Compare Breakdown Runs</h2>
           </div>
           <button
             type="button"
@@ -76,7 +76,7 @@ export function OptimizerComparisonPanel({ isOpen, onClose, runs, activeRunId }:
 
         {runs.length < 2 ? (
           <div className="text-sm text-slate-500 py-8 text-center">
-            You need at least 2 saved runs to compare. Save another run from the Optimizer tab.
+            You need at least 2 saved runs to compare. Save another run from the Breakdown tab.
           </div>
         ) : (
           <>

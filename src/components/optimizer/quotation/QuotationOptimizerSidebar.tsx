@@ -8,7 +8,7 @@ interface Props {
 }
 
 /**
- * Left sidebar for the Optimizer tab.
+ * Left sidebar for the Breakdown tab.
  *
  * Shows:
  *  - Stocks list (auto-built from price_list, read-only)
