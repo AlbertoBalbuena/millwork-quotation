@@ -7,7 +7,7 @@ import { Input } from '../components/Input';
 import { Modal } from '../components/Modal';
 import { formatCurrency } from '../lib/calculations';
 import { format } from 'date-fns';
-import type { Quotation, QuotationInsert, ProjectType, QuotationStatus } from '../types';
+import type { Quotation, QuotationInsert, ProjectType, QuotationStatus, ProjectStatus } from '../types';
 import { getProjectsWithStalePrices } from '../lib/priceUpdateSystem';
 import { ImportProjectModal } from '../components/ImportProjectModal';
 import { groupProjectsByGroupId } from '../lib/projectGrouping';
@@ -354,7 +354,7 @@ export function Projects() {
     try {
       const selectedProjects = projects.filter(p => selectedProjectIds.includes(p.id));
       const primaryProject = selectedProjects.sort((a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        new Date(a.created_at ?? '').getTime() - new Date(b.created_at ?? '').getTime()
       )[0];
 
       let groupId = primaryProject.group_id;
@@ -1123,7 +1123,7 @@ function ProjectCard({ project, onView, onEdit, onDelete, onDuplicate, onStatusC
 }
 
 interface ProjectFormModalProps {
-  project: Project | null;
+  project: Quotation | null;
   onSave: (project: QuotationInsert) => void;
   onClose: () => void;
 }
@@ -1134,10 +1134,11 @@ function ProjectFormModal({ project, onSave, onClose }: ProjectFormModalProps) {
     return today.toISOString().split('T')[0];
   };
 
-  const [formData, setFormData] = useState<ProjectInsert>({
+  const [formData, setFormData] = useState<QuotationInsert>({
     name: project?.name || '',
     customer: project?.customer || '',
     address: project?.address || '',
+    project_id: project?.project_id || '',
     quote_date: project?.quote_date || getTodayDate(),
     status: project?.status || 'Pending',
     project_type: project?.project_type || 'Custom',
@@ -1215,7 +1216,7 @@ function ProjectFormModal({ project, onSave, onClose }: ProjectFormModalProps) {
               Status
             </label>
             <select
-              value={formData.status}
+              value={formData.status ?? ''}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as ProjectStatus })}
               className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required

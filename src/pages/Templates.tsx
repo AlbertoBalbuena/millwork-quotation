@@ -546,7 +546,7 @@ interface TemplateEditModalProps {
 function TemplateEditModal({ template, onClose, onSave }: TemplateEditModalProps) {
   const [name, setName] = useState(template.name);
   const [description, setDescription] = useState(template.description || '');
-  const [category, setCategory] = useState<TemplateCategory>(template.category);
+  const [category, setCategory] = useState<TemplateCategory>(template.category as TemplateCategory);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {

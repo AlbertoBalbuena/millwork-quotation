@@ -91,7 +91,7 @@ export function TasksSection({ projectId, teamMembers }: Props) {
     const freshMembers = membersRes.data || [];
     const membersMap = new Map(freshMembers.map((m) => [m.id, m]));
 
-    function buildEnhanced(raw: typeof rawTasks[0], subs: typeof subtasks): EnhancedTask {
+    function buildEnhanced(raw: NonNullable<typeof rawTasks>[0], subs: typeof subtasks): EnhancedTask {
       const taskAssignees = assigneeRows
         .filter((r) => r.task_id === raw.id)
         .map((r) => membersMap.get(r.member_id))

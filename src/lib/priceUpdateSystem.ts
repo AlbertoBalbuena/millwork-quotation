@@ -326,9 +326,9 @@ async function recalculateCabinetCosts(
     ? calculateInteriorFinishCost(product, doorsInteriorFinish, cabinet.quantity, false)
     : 0;
 
-  const hardware = Array.isArray(cabinet.hardware) ? cabinet.hardware : [];
+  const hardware = (Array.isArray(cabinet.hardware) ? cabinet.hardware : []) as unknown as import('../types').HardwareItem[];
   const hardwareCost = calculateHardwareCost(hardware, cabinet.quantity, priceList);
-  const accessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
+  const accessories = (Array.isArray(cabinet.accessories) ? cabinet.accessories : []) as unknown as { accessory_id: string; quantity_per_cabinet: number }[];
   const accessoriesCost = calculateAccessoriesCost(accessories, cabinet.quantity, priceList);
   const laborCost = calculateLaborCost(product, cabinet.quantity, settings.laborCostNoDrawers, settings.laborCostWithDrawers, settings.laborCostAccessories);
 
@@ -455,19 +455,22 @@ export async function updateCabinetPrices(
 
 export async function updateProjectPrices(
   projectId: string,
-  areaIds?: string[],
+  filterAreaIds?: string[],
   onProgress?: (message: string, current: number, total: number) => void
 ): Promise<{ success: boolean; updated: number; errors: string[] }> {
   try {
+    let areaIds = filterAreaIds;
+    if (!areaIds) {
+      const { data: areaIdsData } = await supabase
+        .from('project_areas')
+        .select('id')
+        .eq('project_id', projectId);
+      areaIds = (areaIdsData ?? []).map((a) => a.id);
+    }
     let query = supabase
       .from('area_cabinets')
       .select('id, area_id')
-      .in('area_id',
-        supabase
-          .from('project_areas')
-          .select('id')
-          .eq('project_id', projectId)
-      );
+      .in('area_id', areaIds);
 
     if (areaIds && areaIds.length > 0) {
       query = query.in('area_id', areaIds);
@@ -549,7 +552,7 @@ export async function checkProjectHasStalePrices(projectId: string): Promise<boo
     return isStale;
   }
 
-  return data.has_stale_prices;
+  return data.has_stale_prices ?? false;
 }
 
 export async function getProjectsWithStalePrices(): Promise<string[]> {

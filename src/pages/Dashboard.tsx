@@ -315,7 +315,7 @@ export function Dashboard() {
 
       const filteredCabinets = cabinets.filter(c => !isAccessoryPanel(c.product_sku));
 
-      const materialIds = [...new Set(filteredCabinets.map(c => c.doors_material_id).filter(Boolean))];
+      const materialIds = [...new Set(filteredCabinets.map(c => c.doors_material_id).filter((id): id is string => !!id))];
 
       if (materialIds.length === 0) return;
 
@@ -368,7 +368,7 @@ export function Dashboard() {
 
       const filteredCabinets = cabinets.filter(c => !isAccessoryPanel(c.product_sku));
 
-      const materialIds = [...new Set(filteredCabinets.map(c => c.box_material_id).filter(Boolean))];
+      const materialIds = [...new Set(filteredCabinets.map(c => c.box_material_id).filter((id): id is string => !!id))];
 
       if (materialIds.length === 0) return;
 

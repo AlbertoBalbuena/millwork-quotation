@@ -95,7 +95,7 @@ export function ProjectGroupCard({
   const someGroupSelected = selectionMode && groupProjectIds.some(id => selectedProjectIds.includes(id)) && !allGroupSelected;
 
   const sortedVersions = [...group.projects].sort((a, b) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime()
   );
 
   return (
@@ -340,7 +340,7 @@ export function ProjectGroupCard({
                               {project.status}
                             </span>
                             <span className="text-xs text-slate-400">
-                              {format(new Date(project.created_at), 'MMM dd, yyyy')}
+                              {format(new Date(project.created_at ?? ''), 'MMM dd, yyyy')}
                             </span>
                             <span className="text-sm font-bold text-slate-900">
                               {formatCurrency((project.total_amount ?? 0) / exchangeRate, 'USD')}

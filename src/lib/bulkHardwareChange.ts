@@ -45,7 +45,7 @@ export async function getHardwareInUse(
   const areaTableName = versionId ? 'version_project_areas' : 'project_areas';
 
   let query = supabase
-    .from(tableName)
+    .from(tableName as 'area_cabinets')
     .select('hardware, hardware_cost, quantity')
     .not('hardware', 'is', null);
 
@@ -53,7 +53,7 @@ export async function getHardwareInUse(
     query = query.in('area_id', areaIds);
   } else {
     const { data: areas } = await supabase
-      .from(areaTableName)
+      .from(areaTableName as 'project_areas')
       .select('id')
       .eq(versionId ? 'version_id' : 'project_id', versionId || projectId);
 
@@ -115,7 +115,7 @@ export async function previewBulkHardwareChange(
   let areaIdsToQuery = areaIds;
   if (areaIds.length === 0) {
     const { data: areas } = await supabase
-      .from(areaTableName)
+      .from(areaTableName as 'project_areas')
       .select('id')
       .eq(versionId ? 'version_id' : 'project_id', versionId || projectId);
 
@@ -134,7 +134,7 @@ export async function previewBulkHardwareChange(
   }
 
   const { data: cabinets, error } = await supabase
-    .from(tableName)
+    .from(tableName as 'area_cabinets')
     .select('*')
     .in('area_id', areaIdsToQuery);
 
@@ -239,7 +239,7 @@ export async function executeBulkHardwareChange(
     // Batch-fetch all cabinets in one query (avoids N+1)
     const cabinetIds = preview.affectedCabinets.map(c => c.id);
     const { data: allCabinets } = await supabase
-      .from(tableName)
+      .from(tableName as 'area_cabinets')
       .select('*')
       .in('id', cabinetIds);
     const cabinetsMap = new Map((allCabinets || []).map(c => [c.id, c]));
@@ -250,7 +250,7 @@ export async function executeBulkHardwareChange(
       const currentCabinet = cabinetsMap.get(cabinet.id);
       if (!currentCabinet) continue;
 
-      const hardwareArray = currentCabinet.hardware as HardwareItem[];
+      const hardwareArray = currentCabinet.hardware as unknown as HardwareItem[];
       let newHardwareArray: HardwareItem[];
 
       if (operationType === 'replace' && newHardwareId) {
@@ -281,17 +281,19 @@ export async function executeBulkHardwareChange(
         (currentCabinet.labor_cost || 0);
 
       updatePromises.push(
-        supabase.from(tableName).update({
+        supabase.from(tableName as 'area_cabinets').update({
           hardware: newHardwareArray as any,
           hardware_cost: cabinet.newCost,
           subtotal: newSubtotal,
-        }).eq('id', cabinet.id)
+        }).eq('id', cabinet.id) as unknown as Promise<any>
       );
     }
 
     await Promise.all(updatePromises);
 
-    await supabase.from('material_change_log').insert({
+    // material_change_log exists in DB but is missing from generated types.
+    // Regenerate database.types.ts via Supabase CLI to remove the cast.
+    await supabase.from('material_change_log' as any).insert({
       project_id: projectId,
       user_action: operationType === 'replace'
         ? `Replaced hardware from ${oldHardware?.concept_description || 'Unknown'} to ${newHardware?.concept_description || 'Unknown'}`

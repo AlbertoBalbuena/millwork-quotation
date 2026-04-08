@@ -214,9 +214,9 @@ const [isEditingDate, setIsEditingDate] = useState(false);
         : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
       const allCabinets: AreaCabinet[] = allCabinetsResult.data || [];
-      const allItems: AreaItem[] = allItemsResult.data || [];
-      const allCountertops: AreaCountertop[] = allCountertopsResult.data || [];
-      const allClosetItems: AreaClosetItem[] = (allClosetItemsResult.data || []) as AreaClosetItem[];
+      const allItems: AreaItem[] = (allItemsResult.data || []) as unknown as AreaItem[];
+      const allCountertops: AreaCountertop[] = (allCountertopsResult.data || []) as unknown as AreaCountertop[];
+      const allClosetItems: AreaClosetItem[] = (allClosetItemsResult.data || []) as unknown as AreaClosetItem[];
       const allSections: AreaSection[] = (allSectionsResult.data || []) as AreaSection[];
 
       const areasWithCabinetsAndItems = (areasData || []).map((area) => {
@@ -448,7 +448,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
           ...rest,
           area_id: newArea.id,
         }));
-        const { error: closetError } = await supabase.from('area_closet_items').insert(closetItemsToInsert);
+        const { error: closetError } = await supabase.from('area_closet_items').insert(closetItemsToInsert as any);
         if (closetError) throw closetError;
       }
 
@@ -1288,7 +1288,7 @@ const [isEditingDate, setIsEditingDate] = useState(false);
                           window.location.reload();
                         } catch (error) {
                           console.error('Error updating date:', error);
-                          alert('Failed to update date: ' + error.message);
+                          alert('Failed to update date: ' + (error instanceof Error ? error.message : String(error)));
                         }
                       }}
                       className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded font-medium"
@@ -2538,7 +2538,7 @@ function AreaFormModal({ area, onSave, onClose, tariffMultiplier }: AreaFormModa
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({ name, applies_tariff: appliesTariff });
+    onSave({ name, applies_tariff: appliesTariff } as ProjectAreaInsert);
   }
 
   return (

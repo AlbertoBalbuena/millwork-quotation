@@ -71,7 +71,7 @@ export function Settings() {
         .order('material_type');
 
       if (error) throw error;
-      setTaxesByType(data || []);
+      setTaxesByType((data || []) as any);
     } catch (error) {
       console.error('Error loading taxes by type:', error);
     }
@@ -85,7 +85,7 @@ export function Settings() {
         .order('type_name');
 
       if (error) throw error;
-      setCustomTypes(data || []);
+      setCustomTypes((data || []) as any);
     } catch (error) {
       console.error('Error loading custom types:', error);
     }
@@ -99,7 +99,7 @@ export function Settings() {
         .order('unit_name');
 
       if (error) throw error;
-      setCustomUnits(data || []);
+      setCustomUnits((data || []) as any);
     } catch (error) {
       console.error('Error loading custom units:', error);
     }

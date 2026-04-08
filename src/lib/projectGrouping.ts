@@ -33,7 +33,7 @@ export function groupProjectsByGroupId(quotations: Quotation[]): ProjectGroup[] 
       return qUpd > bestUpd ? q : best;
     });
     const sortedQuotations = [...quotationsInGroup].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime()
     );
 
     const totalValue = quotationsInGroup.reduce((sum, q) => sum + (q.total_amount ?? 0), 0);

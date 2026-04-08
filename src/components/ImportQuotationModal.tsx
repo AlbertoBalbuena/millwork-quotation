@@ -38,7 +38,7 @@ export function ImportQuotationModal({ isOpen, onClose, projectId, onSuccess }: 
   useEffect(() => {
     if (!projectId && isOpen) {
       supabase.from('projects').select('id, name').order('updated_at', { ascending: false })
-        .then(({ data }) => setProjects(data || []));
+        .then(({ data }) => setProjects((data || []) as any));
     }
   }, [projectId, isOpen]);
 

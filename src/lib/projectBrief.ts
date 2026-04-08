@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { ProjectArea, AreaCabinet, AreaItem, AreaCountertop, PriceListItem, Product } from '../types';
+import type { AreaCabinet, AreaItem, AreaCountertop, PriceListItem, Product } from '../types';
 import { isAccessoryPanel } from './cabinetFilters';
 
 interface HardwareInfo {
@@ -167,7 +167,7 @@ export async function generateProjectBrief(projectId: string): Promise<string> {
           if (hw.hardware_id) {
             const item = priceListMap.get(hw.hardware_id);
             if (item) {
-              const category = item.category || 'Other';
+              const category = (item as { category?: string }).category || 'Other';
               if (!hardwareByCategory.has(category)) {
                 hardwareByCategory.set(category, []);
               }

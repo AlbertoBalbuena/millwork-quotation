@@ -58,7 +58,7 @@ export async function calculateAreaSheetMaterials(
 
   if (productsError || !products) {
     console.error('Error loading products:', productsError);
-    return { sheetUsages: [], cabinetCosts: [] };
+    return { sheetUsages: [], cabinetCosts: [], cabinets: [] };
   }
 
   const { data: priceList, error: priceListError } = await supabase
@@ -67,7 +67,7 @@ export async function calculateAreaSheetMaterials(
 
   if (priceListError || !priceList) {
     console.error('Error loading price list:', priceListError);
-    return { sheetUsages: [], cabinetCosts: [] };
+    return { sheetUsages: [], cabinetCosts: [], cabinets: [] };
   }
 
   const boxMaterialsMap = new Map<string, {

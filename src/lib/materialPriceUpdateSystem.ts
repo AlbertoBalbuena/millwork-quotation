@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { fetchAllProducts } from './fetchAllProducts';
-import type { PriceListItem, Product, AreaCabinet } from '../types';
+import type { PriceListItem, Product, AreaCabinet, HardwareItem } from '../types';
 import {
   calculateBoxMaterialCost,
   calculateBoxEdgebandCost,
@@ -172,7 +172,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
         project.created_at ?? ''
       );
 
-      const cabinetAccessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
+      const cabinetAccessories = (Array.isArray(cabinet.accessories) ? cabinet.accessories : []) as unknown as { accessory_id: string; quantity_per_cabinet: number }[];
       if (cabinetAccessories.length > 0) {
         const oldAccessoriesCost = cabinet.accessories_cost || 0;
         const newAccessoriesCost = calculateAccessoriesCost(cabinetAccessories, cabinet.quantity, priceList);
@@ -187,7 +187,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
               materialType: 'accessories',
               oldPrice: 0,
               currentPrice: 0,
-              priceChangeDate: project.created_at,
+              priceChangeDate: project.created_at ?? '',
               priceChangePercentage: 0,
               affectedCabinetsCount: 0,
               totalOldCost: 0,
@@ -237,7 +237,7 @@ export async function analyzeMaterialPriceChanges(projectId: string): Promise<Ma
 
   return {
     projectId,
-    projectCreatedAt: project.created_at,
+    projectCreatedAt: project.created_at ?? '',
     materials,
     totalDifference,
     affectedCabinetsCount: affectedCabinetsSet.size,
@@ -438,7 +438,7 @@ async function calculateNewCost(
     case 'doors_interior_finish':
       return calculateInteriorFinishCost(product, material, cabinet.quantity, false);
     case 'accessories': {
-      const accessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
+      const accessories = (Array.isArray(cabinet.accessories) ? cabinet.accessories : []) as unknown as { accessory_id: string; quantity_per_cabinet: number }[];
       return calculateAccessoriesCost(accessories, cabinet.quantity, priceList);
     }
     case 'door_profile':
@@ -590,9 +590,9 @@ async function recalculateCabinetCosts(
     ? calculateInteriorFinishCost(product, doorsInteriorFinish, cabinet.quantity, false)
     : 0;
 
-  const hardware = Array.isArray(cabinet.hardware) ? cabinet.hardware : [];
+  const hardware = (Array.isArray(cabinet.hardware) ? cabinet.hardware : []) as unknown as HardwareItem[];
   const hardwareCost = calculateHardwareCost(hardware, cabinet.quantity, priceList);
-  const accessories = Array.isArray(cabinet.accessories) ? cabinet.accessories : [];
+  const accessories = (Array.isArray(cabinet.accessories) ? cabinet.accessories : []) as unknown as { accessory_id: string; quantity_per_cabinet: number }[];
   const accessoriesCost = calculateAccessoriesCost(accessories, cabinet.quantity, priceList);
   const laborCost = calculateLaborCost(product, cabinet.quantity, settings.laborCostNoDrawers, settings.laborCostWithDrawers, settings.laborCostAccessories);
 

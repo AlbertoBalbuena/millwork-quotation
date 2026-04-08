@@ -43,7 +43,7 @@ export async function calculateAreaEdgebandRolls(
 
   if (productsError || !products) {
     console.error('Error loading products:', productsError);
-    return { edgebandUsages: [], cabinetCosts: [] };
+    return { edgebandUsages: [], cabinetCosts: [], cabinets: [] };
   }
 
   const { data: priceList, error: priceListError } = await supabase
@@ -52,7 +52,7 @@ export async function calculateAreaEdgebandRolls(
 
   if (priceListError || !priceList) {
     console.error('Error loading price list:', priceListError);
-    return { edgebandUsages: [], cabinetCosts: [] };
+    return { edgebandUsages: [], cabinetCosts: [], cabinets: [] };
   }
 
   // Map to aggregate total meters per edgeband finish

@@ -145,7 +145,7 @@ export function ProjectsHub() {
             className="px-3 py-2 text-sm border border-slate-200/60 rounded-lg bg-white/80"
           >
             <option value="all">All Types</option>
-            {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            {projectTypes.map(t => <option key={t} value={t ?? ''}>{t}</option>)}
           </select>
           <span className="text-xs text-slate-400 self-center hidden sm:inline">{filtered.length} projects</span>
         </div>
@@ -185,7 +185,7 @@ export function ProjectsHub() {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 flex-1">{project.name}</h3>
                     {latest && (
-                      <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border ${statusColors[latest.status] || 'bg-slate-50 text-slate-600 border-slate-200/50'}`}>
+                      <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border ${statusColors[latest.status ?? ''] || 'bg-slate-50 text-slate-600 border-slate-200/50'}`}>
                         {latest.status}
                       </span>
                     )}
