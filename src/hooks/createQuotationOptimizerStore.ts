@@ -277,8 +277,15 @@ export function getQuotationOptimizerStore(
         const activeStocks = state.pendingStocks.filter((s) =>
           state.selectedStockIds.has(s.id),
         );
+        // Also filter pieces: exclude any piece whose material has no active stock.
+        // This ensures unchecking a stock fully removes that material's pieces from
+        // the run, giving clean results without unplaced-piece warnings.
+        const activeStockNames = new Set(activeStocks.map((s) => s.nombre));
+        const activePieces = state.pendingPieces.filter((p) =>
+          activeStockNames.has(p.material),
+        );
         const result = runOptimization(
-          state.pendingPieces,
+          activePieces,
           activeStocks,
           [], // no remnants in quotation mode for now
           state.globalSierra,

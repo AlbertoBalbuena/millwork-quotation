@@ -47,7 +47,7 @@ export function RightStatsPanel({ result, selectedIdx, onSelectBoard }: Props) {
   // Stock sheets grouped by material name (for per-material board count)
   const materialGroups: Record<string, number> = {};
   result.boards.forEach((b) => {
-    const key = b.stockInfo.nombre;
+    const key = b.material; // piece material group — semantically the correct label
     materialGroups[key] = (materialGroups[key] || 0) + 1;
   });
 
