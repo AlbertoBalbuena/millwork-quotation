@@ -288,6 +288,14 @@ function derivePageContext(pathname: string): { currentPage: string; projectId: 
 
 export function AiChat() {
   const { user } = useAuth();
+  // First name for the welcome greeting. Google OAuth populates user_metadata
+  // with given_name/full_name/name; fall back to email local-part if missing.
+  const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
+  const fullName = (meta.given_name as string) || (meta.full_name as string) || (meta.name as string) || '';
+  const rawFirst = fullName
+    ? fullName.trim().split(/\s+/)[0]
+    : (user?.email ? user.email.split('@')[0].split('.')[0] : '');
+  const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1) : '';
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { currentPage, projectId } = derivePageContext(pathname);
@@ -607,7 +615,7 @@ export function AiChat() {
               )}
               <div>
                 <p className="font-semibold text-slate-900 text-sm leading-tight tracking-wide">
-                  {view === 'history' ? 'Conversation History' : 'Evita IA'}
+                  {view === 'history' ? 'Conversation History' : 'Evita AI'}
                 </p>
                 <p className="text-xs text-slate-500">
                   {view === 'history' ? 'Past conversations' : 'Quotation Assistant'}
@@ -838,7 +846,7 @@ export function AiChat() {
                         <Sparkles size={24} style={{ color: '#6366f1' }} />
                       </div>
                       <p className="text-slate-900 font-semibold text-base mb-1">
-                        Hi, I'm Evita IA
+                        {firstName ? `Hi ${firstName}, I'm Evita AI` : "Hi, I'm Evita AI"}
                       </p>
                       <p className="text-xs leading-relaxed text-slate-500">
                         Your quotation assistant. Ask me for estimates,<br />
@@ -967,7 +975,7 @@ export function AiChat() {
                       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask Evita IA..."
+                    placeholder="Ask Evita AI..."
                     rows={1}
                     className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed text-slate-800 placeholder-slate-400"
                     style={{
@@ -1023,7 +1031,7 @@ export function AiChat() {
           }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-          title="Evita IA"
+          title="Evita AI"
         >
           <Sparkles size={18} className="text-white" />
           {hasUnread && (
