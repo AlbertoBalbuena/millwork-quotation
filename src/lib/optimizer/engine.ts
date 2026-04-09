@@ -723,7 +723,7 @@ export function runOptimization(
   pieces: Pieza[],
   stocks: StockSize[],
   remnants: Remnant[],
-  globalSierra = 3.2,
+  globalSierra = 4.5,
   minOffcut = 200,
   boardTrim = 0,
   engineMode: EngineMode = 'guillotine',
