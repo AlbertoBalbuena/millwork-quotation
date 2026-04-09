@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import { Plus, Search, Printer, ChevronDown, Layers } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/calculations';
@@ -378,9 +378,9 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                 </tr>
               ) : (
                 groups.map(({ key, items: groupItems }) => (
-                  <>
+                  <Fragment key={key || '__all__'}>
                     {groupBy !== 'none' && (
-                      <tr key={`group-${key}`} className="bg-slate-50/80 border-b border-slate-200/60">
+                      <tr className="bg-slate-50/80 border-b border-slate-200/60">
                         <td colSpan={TOTAL_COLS} className="px-4 py-2">
                           <div className="flex items-center gap-2">
                             {getGroupDot(key) && (
@@ -410,7 +410,7 @@ export function PurchaseListSection({ projectId }: PurchaseListSectionProps) {
                         onDrop={handleDrop}
                       />
                     ))}
-                  </>
+                  </Fragment>
                 ))
               )}
             </tbody>

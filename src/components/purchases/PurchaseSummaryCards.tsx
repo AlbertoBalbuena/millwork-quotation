@@ -7,7 +7,7 @@ interface PurchaseSummaryCardsProps {
 }
 
 export function PurchaseSummaryCards({ items }: PurchaseSummaryCardsProps) {
-  const estimatedTotal = items.reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+  const estimatedTotal = items.reduce((sum, i) => sum + (i.subtotal ?? i.quantity * (i.price ?? 0)), 0);
   const pendingCount = items.filter((i) => i.status === 'Ordered' || i.status === 'In Transit').length;
   const inWarehouseCount = items.filter((i) => i.status === 'In Warehouse').length;
   const paidCount = items.filter((i) => i.status === 'Paid').length;

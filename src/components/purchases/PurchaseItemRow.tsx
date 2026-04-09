@@ -64,8 +64,11 @@ export function PurchaseItemRow({
   const [showDropdown, setShowDropdown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  // Controlled price state — syncs from props when pricelist item changes
+  // Controlled numeric states — sync from props when changed externally
+  const [localQty, setLocalQty] = useState<number>(item.quantity);
   const [localPrice, setLocalPrice] = useState<number>(item.price ?? 0);
+  // Controlled unit state — syncs when pricelist item auto-fills unit
+  const [localUnit, setLocalUnit] = useState<string>(item.unit ?? '');
 
   const conceptRef = useRef<HTMLInputElement>(null);
   const dropdownPortalRef = useRef<HTMLDivElement>(null);
@@ -76,10 +79,20 @@ export function PurchaseItemRow({
     setConceptSearch(item.concept);
   }, [item.concept]);
 
+  // Sync quantity when changed from outside (e.g. BOM re-export)
+  useEffect(() => {
+    setLocalQty(item.quantity);
+  }, [item.quantity]);
+
   // Sync price whenever the linked pricelist item changes OR price changes from outside
   useEffect(() => {
     setLocalPrice(item.price ?? 0);
   }, [item.price_list_item_id, item.price]);
+
+  // Sync unit whenever the linked pricelist item auto-fills it
+  useEffect(() => {
+    setLocalUnit(item.unit ?? '');
+  }, [item.price_list_item_id, item.unit]);
 
   // Recompute dropdown position
   function updateDropdownPosition() {
@@ -242,8 +255,9 @@ export function PurchaseItemRow({
           type="number"
           min="0.001"
           step="1"
-          defaultValue={item.quantity}
-          onBlur={(e) => handleFieldChange('quantity', parseFloat(e.target.value) || 1)}
+          value={localQty}
+          onChange={(e) => setLocalQty(parseFloat(e.target.value) || 1)}
+          onBlur={() => handleFieldChange('quantity', localQty)}
           className="w-full px-1.5 py-1.5 text-sm text-right tabular-nums border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
         />
       </td>
@@ -281,9 +295,10 @@ export function PurchaseItemRow({
       <td className="px-2 py-2 w-[72px]">
         <input
           type="text"
-          defaultValue={item.unit ?? ''}
-          onBlur={(e) => handleFieldChange('unit', e.target.value)}
-          title={item.unit ?? ''}
+          value={localUnit}
+          onChange={(e) => setLocalUnit(e.target.value)}
+          onBlur={() => handleFieldChange('unit', localUnit)}
+          title={localUnit}
           className="w-full px-1.5 py-1.5 text-sm border border-transparent hover:border-slate-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-md outline-none transition bg-transparent"
         />
       </td>
