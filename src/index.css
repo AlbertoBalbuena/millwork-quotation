@@ -382,6 +382,28 @@ a.bitacora-link:hover {
     animation: heroEnter 0.4s ease forwards;
   }
 
+  /* Tab content enter — used when switching between Projects / Planner tabs */
+  @keyframes tabContentEnterLeft {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes tabContentEnterRight {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .tab-enter-left {
+    animation: tabContentEnterLeft 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .tab-enter-right {
+    animation: tabContentEnterRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Sliding pill indicator used by the Tasks tab switcher */
+  @keyframes tabPillSlide {
+    from { opacity: 0.4; }
+    to   { opacity: 1; }
+  }
+
   /* Skeleton shimmer effect */
   @keyframes skeletonShimmer {
     0%   { background-position: -200% 0; }
