@@ -611,17 +611,22 @@ export function HomePage() {
     localStorage.setItem('homepage_tasks_filter', on ? 'mine' : 'all');
   }
 
-  // Split tasks into project-bound and personal (owned by current member)
+  // Split tasks into project-bound and personal (team-wide)
   const projectTasks = useMemo(
     () => tasks.filter(t => !!t.project_id),
     [tasks]
   );
-  const personalTasks = useMemo(
-    () => (member ? tasks.filter(t => !t.project_id && t.owner_member_id === member.id) : []),
-    [tasks, member]
+  const allPersonalTasks = useMemo(
+    () => tasks.filter(t => !t.project_id),
+    [tasks]
+  );
+  // Just mine (owned by current member)
+  const myPersonalTasks = useMemo(
+    () => (member ? allPersonalTasks.filter(t => t.owner_member_id === member.id) : []),
+    [allPersonalTasks, member]
   );
 
-  // My tasks filter (project tab only)
+  // My tasks filter (projects tab: assignee-based)
   const myTasks = useMemo(
     () => (member ? projectTasks.filter(t => t.assignees.some(a => a.id === member.id)) : projectTasks),
     [projectTasks, member]
@@ -629,6 +634,11 @@ export function HomePage() {
   const visibleTasks = useMemo(
     () => (myTasksOnly ? myTasks : projectTasks),
     [myTasksOnly, myTasks, projectTasks]
+  );
+  // Visible personal tasks: same Mine/All semantics applied to the Planner tab
+  const visiblePersonalTasks = useMemo(
+    () => (myTasksOnly ? myPersonalTasks : allPersonalTasks),
+    [myTasksOnly, myPersonalTasks, allPersonalTasks]
   );
 
   const hasActiveFilters = !!(taskFilters.priority || taskFilters.assigneeId || taskFilters.projectId);
@@ -694,7 +704,7 @@ export function HomePage() {
     const byBucket: Record<TaskBucket, CrossProjectTask[]> = { inbox: [], daily: [], weekly: [], monthly: [] };
     const done: CrossProjectTask[] = [];
 
-    for (const t of personalTasks) {
+    for (const t of visiblePersonalTasks) {
       if (t.status === 'done' || t.status === 'cancelled') {
         if (passesPriority(t)) done.push(t);
         continue;
@@ -715,7 +725,7 @@ export function HomePage() {
     (Object.keys(byBucket) as TaskBucket[]).forEach(k => sortBucket(byBucket[k]));
 
     // Hero counts scoped to personal tab (ignores filters to always reflect raw totals)
-    const activePersonal = personalTasks.filter(isActive);
+    const activePersonal = visiblePersonalTasks.filter(isActive);
     return {
       byBucket,
       done,
@@ -723,12 +733,12 @@ export function HomePage() {
         inProgressAll: activePersonal.filter(t => t.status === 'in_progress').length,
         inReviewAll:   activePersonal.filter(t => t.status === 'in_review').length,
         pendingAll:    activePersonal.filter(t => t.status === 'pending').length,
-        doneAll:       personalTasks.filter(t => t.status === 'done' || t.status === 'cancelled').length,
+        doneAll:       visiblePersonalTasks.filter(t => t.status === 'done' || t.status === 'cancelled').length,
         overdueAll:    activePersonal.filter(t => t.due_date && dueTs(t) < todayTs).length,
         blockedAll:    activePersonal.filter(t => t.status === 'blocked').length,
       },
     };
-  }, [personalTasks, taskFilters, todayTs]);
+  }, [visiblePersonalTasks, taskFilters, todayTs]);
 
   // Hero counts switch between tabs
   const heroCounts = taskTab === 'planner'
@@ -973,12 +983,40 @@ export function HomePage() {
 
         {/* ── Tasks column ──────────────────────────────────────────────── */}
         <div className={`glass-white overflow-hidden p-0 transition-colors duration-500 ${taskTab === 'planner' ? 'ring-1 ring-violet-200/50' : 'ring-1 ring-blue-100/40'}`}>
-          {/* ── Title row ─────────────────────────────────────────────── */}
+          {/* ── Title row + Mine/All toggle ───────────────────────────── */}
           <div className="flex items-center gap-2.5 px-5 pt-4 pb-3">
             <div className={`p-1.5 rounded-lg transition-colors duration-500 ${taskTab === 'planner' ? 'bg-violet-100' : 'bg-blue-100'}`}>
               <CheckSquare className={`h-4 w-4 transition-colors duration-500 ${taskTab === 'planner' ? 'text-violet-600' : 'text-blue-600'}`} />
             </div>
             <h2 className="text-base font-semibold text-slate-900">Tasks</h2>
+
+            {/* Mine / All toggle — applies to the active tab */}
+            {member && (() => {
+              const activeAccent = taskTab === 'planner'
+                ? 'bg-violet-500 text-white shadow-sm'
+                : 'bg-blue-500 text-white shadow-sm';
+              const mineCount = taskTab === 'planner' ? myPersonalTasks.length : myTasks.length;
+              const allCount  = taskTab === 'planner' ? allPersonalTasks.length : projectTasks.length;
+              return (
+                <div className="ml-auto flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden text-xs font-medium shadow-sm">
+                  <button
+                    onClick={() => toggleMyTasks(true)}
+                    className={`px-3 py-1.5 transition-all duration-200 ${myTasksOnly ? activeAccent : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+                    aria-pressed={myTasksOnly}
+                  >
+                    Mine <span className="tabular-nums opacity-90">({mineCount})</span>
+                  </button>
+                  <span className="w-px self-stretch bg-slate-200/80" />
+                  <button
+                    onClick={() => toggleMyTasks(false)}
+                    className={`px-3 py-1.5 transition-all duration-200 ${!myTasksOnly ? activeAccent : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+                    aria-pressed={!myTasksOnly}
+                  >
+                    All <span className="tabular-nums opacity-90">({allCount})</span>
+                  </button>
+                </div>
+              );
+            })()}
           </div>
 
           {/* ── Prominent 2-column tab switcher ───────────────────────── */}
@@ -1026,7 +1064,7 @@ export function HomePage() {
                   ? 'bg-violet-100 text-violet-700'
                   : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
               }`}>
-                {personalTasks.length}
+                {allPersonalTasks.length}
               </span>
               {/* Animated underline indicator */}
               <span
@@ -1050,25 +1088,6 @@ export function HomePage() {
             ) : (
               <>
                 {/* Filter bar */}
-                <div className="px-5 py-3 border-b border-slate-100/80 bg-slate-50/60 flex items-center gap-2 flex-wrap">
-                  {/* My Tasks / All toggle */}
-                  {member && (
-                    <div className="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden mr-2">
-                      <button
-                        onClick={() => toggleMyTasks(true)}
-                        className={`px-3 py-1 text-xs font-medium transition-colors ${myTasksOnly ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                      >
-                        My Tasks ({myTasks.length})
-                      </button>
-                      <button
-                        onClick={() => toggleMyTasks(false)}
-                        className={`px-3 py-1 text-xs font-medium transition-colors ${!myTasksOnly ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                      >
-                        All ({projectTasks.length})
-                      </button>
-                    </div>
-                  )}
-                </div>
                 <div className="px-5 py-3 border-b border-slate-100/80 bg-slate-50/60 flex items-center gap-2 flex-wrap">
                   <Filter className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
 
@@ -1259,10 +1278,12 @@ export function HomePage() {
 
                 {/* Bucket sections */}
                 <div className="p-4 space-y-3">
-                  {personalTasks.length === 0 ? (
+                  {visiblePersonalTasks.length === 0 ? (
                     <div className="py-12 text-center text-slate-400">
                       <Inbox className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm font-medium">Your Bullet Journal is empty</p>
+                      <p className="text-sm font-medium">
+                        {myTasksOnly ? 'Your planner is empty' : 'No planner tasks on the team yet'}
+                      </p>
                       <p className="text-[11px] mt-0.5">Add your first task above</p>
                     </div>
                   ) : (
