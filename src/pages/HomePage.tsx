@@ -5,6 +5,7 @@ import {
   ScrollText, ArrowRightCircle, Lightbulb, AlertTriangle, Star,
   Activity, ExternalLink, Filter, X, TrendingUp, FolderOpen, ArrowRight,
   Users, Ban, GitMerge, Search, Inbox, Sun, CalendarDays, CalendarRange, Plus, Repeat,
+  FolderKanban, NotebookPen,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
@@ -331,9 +332,11 @@ export function HomePage() {
   const [pipeline, setPipeline] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [taskFilters, setTaskFilters] = useState<TaskFilterState>({ priority: '', assigneeId: '', projectId: '' });
-  const [taskTab, setTaskTab] = useState<'projects' | 'personal'>(
-    () => (localStorage.getItem('homepage_task_tab') === 'personal' ? 'personal' : 'projects')
-  );
+  const [taskTab, setTaskTab] = useState<'projects' | 'planner'>(() => {
+    const stored = localStorage.getItem('homepage_task_tab');
+    // Backwards-compat: the tab used to be called 'personal'
+    return stored === 'planner' || stored === 'personal' ? 'planner' : 'projects';
+  });
   const [editingTask, setEditingTask] = useState<CrossProjectTask | null>(null);
   const [personalQuickAdd, setPersonalQuickAdd] = useState('');
   const [personalQuickBucket, setPersonalQuickBucket] = useState<TaskBucket>('inbox');
@@ -343,7 +346,7 @@ export function HomePage() {
   const [feedDropdownOpen, setFeedDropdownOpen] = useState(false);
   const feedSearchRef = useRef<HTMLDivElement>(null);
 
-  function switchTaskTab(next: 'projects' | 'personal') {
+  function switchTaskTab(next: 'projects' | 'planner') {
     setTaskTab(next);
     localStorage.setItem('homepage_task_tab', next);
   }
@@ -728,7 +731,7 @@ export function HomePage() {
   }, [personalTasks, taskFilters, todayTs]);
 
   // Hero counts switch between tabs
-  const heroCounts = taskTab === 'personal'
+  const heroCounts = taskTab === 'planner'
     ? personalDerived.counts
     : {
         inProgressAll: derived.inProgressAll,
@@ -969,36 +972,77 @@ export function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 items-start">
 
         {/* ── Tasks column ──────────────────────────────────────────────── */}
-        <div className="glass-white overflow-hidden p-0">
-          {/* Header + tab switcher */}
-          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100/80">
-            <div className="p-1.5 rounded-lg bg-blue-100">
-              <CheckSquare className="h-4 w-4 text-blue-600" />
+        <div className={`glass-white overflow-hidden p-0 transition-colors duration-500 ${taskTab === 'planner' ? 'ring-1 ring-violet-200/50' : 'ring-1 ring-blue-100/40'}`}>
+          {/* ── Title row ─────────────────────────────────────────────── */}
+          <div className="flex items-center gap-2.5 px-5 pt-4 pb-3">
+            <div className={`p-1.5 rounded-lg transition-colors duration-500 ${taskTab === 'planner' ? 'bg-violet-100' : 'bg-blue-100'}`}>
+              <CheckSquare className={`h-4 w-4 transition-colors duration-500 ${taskTab === 'planner' ? 'text-violet-600' : 'text-blue-600'}`} />
             </div>
             <h2 className="text-base font-semibold text-slate-900">Tasks</h2>
+          </div>
 
-            {/* Projects / Personal tab switcher */}
-            <div className="ml-2 flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden">
-              <button
-                onClick={() => switchTaskTab('projects')}
-                className={`px-3 py-1 text-xs font-medium transition-colors ${taskTab === 'projects' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Projects ({projectTasks.length})
-              </button>
-              <button
-                onClick={() => switchTaskTab('personal')}
-                className={`px-3 py-1 text-xs font-medium transition-colors ${taskTab === 'personal' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                disabled={!member}
-                title={!member ? 'Sign in to see personal tasks' : undefined}
-              >
-                Personal ({personalTasks.length})
-              </button>
-            </div>
+          {/* ── Prominent 2-column tab switcher ───────────────────────── */}
+          <div className="relative grid grid-cols-2 border-y border-slate-100/80 bg-slate-50/40">
+            <button
+              onClick={() => switchTaskTab('projects')}
+              className={`relative group flex items-center justify-center gap-2 px-4 py-4 text-sm font-semibold transition-all duration-300 ${
+                taskTab === 'projects'
+                  ? 'text-blue-700 bg-gradient-to-b from-blue-50/70 to-white'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
+              }`}
+              aria-pressed={taskTab === 'projects'}
+            >
+              <FolderKanban className={`h-4 w-4 transition-transform duration-300 ${taskTab === 'projects' ? 'scale-110' : 'scale-100'}`} />
+              <span>Projects</span>
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full transition-colors duration-300 ${
+                taskTab === 'projects'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+              }`}>
+                {projectTasks.length}
+              </span>
+              {/* Animated underline indicator */}
+              <span
+                className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-500 rounded-t-full transition-all duration-300 ${
+                  taskTab === 'projects' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-75'
+                }`}
+              />
+            </button>
+            <button
+              onClick={() => switchTaskTab('planner')}
+              disabled={!member}
+              title={!member ? 'Sign in to use the planner' : undefined}
+              className={`relative group flex items-center justify-center gap-2 px-4 py-4 text-sm font-semibold transition-all duration-300 ${
+                taskTab === 'planner'
+                  ? 'text-violet-700 bg-gradient-to-b from-violet-50/70 to-white'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              aria-pressed={taskTab === 'planner'}
+            >
+              <NotebookPen className={`h-4 w-4 transition-transform duration-300 ${taskTab === 'planner' ? 'scale-110' : 'scale-100'}`} />
+              <span>Planner</span>
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full transition-colors duration-300 ${
+                taskTab === 'planner'
+                  ? 'bg-violet-100 text-violet-700'
+                  : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+              }`}>
+                {personalTasks.length}
+              </span>
+              {/* Animated underline indicator */}
+              <span
+                className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-violet-400 via-violet-500 to-fuchsia-500 rounded-t-full transition-all duration-300 ${
+                  taskTab === 'planner' ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-75'
+                }`}
+              />
+            </button>
+            {/* Vertical divider between tabs */}
+            <span className="pointer-events-none absolute top-2 bottom-2 left-1/2 w-px bg-slate-200/70" />
           </div>
 
           {/* ── Projects tab ───────────────────────────────────────────── */}
           {taskTab === 'projects' && (
-            visibleTasks.length === 0 ? (
+          <div key="projects-tab" className="tab-enter-left">
+            {visibleTasks.length === 0 ? (
               <div className="py-16 text-center text-slate-400">
                 <CheckSquare className="h-10 w-10 mx-auto mb-3 opacity-20" />
                 <p className="text-sm font-medium">{myTasksOnly ? 'You have no assigned tasks at this time' : 'No tasks across any project yet'}</p>
@@ -1141,14 +1185,17 @@ export function HomePage() {
                 </div>
               </>
             )
+          }
+          </div>
           )}
 
-          {/* ── Personal tab (Bullet Journal) ──────────────────────────── */}
-          {taskTab === 'personal' && (
-            !member ? (
+          {/* ── Planner tab (Bullet Journal buckets) ───────────────────── */}
+          {taskTab === 'planner' && (
+          <div key="planner-tab" className="tab-enter-right">
+            {!member ? (
               <div className="py-16 text-center text-slate-400">
                 <CheckSquare className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                <p className="text-sm font-medium">Sign in to manage personal tasks</p>
+                <p className="text-sm font-medium">Sign in to use the planner</p>
               </div>
             ) : (
               <>
@@ -1273,7 +1320,8 @@ export function HomePage() {
                   )}
                 </div>
               </>
-            )
+            )}
+          </div>
           )}
         </div>
 

@@ -164,7 +164,7 @@ export function HomeTaskEditModal({ task, teamMembers, onSaved, onDeleted, onClo
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/60 bg-gradient-to-r from-indigo-50/40 to-blue-50/20 sticky top-0 z-10 backdrop-blur-xl">
           <div className="flex items-center gap-2 min-w-0">
             <h3 className="text-base font-semibold text-slate-900 truncate">
-              {isPersonal ? 'Edit Personal Task' : 'Edit Task'}
+              {isPersonal ? 'Edit Planner Task' : 'Edit Task'}
             </h3>
             {!isPersonal && task.project_id && (
               <Link
