@@ -190,7 +190,7 @@ export function getQuotationOptimizerStore(
     selectedStockIds: new Set<string>(),
     selectedEbSlots:  new Set<'a' | 'b' | 'c'>(['a', 'b', 'c']),
 
-    globalSierra: 3.2,
+    globalSierra: 4.5,
     minOffcut: 200,
     boardTrim: 5,
     trimIncludesKerf: false,

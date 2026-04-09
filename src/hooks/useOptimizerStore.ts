@@ -68,7 +68,7 @@ const DEFAULT_STOCK: StockSize = {
   ancho: 2440,
   alto: 1220,
   costo: 450,
-  sierra: 3.2,
+  sierra: 4.5,
   qty: 0,
 };
 
@@ -77,7 +77,7 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   stocks: [DEFAULT_STOCK],
   remnants: [],
   areas: [],
-  globalSierra: 3.2,
+  globalSierra: 4.5,
   minOffcut: 200,
   boardTrim: 5,
   trimIncludesKerf: false,
@@ -173,5 +173,5 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
     } catch (error) { alert('Error loading project: ' + String(error)); }
   },
 
-  reset: () => set({ pieces: [], stocks: [DEFAULT_STOCK], remnants: [], areas: [], globalSierra: 3.2, minOffcut: 200, boardTrim: 5, trimIncludesKerf: false, ebConfig: EMPTY_EB, labelScale: 1.0, projectName: '', clientName: '', result: null, isOptimizing: false, activeTab: 'setup', selectedBoardIndex: null }),
+  reset: () => set({ pieces: [], stocks: [DEFAULT_STOCK], remnants: [], areas: [], globalSierra: 4.5, minOffcut: 200, boardTrim: 5, trimIncludesKerf: false, ebConfig: EMPTY_EB, labelScale: 1.0, projectName: '', clientName: '', result: null, isOptimizing: false, activeTab: 'setup', selectedBoardIndex: null }),
 }));
