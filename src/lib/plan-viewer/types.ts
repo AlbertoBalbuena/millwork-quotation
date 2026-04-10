@@ -25,15 +25,24 @@ export interface Calibration {
 }
 
 // ── Tools ────────────────────────────────────────────────────
-export type ToolMode = 'pan' | 'calibrate' | 'line' | 'multiline' | 'rectangle';
+export type ToolMode =
+  | 'pan'
+  | 'calibrate'
+  | 'line'
+  | 'multiline'
+  | 'rectangle'
+  | 'angle'
+  | 'polygon'
+  | 'annotate';
 
 // ── Measurements ─────────────────────────────────────────────
 interface BaseMeasurement {
   id: string;
   name: string;
-  type: 'line' | 'multiline' | 'rectangle';
+  type: 'line' | 'multiline' | 'rectangle' | 'angle' | 'polygon';
   color: string;
   page: number;
+  group?: string;
 }
 
 export interface LineMeasurement extends BaseMeasurement {
@@ -66,11 +75,54 @@ export interface RectangleMeasurement extends BaseMeasurement {
   unit: MeasurementUnit;
 }
 
-export type Measurement = LineMeasurement | MultilineMeasurement | RectangleMeasurement;
+export interface AngleMeasurement extends BaseMeasurement {
+  type: 'angle';
+  pointA: PdfPoint;
+  vertex: PdfPoint;
+  pointC: PdfPoint;
+  degrees: number;
+}
+
+export interface PolygonMeasurement extends BaseMeasurement {
+  type: 'polygon';
+  points: PdfPoint[];
+  pxPerimeter: number;
+  pxArea: number;
+  realPerimeter: number;
+  realArea: number;
+  unit: MeasurementUnit;
+}
+
+export type Measurement =
+  | LineMeasurement
+  | MultilineMeasurement
+  | RectangleMeasurement
+  | AngleMeasurement
+  | PolygonMeasurement;
+
+// ── Annotations ──────────────────────────────────────────────
+export interface Annotation {
+  id: string;
+  text: string;
+  position: PdfPoint;
+  color: string;
+  page: number;
+}
 
 // ── Undo/Redo ────────────────────────────────────────────────
 export type UndoableAction =
   | { type: 'ADD_MEASUREMENT'; measurement: Measurement }
   | { type: 'DELETE_MEASUREMENT'; measurement: Measurement; index: number }
-  | { type: 'SET_CALIBRATION'; prev: Calibration | null; next: Calibration }
-  | { type: 'CLEAR_ALL'; measurements: Measurement[] };
+  | { type: 'SET_CALIBRATION'; page: number; prev: Calibration | null; next: Calibration }
+  | { type: 'CLEAR_ALL'; measurements: Measurement[] }
+  | { type: 'ADD_ANNOTATION'; annotation: Annotation }
+  | { type: 'DELETE_ANNOTATION'; annotation: Annotation; index: number };
+
+// ── Session ──────────────────────────────────────────────────
+export interface SessionData {
+  calibrations: Record<number, Calibration>;
+  measurements: Measurement[];
+  annotations: Annotation[];
+  unit: MeasurementUnit;
+  groups: string[];
+}

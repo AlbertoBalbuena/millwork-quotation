@@ -27,6 +27,62 @@ export function toRealWorld(pxDist: number, calibration: Calibration): number {
   return pxDist / calibration.pixelsPerUnit;
 }
 
+// ── Angle ────────────────────────────────────────────────────
+
+export function angleBetweenPoints(a: PdfPoint, vertex: PdfPoint, c: PdfPoint): number {
+  const v1 = { x: a.x - vertex.x, y: a.y - vertex.y };
+  const v2 = { x: c.x - vertex.x, y: c.y - vertex.y };
+  const dot = v1.x * v2.x + v1.y * v2.y;
+  const cross = v1.x * v2.y - v1.y * v2.x;
+  const rad = Math.atan2(Math.abs(cross), dot);
+  return rad * (180 / Math.PI);
+}
+
+// ── Polygon area (shoelace formula) ──────────────────────────
+
+export function polygonArea(points: PdfPoint[]): number {
+  if (points.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    area += points[i].x * points[j].y;
+    area -= points[j].x * points[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+export function polygonPerimeter(points: PdfPoint[]): number {
+  let perimeter = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    perimeter += euclideanDistance(points[i], points[j]);
+  }
+  return perimeter;
+}
+
+export function polygonCentroid(points: PdfPoint[]): PdfPoint {
+  let cx = 0, cy = 0;
+  for (const p of points) { cx += p.x; cy += p.y; }
+  return { x: cx / points.length, y: cy / points.length };
+}
+
+// ── Snap ─────────────────────────────────────────────────────
+
+export function snapPoint(pt: PdfPoint, anchor: PdfPoint, snapAngle: number = 45): PdfPoint {
+  const dx = pt.x - anchor.x;
+  const dy = pt.y - anchor.y;
+  const angle = Math.atan2(dy, dx);
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const snapRad = (snapAngle * Math.PI) / 180;
+  const snapped = Math.round(angle / snapRad) * snapRad;
+  return {
+    x: anchor.x + dist * Math.cos(snapped),
+    y: anchor.y + dist * Math.sin(snapped),
+  };
+}
+
+// ── Formatting ───────────────────────────────────────────────
+
 export function formatMeasurement(value: number, unit: MeasurementUnit): string {
   if (unit === 'ft') {
     const feet = Math.floor(value);
@@ -43,6 +99,10 @@ export function formatArea(value: number, unit: MeasurementUnit): string {
   const suffix = { in: ' sq in', ft: ' sq ft', cm: ' sq cm', mm: ' sq mm' }[unit];
   const precision = unit === 'mm' ? 0 : unit === 'cm' ? 1 : 2;
   return value.toFixed(precision) + suffix;
+}
+
+export function formatAngle(degrees: number): string {
+  return `${degrees.toFixed(1)}°`;
 }
 
 const toMm: Record<MeasurementUnit, number> = { mm: 1, cm: 10, in: 25.4, ft: 304.8 };
