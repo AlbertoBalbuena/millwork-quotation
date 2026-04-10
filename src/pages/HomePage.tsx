@@ -16,6 +16,7 @@ import type { Database } from '../lib/database.types';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { HomeTaskFormModal, type HomeTask, type TaskBucket, type TaskRecurrence } from '../components/tasks/HomeTaskFormModal';
 import { HomeLogCreateModal, type CreatedLog } from '../components/HomeLogCreateModal';
+import { HomeLogDetailModal } from '../components/HomeLogDetailModal';
 import { formatCurrency } from '../lib/calculations';
 import { useSettingsStore } from '../lib/settingsStore';
 import { useCurrentMember } from '../lib/useCurrentMember';
@@ -349,6 +350,7 @@ export function HomePage() {
   const [creatingPersonal, setCreatingPersonal] = useState(false);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [showNewLogModal, setShowNewLogModal] = useState(false);
+  const [viewingLog, setViewingLog] = useState<CrossProjectLog | null>(null);
   const [feedSearch, setFeedSearch] = useState('');
   const [feedDropdownOpen, setFeedDropdownOpen] = useState(false);
   const feedSearchRef = useRef<HTMLDivElement>(null);
@@ -1514,7 +1516,8 @@ export function HomePage() {
                         return (
                           <div
                             key={log.id}
-                            className={`flex gap-2.5 p-2.5 rounded-lg border-l-4 ${cfg.bg} ${cfg.border}`}
+                            onClick={() => setViewingLog(log)}
+                            className={`flex gap-2.5 p-2.5 rounded-lg border-l-4 cursor-pointer hover:shadow-sm hover:brightness-[0.98] transition-all ${cfg.bg} ${cfg.border}`}
                           >
                             <div className={`flex-shrink-0 mt-0.5 ${cfg.color}`}>
                               <Icon className="h-3.5 w-3.5" />
@@ -1606,6 +1609,15 @@ export function HomePage() {
           currentMemberName={member?.name ?? null}
           onCreated={applyCreatedLog}
           onClose={() => setShowNewLogModal(false)}
+        />
+      )}
+
+      {viewingLog && (
+        <HomeLogDetailModal
+          log={viewingLog}
+          currentMemberId={member?.id ?? null}
+          currentMemberName={member?.name ?? null}
+          onClose={() => setViewingLog(null)}
         />
       )}
     </>
