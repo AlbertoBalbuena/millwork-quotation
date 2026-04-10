@@ -15,6 +15,7 @@ import { TASK_PRIORITY_CONFIG } from '../types';
 import type { Database } from '../lib/database.types';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { HomeTaskFormModal, type HomeTask, type TaskBucket, type TaskRecurrence } from '../components/tasks/HomeTaskFormModal';
+import { HomeTaskDetailWrapper } from '../components/tasks/HomeTaskDetailWrapper';
 import { HomeLogCreateModal, type CreatedLog } from '../components/HomeLogCreateModal';
 import { HomeLogDetailModal } from '../components/HomeLogDetailModal';
 import { formatCurrency } from '../lib/calculations';
@@ -1657,7 +1658,23 @@ export function HomePage() {
         onSuccess={(id) => navigate(`/projects/${id}`)}
       />
 
-      {editingTask && (
+      {/* Edit: project tasks → full TaskDetailPanel; planner tasks → HomeTaskFormModal */}
+      {editingTask && editingTask.project_id && (
+        <HomeTaskDetailWrapper
+          task={editingTask}
+          teamMembers={teamMembers}
+          onUpdate={(updated) => {
+            setTasks(prev => prev.map(t => t.id === updated.id
+              ? { ...t, ...updated, project_name: t.project_name, owner_member_id: t.owner_member_id, bucket: t.bucket, recurrence: t.recurrence } as CrossProjectTask
+              : t
+            ));
+            setEditingTask(null);
+          }}
+          onDelete={removeTaskFromState}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
+      {editingTask && !editingTask.project_id && (
         <HomeTaskFormModal
           mode="edit"
           task={editingTask}
