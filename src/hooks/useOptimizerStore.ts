@@ -82,7 +82,7 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   globalSierra: 4.5,
   minOffcut: 200,
   boardTrim: 5,
-  trimIncludesKerf: false,
+  trimIncludesKerf: true,
   ebConfig: EMPTY_EB,
   labelScale: 1.0,
   engineMode: 'guillotine' as EngineMode,
@@ -133,7 +133,7 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
     set({ isOptimizing: true });
     await new Promise((r) => setTimeout(r, 100));
     try {
-      const effectiveTrim = state.trimIncludesKerf ? state.boardTrim + state.globalSierra : state.boardTrim;
+      const effectiveTrim = state.trimIncludesKerf ? state.boardTrim : state.boardTrim + state.globalSierra;
       const result = runOptimization(state.pieces, state.stocks, state.remnants, state.globalSierra, state.minOffcut, effectiveTrim, state.engineMode, state.objective);
       set({ result, isOptimizing: false, selectedBoardIndex: 0, activeTab: 'results' });
     } catch (error) {
@@ -177,9 +177,9 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
         }
         return p;
       });
-      set({ projectName: data.projectName || '', clientName: data.clientName || '', pieces, stocks: data.stocks || [DEFAULT_STOCK], remnants: data.remnants || [], areas: data.areas || [], globalSierra: data.globalSierra || 3.2, minOffcut: data.minOffcut || 200, boardTrim: data.boardTrim ?? 5, trimIncludesKerf: data.trimIncludesKerf ?? false, ebConfig: data.ebConfig || EMPTY_EB });
+      set({ projectName: data.projectName || '', clientName: data.clientName || '', pieces, stocks: data.stocks || [DEFAULT_STOCK], remnants: data.remnants || [], areas: data.areas || [], globalSierra: data.globalSierra || 3.2, minOffcut: data.minOffcut || 200, boardTrim: data.boardTrim ?? 5, trimIncludesKerf: data.trimIncludesKerf ?? true, ebConfig: data.ebConfig || EMPTY_EB });
     } catch (error) { alert('Error loading project: ' + String(error)); }
   },
 
-  reset: () => set({ pieces: [], stocks: [DEFAULT_STOCK], remnants: [], areas: [], globalSierra: 4.5, minOffcut: 200, boardTrim: 5, trimIncludesKerf: false, ebConfig: EMPTY_EB, labelScale: 1.0, projectName: '', clientName: '', result: null, isOptimizing: false, activeTab: 'setup', selectedBoardIndex: null }),
+  reset: () => set({ pieces: [], stocks: [DEFAULT_STOCK], remnants: [], areas: [], globalSierra: 4.5, minOffcut: 200, boardTrim: 5, trimIncludesKerf: true, ebConfig: EMPTY_EB, labelScale: 1.0, projectName: '', clientName: '', result: null, isOptimizing: false, activeTab: 'setup', selectedBoardIndex: null }),
 }));
