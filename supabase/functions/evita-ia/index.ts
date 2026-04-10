@@ -312,6 +312,51 @@ const BOM_TOOLS = [
   }
 ];
 
+// ────────────────────────────────────────────────────────────────
+// Cross-project tools — platform-wide read access, no projectId needed.
+// Always available so Evita can answer questions spanning all projects.
+// ────────────────────────────────────────────────────────────────
+const CROSS_PROJECT_TOOLS = [
+  {
+    name: 'search_projects',
+    description: 'Search or list projects across the entire platform. Use when user asks about projects by name, customer, status, or type — or asks for a list of projects. Does NOT require an open project.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query:        { type: 'string', description: 'Search term for project name or customer e.g. "Casa Perez", "Smith"' },
+        status:       { type: 'string', enum: ['Pending','Estimating','Sent','Lost','Awarded','Discarded','Cancelled'], description: 'Optional status filter' },
+        project_type: { type: 'string', description: 'Optional type filter e.g. "Custom", "Bids", "Prefab", "Stores"' },
+        limit:        { type: 'number', description: 'Max results (default 10)' }
+      },
+      required: []
+    }
+  },
+  {
+    name: 'search_item_usage',
+    description: 'Search which projects and quotations use a specific item, material, or hardware across the ENTIRE platform. Use when user asks "which projects used Rod Flanges?", "where is Evita Plus Nogal Tenue used?", "who ordered Blum hinges?", etc. Does NOT require an open project.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query:       { type: 'string', description: 'Item/material/hardware name to search e.g. "Rod Flange", "Evita Plus Nogal Tenue", "Blum"' },
+        search_type: { type: 'string', enum: ['item','material','hardware','all'], description: 'Where to search: item=area_items/countertops, material=cabinet box/door materials, hardware=cabinet hardware, all=everywhere (default all)' },
+        limit:       { type: 'number', description: 'Max results per category (default 20)' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'get_project_overview',
+    description: 'Get a full summary of ANY project by its project_id — not limited to the open project. Returns project info, all quotations with areas and totals, purchase summary, and task counts. Use when user wants details about a specific project found via search_projects.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string', description: 'The business-level project UUID (projects.id)' }
+      },
+      required: ['project_id']
+    }
+  }
+];
+
 async function executeTool(name: string, input: any, sb: any, projectId: string | null): Promise<string> {
   try {
     switch (name) {
@@ -964,6 +1009,353 @@ async function executeTool(name: string, input: any, sb: any, projectId: string 
         });
       }
 
+      // ─── Cross-project tools (no projectId required) ────────────
+      case 'search_projects': {
+        const limit = Math.min(Number(input.limit) || 10, 25);
+        let q = sb.from('projects')
+          .select('id, name, customer, address, status, project_type, created_at, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(limit);
+        if (input.query) {
+          q = q.or(`name.ilike.%${input.query}%,customer.ilike.%${input.query}%`);
+        }
+        if (input.status) q = q.eq('status', input.status);
+        if (input.project_type) q = q.eq('project_type', input.project_type);
+        const { data: projects, error } = await q;
+        if (error) return JSON.stringify({ error: error.message });
+        if (!projects?.length) return JSON.stringify({ count: 0, results: [] });
+        // Fetch quotation summaries for these projects.
+        const projIds = projects.map((p: any) => p.id);
+        const { data: quots } = await sb.from('quotations')
+          .select('id, project_id, name, status, total_amount, pricing_method')
+          .in('project_id', projIds);
+        const quotsByProj: Record<string, any[]> = {};
+        for (const q of quots ?? []) {
+          if (!quotsByProj[q.project_id]) quotsByProj[q.project_id] = [];
+          quotsByProj[q.project_id].push(q);
+        }
+        return JSON.stringify({
+          count: projects.length,
+          results: projects.map((p: any) => {
+            const pQuots = quotsByProj[p.id] ?? [];
+            const totalValue = pQuots.reduce((s: number, q: any) => s + (Number(q.total_amount) || 0), 0);
+            return {
+              project_id: p.id,
+              name: p.name,
+              customer: p.customer,
+              status: p.status,
+              project_type: p.project_type,
+              created_at: p.created_at,
+              quotation_count: pQuots.length,
+              total_value_mxn: Math.round(totalValue),
+              quotations: pQuots.map((q: any) => ({
+                quotation_id: q.id,
+                name: q.name,
+                status: q.status,
+                total_amount: q.total_amount,
+                pricing_method: q.pricing_method,
+              })),
+            };
+          })
+        });
+      }
+
+      case 'search_item_usage': {
+        const limit = Math.min(Number(input.limit) || 20, 50);
+        const searchType = input.search_type ?? 'all';
+        const term = input.query;
+        type UsageRow = { project_id: string; project_name: string; quotation_id: string; quotation_name: string; area_name: string; source: string; item_name: string; quantity: number; unit_price: number; subtotal: number };
+        const results: UsageRow[] = [];
+
+        // Helper: given area_ids, build a lookup of area_id -> { area_name, quotation_id, quotation_name, project_id, project_name }
+        const resolveAreas = async (areaIds: string[]) => {
+          if (!areaIds.length) return {};
+          const { data: areas } = await sb.from('project_areas')
+            .select('id, name, project_id')
+            .in('id', areaIds);
+          if (!areas?.length) return {};
+          const quotIds = [...new Set(areas.map((a: any) => a.project_id))];
+          const { data: quots } = await sb.from('quotations')
+            .select('id, name, project_id')
+            .in('id', quotIds);
+          const quotMap: Record<string, any> = {};
+          for (const q of quots ?? []) quotMap[q.id] = q;
+          const projIds = [...new Set((quots ?? []).map((q: any) => q.project_id))];
+          const { data: projs } = await sb.from('projects')
+            .select('id, name')
+            .in('id', projIds);
+          const projMap: Record<string, any> = {};
+          for (const p of projs ?? []) projMap[p.id] = p;
+          const lookup: Record<string, any> = {};
+          for (const a of areas) {
+            const quot = quotMap[a.project_id]; // project_areas.project_id is actually quotation_id
+            const proj = quot ? projMap[quot.project_id] : null;
+            lookup[a.id] = {
+              area_name: a.name,
+              quotation_id: quot?.id ?? a.project_id,
+              quotation_name: quot?.name ?? 'Unknown',
+              project_id: proj?.id ?? quot?.project_id ?? '',
+              project_name: proj?.name ?? 'Unknown',
+            };
+          }
+          return lookup;
+        };
+
+        // 1. Search area_items (generic line items like "Rod Flanges")
+        if (searchType === 'item' || searchType === 'all') {
+          const { data: items } = await sb.from('area_items')
+            .select('id, area_id, item_name, quantity, unit_price, subtotal')
+            .ilike('item_name', `%${term}%`)
+            .limit(limit);
+          if (items?.length) {
+            const areaLookup = await resolveAreas(items.map((i: any) => i.area_id));
+            for (const i of items) {
+              const ctx = areaLookup[i.area_id];
+              if (!ctx) continue;
+              results.push({
+                project_id: ctx.project_id, project_name: ctx.project_name,
+                quotation_id: ctx.quotation_id, quotation_name: ctx.quotation_name,
+                area_name: ctx.area_name, source: 'area_item',
+                item_name: i.item_name, quantity: i.quantity,
+                unit_price: i.unit_price, subtotal: i.subtotal,
+              });
+            }
+          }
+          // Also search area_countertops
+          const { data: ctops } = await sb.from('area_countertops')
+            .select('id, area_id, item_name, quantity, unit_price, subtotal')
+            .ilike('item_name', `%${term}%`)
+            .limit(limit);
+          if (ctops?.length) {
+            const areaLookup = await resolveAreas(ctops.map((c: any) => c.area_id));
+            for (const c of ctops) {
+              const ctx = areaLookup[c.area_id];
+              if (!ctx) continue;
+              results.push({
+                project_id: ctx.project_id, project_name: ctx.project_name,
+                quotation_id: ctx.quotation_id, quotation_name: ctx.quotation_name,
+                area_name: ctx.area_name, source: 'countertop',
+                item_name: c.item_name, quantity: c.quantity,
+                unit_price: c.unit_price, subtotal: c.subtotal,
+              });
+            }
+          }
+        }
+
+        // 2. Search area_cabinets by material (box or door material matching the query)
+        if (searchType === 'material' || searchType === 'all') {
+          // First find matching price_list items
+          const { data: mats } = await sb.from('price_list')
+            .select('id, concept_description')
+            .ilike('concept_description', `%${term}%`)
+            .eq('is_active', true)
+            .limit(10);
+          if (mats?.length) {
+            const matIds = mats.map((m: any) => m.id);
+            const matNames: Record<string, string> = {};
+            for (const m of mats) matNames[m.id] = m.concept_description;
+            // Search cabinets using these material IDs
+            const [boxRes, doorRes] = await Promise.all([
+              sb.from('area_cabinets')
+                .select('id, area_id, product_sku, quantity, subtotal, box_material_id')
+                .in('box_material_id', matIds).limit(limit),
+              sb.from('area_cabinets')
+                .select('id, area_id, product_sku, quantity, subtotal, doors_material_id')
+                .in('doors_material_id', matIds).limit(limit),
+            ]);
+            const allCabs = [
+              ...(boxRes.data ?? []).map((c: any) => ({ ...c, matched_material: matNames[c.box_material_id], match_field: 'box_material' })),
+              ...(doorRes.data ?? []).map((c: any) => ({ ...c, matched_material: matNames[c.doors_material_id], match_field: 'door_material' })),
+            ];
+            // Deduplicate by cabinet id
+            const seen = new Set<string>();
+            const uniqueCabs = allCabs.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+            if (uniqueCabs.length) {
+              const areaLookup = await resolveAreas(uniqueCabs.map(c => c.area_id));
+              for (const c of uniqueCabs) {
+                const ctx = areaLookup[c.area_id];
+                if (!ctx) continue;
+                results.push({
+                  project_id: ctx.project_id, project_name: ctx.project_name,
+                  quotation_id: ctx.quotation_id, quotation_name: ctx.quotation_name,
+                  area_name: ctx.area_name, source: `cabinet_${c.match_field}`,
+                  item_name: `${c.product_sku} (${c.matched_material})`,
+                  quantity: c.quantity, unit_price: 0, subtotal: c.subtotal,
+                });
+              }
+            }
+          }
+        }
+
+        // 3. Search area_cabinets hardware JSONB for matching hardware names
+        if (searchType === 'hardware' || searchType === 'all') {
+          // Use textual cast to search hardware JSONB — PostgREST doesn't support JSONB path queries
+          const { data: hwCabs } = await sb.from('area_cabinets')
+            .select('id, area_id, product_sku, quantity, hardware, hardware_cost')
+            .textSearch('hardware', `${term}`, { type: 'plain' })
+            .limit(limit);
+          // Fallback: if textSearch doesn't find anything, try casting to text via RPC or just skip
+          // PostgREST textSearch works on tsvector columns; hardware is JSONB so we need a workaround.
+          // Instead, fetch recent cabinets that have hardware and filter client-side.
+          if (!hwCabs?.length) {
+            const { data: allHwCabs } = await sb.from('area_cabinets')
+              .select('id, area_id, product_sku, quantity, hardware, hardware_cost')
+              .not('hardware', 'is', null)
+              .limit(200);
+            const matched = (allHwCabs ?? []).filter((c: any) => {
+              const hw = c.hardware as Record<string, any> | null;
+              if (!hw) return false;
+              return Object.values(hw).some((v: any) =>
+                typeof v === 'object' && v?.name && String(v.name).toLowerCase().includes(term.toLowerCase())
+              );
+            }).slice(0, limit);
+            if (matched.length) {
+              const areaLookup = await resolveAreas(matched.map((c: any) => c.area_id));
+              for (const c of matched) {
+                const hw = c.hardware as Record<string, any>;
+                const matchedHw = Object.values(hw).find((v: any) =>
+                  typeof v === 'object' && v?.name && String(v.name).toLowerCase().includes(term.toLowerCase())
+                ) as any;
+                const ctx = areaLookup[c.area_id];
+                if (!ctx) continue;
+                results.push({
+                  project_id: ctx.project_id, project_name: ctx.project_name,
+                  quotation_id: ctx.quotation_id, quotation_name: ctx.quotation_name,
+                  area_name: ctx.area_name, source: 'cabinet_hardware',
+                  item_name: `${c.product_sku} — ${matchedHw?.name ?? term}`,
+                  quantity: Number(matchedHw?.qty ?? 0) * (Number(c.quantity) || 1),
+                  unit_price: Number(matchedHw?.price ?? 0),
+                  subtotal: Number(matchedHw?.price ?? 0) * Number(matchedHw?.qty ?? 0) * (Number(c.quantity) || 1),
+                });
+              }
+            }
+          } else {
+            // textSearch worked
+            const areaLookup = await resolveAreas(hwCabs.map((c: any) => c.area_id));
+            for (const c of hwCabs) {
+              const hw = c.hardware as Record<string, any> | null;
+              const matchedHw = hw ? Object.values(hw).find((v: any) =>
+                typeof v === 'object' && v?.name && String(v.name).toLowerCase().includes(term.toLowerCase())
+              ) as any : null;
+              const ctx = areaLookup[c.area_id];
+              if (!ctx) continue;
+              results.push({
+                project_id: ctx.project_id, project_name: ctx.project_name,
+                quotation_id: ctx.quotation_id, quotation_name: ctx.quotation_name,
+                area_name: ctx.area_name, source: 'cabinet_hardware',
+                item_name: `${c.product_sku} — ${matchedHw?.name ?? term}`,
+                quantity: Number(matchedHw?.qty ?? 0) * (Number(c.quantity) || 1),
+                unit_price: Number(matchedHw?.price ?? 0),
+                subtotal: Number(matchedHw?.price ?? 0) * Number(matchedHw?.qty ?? 0) * (Number(c.quantity) || 1),
+              });
+            }
+          }
+        }
+
+        // Group results by project for readability
+        const byProject: Record<string, { project_id: string; project_name: string; items: any[] }> = {};
+        for (const r of results) {
+          if (!byProject[r.project_id]) {
+            byProject[r.project_id] = { project_id: r.project_id, project_name: r.project_name, items: [] };
+          }
+          byProject[r.project_id].items.push({
+            quotation_id: r.quotation_id, quotation_name: r.quotation_name,
+            area_name: r.area_name, source: r.source,
+            item_name: r.item_name, quantity: r.quantity,
+            unit_price: r.unit_price, subtotal: r.subtotal,
+          });
+        }
+        const totalQty = results.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+        const totalCost = results.reduce((s, r) => s + (Number(r.subtotal) || 0), 0);
+        return JSON.stringify({
+          query: term,
+          total_matches: results.length,
+          total_quantity: totalQty,
+          total_cost_mxn: Math.round(totalCost),
+          projects_count: Object.keys(byProject).length,
+          projects: Object.values(byProject),
+        });
+      }
+
+      case 'get_project_overview': {
+        if (!input.project_id) return JSON.stringify({ error: 'project_id is required.' });
+        const pid = input.project_id;
+        const { data: proj, error: pErr } = await sb.from('projects')
+          .select('id, name, customer, address, status, project_type, project_brief, created_at, updated_at')
+          .eq('id', pid).single();
+        if (pErr || !proj) return JSON.stringify({ error: pErr?.message ?? 'Project not found.' });
+
+        // Fetch quotations with areas
+        const { data: quots } = await sb.from('quotations')
+          .select('id, name, status, total_amount, pricing_method, profit_multiplier, tax_percentage, tariff_multiplier, created_at')
+          .eq('project_id', pid)
+          .order('created_at', { ascending: false });
+        const quotDetails = [];
+        for (const q of quots ?? []) {
+          const { data: areas } = await sb.from('project_areas')
+            .select('id, name, subtotal, applies_tariff')
+            .eq('project_id', q.id)
+            .order('display_order');
+          quotDetails.push({
+            quotation_id: q.id,
+            name: q.name,
+            status: q.status,
+            total_amount: q.total_amount,
+            pricing_method: q.pricing_method,
+            profit: `${((q.profit_multiplier ?? 0) * 100).toFixed(0)}%`,
+            tax: `${q.tax_percentage ?? 0}%`,
+            tariff: `${((q.tariff_multiplier ?? 0) * 100).toFixed(0)}%`,
+            areas: (areas ?? []).map((a: any) => ({
+              name: a.name,
+              subtotal_mxn: a.subtotal,
+              applies_tariff: a.applies_tariff,
+            })),
+          });
+        }
+
+        // Purchase items summary
+        const { data: purchases } = await sb.from('project_purchase_items')
+          .select('id, status, priority, subtotal')
+          .eq('project_id', pid);
+        const purchaseByStatus: Record<string, number> = {};
+        let purchaseTotal = 0;
+        for (const p of purchases ?? []) {
+          purchaseByStatus[p.status] = (purchaseByStatus[p.status] ?? 0) + 1;
+          purchaseTotal += Number(p.subtotal) || 0;
+        }
+
+        // Task counts
+        const { data: tasks } = await sb.from('project_tasks')
+          .select('id, status')
+          .eq('project_id', pid);
+        const taskByStatus: Record<string, number> = {};
+        for (const t of tasks ?? []) {
+          taskByStatus[t.status] = (taskByStatus[t.status] ?? 0) + 1;
+        }
+
+        return JSON.stringify({
+          project_id: proj.id,
+          name: proj.name,
+          customer: proj.customer,
+          address: proj.address,
+          status: proj.status,
+          project_type: proj.project_type,
+          project_brief: proj.project_brief,
+          created_at: proj.created_at,
+          updated_at: proj.updated_at,
+          quotations: quotDetails,
+          purchases: {
+            total_items: (purchases ?? []).length,
+            total_value_mxn: Math.round(purchaseTotal),
+            by_status: purchaseByStatus,
+          },
+          tasks: {
+            total: (tasks ?? []).length,
+            by_status: taskByStatus,
+          },
+        });
+      }
+
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
@@ -1179,6 +1571,20 @@ this for you automatically.
 - Quotation BOM (bill of materials) by category — Box / Doors / Edgeband / Hardware / Accessories
 - Quotation modifications (materials, quantities, quotation-level settings, hardware bulk updates)
 - Project management: tasks, documents, logs (get_project_management)
+- CROSS-PROJECT ANALYTICS: search projects, find item/material/hardware usage across ALL projects, get any project overview
+
+=== CROSS-PROJECT QUERIES ===
+You have FULL READ ACCESS to ALL projects, quotations, and their data across the entire platform.
+When users ask questions that span multiple projects (e.g., "which projects used Rod Flanges",
+"show me all awarded projects", "what materials are most used"), use these tools:
+- search_projects: find/list projects by name, customer, status, or type
+- search_item_usage: find which projects use a specific item, material, or hardware (searches area_items, area_countertops, cabinet materials, and cabinet hardware across ALL quotations)
+- get_project_overview: get full details of any project by its project_id (quotations, areas, purchases, tasks)
+
+You do NOT need an open project/quotation to answer cross-project questions. NEVER say you
+don't have access to project data — always use these tools to provide data-driven answers.
+When results include project_id and quotation_id, format them as clickable links using the
+[[project:ID|Name]] and [[quotation:PROJECT_ID/QUOTATION_ID|Name]] syntax.
 
 === MATERIAL COST FORMULA — CRITICAL ===
 NEVER guess SF values. Use ONLY values from the database section.
@@ -1548,6 +1954,7 @@ Style: Auto-detect EN/ES. Always show the full breakdown table. Say explicitly i
       ...PURCHASE_READ_TOOLS,
       ...OPTIMIZER_TOOLS,
       ...BOM_TOOLS,
+      ...CROSS_PROJECT_TOOLS,
     ];
     const tools = modMode
       ? [...alwaysTools, ...CATALOG_SEARCH_TOOL, ...MODIFICATION_TOOLS]
