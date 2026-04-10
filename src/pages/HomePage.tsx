@@ -1032,13 +1032,6 @@ export function HomePage() {
             >
               <FolderKanban className={`h-4 w-4 transition-transform duration-300 ${taskTab === 'projects' ? 'scale-110' : 'scale-100'}`} />
               <span>Projects</span>
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full transition-colors duration-300 ${
-                taskTab === 'projects'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-              }`}>
-                {projectTasks.length}
-              </span>
               {/* Animated underline indicator */}
               <span
                 className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-500 rounded-t-full transition-all duration-300 ${
@@ -1059,13 +1052,6 @@ export function HomePage() {
             >
               <NotebookPen className={`h-4 w-4 transition-transform duration-300 ${taskTab === 'planner' ? 'scale-110' : 'scale-100'}`} />
               <span>Planner</span>
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full transition-colors duration-300 ${
-                taskTab === 'planner'
-                  ? 'bg-violet-100 text-violet-700'
-                  : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-              }`}>
-                {allPersonalTasks.length}
-              </span>
               {/* Animated underline indicator */}
               <span
                 className={`absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-violet-400 via-violet-500 to-fuchsia-500 rounded-t-full transition-all duration-300 ${
