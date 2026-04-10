@@ -195,7 +195,7 @@ export function getQuotationOptimizerStore(
     globalSierra: 4.5,
     minOffcut: 200,
     boardTrim: 5,
-    trimIncludesKerf: false,
+    trimIncludesKerf: true,
     engineMode: 'guillotine' as EngineMode,
     objective: 'min-boards' as OptimizationObjective,
 
@@ -283,8 +283,8 @@ export function getQuotationOptimizerStore(
       await new Promise((r) => setTimeout(r, 50));
       try {
         const effectiveTrim = state.trimIncludesKerf
-          ? state.boardTrim + state.globalSierra
-          : state.boardTrim;
+          ? state.boardTrim
+          : state.boardTrim + state.globalSierra;
         // Only include stocks the user has selected (checkbox in sidebar).
         const activeStocks = state.pendingStocks.filter((s) =>
           state.selectedStockIds.has(s.id),
