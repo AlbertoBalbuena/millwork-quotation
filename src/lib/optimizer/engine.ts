@@ -461,26 +461,56 @@ function shelfGuillotinePack(
   while (remaining.length > 0 && yCursor + 10 <= ry + rh) {
     const availH = ry + rh - yCursor;
 
-    // Determine shelf height: height of the tallest remaining piece that fits
-    let shelfH = 0;
+    // Collect all distinct candidate shelf heights from remaining pieces.
+    const heightSet = new Set<number>();
     for (const p of remaining) {
       if (p.veta !== 'vertical' && p.alto <= availH && p.ancho <= rw) {
-        shelfH = Math.max(shelfH, p.alto);
+        heightSet.add(p.alto);
       }
       if (p.veta !== 'horizontal' && p.ancho <= availH && p.alto <= rw) {
-        shelfH = Math.max(shelfH, p.ancho);
+        heightSet.add(p.ancho);
       }
     }
-    if (shelfH < 10) break;
+    if (heightSet.size === 0) break;
 
-    // Pack this shelf
-    const shelfResult = packShelf(rx, yCursor, rw, shelfH, remaining, kerf);
-    if (shelfResult.placed.length === 0) break; // no pieces fit — stop
+    // Sort candidates descending — try tallest shelf first.
+    const candidates = [...heightSet].sort((a, b) => b - a);
 
-    allPlaced.push(...shelfResult.placed);
-    remaining = shelfResult.remaining;
-    shelves.push(shelfResult.tree);
-    yCursor += shelfH + kerf;
+    // Pick the best shelf height: the one that places the most pieces.
+    // This prevents a tall shelf from "wasting" space when a shorter shelf
+    // would leave enough remaining height for other pieces below.
+    let bestShelfH = candidates[0];
+    let bestPlacedCount = 0;
+    let bestResult: ReturnType<typeof packShelf> | null = null;
+
+    for (const candidateH of candidates) {
+      if (candidateH < 10) continue;
+      const trial = packShelf(rx, yCursor, rw, candidateH, remaining, kerf);
+      if (trial.placed.length === 0) continue;
+
+      // Score: prefer shelves that place more pieces. Among ties, prefer
+      // a height that leaves room for the remaining unplaced pieces below.
+      const afterH = availH - candidateH - kerf;
+      const unplacedFitBelow = afterH >= 10 && trial.remaining.some(p =>
+        (p.veta !== 'vertical' && p.alto <= afterH && p.ancho <= rw) ||
+        (p.veta !== 'horizontal' && p.ancho <= afterH && p.alto <= rw)
+      );
+      // Bonus for leaving viable space below for remaining pieces
+      const score = trial.placed.length + (unplacedFitBelow ? 0.5 : 0);
+
+      if (score > bestPlacedCount || bestResult === null) {
+        bestPlacedCount = score;
+        bestShelfH = candidateH;
+        bestResult = trial;
+      }
+    }
+
+    if (!bestResult || bestResult.placed.length === 0) break;
+
+    allPlaced.push(...bestResult.placed);
+    remaining = bestResult.remaining;
+    shelves.push(bestResult.tree);
+    yCursor += bestShelfH + kerf;
   }
 
   if (shelves.length === 0) return { placed: [], tree: null };
@@ -994,6 +1024,22 @@ export function runOptimization(
   const totalCost   = boardResults.reduce((s, b) => s + b.stockInfo.costo, 0);
   const usefulOffcuts = boardResults.reduce((s, b) => s + b.offcuts.length, 0);
 
+  // Detect unplaced pieces: compare expected vs actually placed
+  const placedCounts = new Map<number, number>();
+  for (const b of boardResults) {
+    for (const pp of b.placed) {
+      placedCounts.set(pp.idx, (placedCounts.get(pp.idx) || 0) + 1);
+    }
+  }
+  const unplacedPieces: { nombre: string; ancho: number; alto: number; count: number }[] = [];
+  pieces.forEach((p, idx) => {
+    const placed = placedCounts.get(idx) || 0;
+    const missing = p.cantidad - placed;
+    if (missing > 0) {
+      unplacedPieces.push({ nombre: p.nombre || `${p.ancho}×${p.alto}`, ancho: p.ancho, alto: p.alto, count: missing });
+    }
+  });
+
   return {
     boards: boardResults,
     totalPieces,
@@ -1002,6 +1048,7 @@ export function runOptimization(
     timeMs: opt.time,
     strategy: opt.bestStrategy,
     usefulOffcuts,
+    unplacedPieces,
   };
 }
 

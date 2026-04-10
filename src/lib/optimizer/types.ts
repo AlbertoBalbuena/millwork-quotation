@@ -126,6 +126,9 @@ export interface OptimizationResult {
   timeMs: number;
   strategy: string;
   usefulOffcuts: number;
+  /** Pieces that could not be placed on any board (name × dims × count).
+   *  Absent on results saved before this field was added. */
+  unplacedPieces?: { nombre: string; ancho: number; alto: number; count: number }[];
 }
 
 export interface CutStep {

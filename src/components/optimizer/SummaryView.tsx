@@ -23,13 +23,23 @@ export function SummaryView({ result }: Props) {
     </div>
   );
 
+  const unplaced = result.unplacedPieces ?? [];
+  const placedCount = result.boards.reduce((s, b) => s + b.placed.length, 0);
+
   return (
     <div className="flex-1 overflow-auto p-4">
+      {unplaced.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">
+          <span className="font-semibold">Warning: </span>
+          {unplaced.reduce((s, u) => s + u.count, 0)} piece(s) could not be placed:{' '}
+          {unplaced.map(u => `${u.nombre} ${u.ancho}×${u.alto} (×${u.count})`).join(', ')}.
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">General Summary</h3>
           <Row label="Total boards" value={`${result.boards.length}`} />
-          <Row label="Total pieces" value={`${result.totalPieces}`} />
+          <Row label="Total pieces" value={unplaced.length > 0 ? `${placedCount}/${result.totalPieces}` : `${result.totalPieces}`} />
           <Row label="Global efficiency" value={`${result.efficiency.toFixed(2)}%`} />
           <Row label="Total area" value={`${totalArea.toFixed(2)} m²`} />
           <Row label="Used area" value={`${usedArea.toFixed(2)} m²`} />
