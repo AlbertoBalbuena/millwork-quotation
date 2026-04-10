@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHand
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { loadPdf, renderPage, renderImage, isPdf } from '../../lib/plan-viewer/pdfLoader';
 import { screenToPdf } from '../../lib/plan-viewer/transforms';
-import { euclideanDistance, polylineLength } from '../../lib/plan-viewer/geometry';
+import { euclideanDistance, polylineLength, angleBetweenPoints, polygonArea, polygonPerimeter, snapPoint } from '../../lib/plan-viewer/geometry';
 import { usePlanViewerStore } from '../../hooks/usePlanViewerStore';
 import { MeasurementOverlay } from './MeasurementOverlay';
 import type { PdfPoint, ToolMode } from '../../lib/plan-viewer/types';
@@ -13,6 +13,9 @@ const RENDER_SCALE = 2;
 
 export interface PdfCanvasHandle {
   fitToScreen: () => void;
+  getCanvasElement: () => HTMLCanvasElement | null;
+  getSvgElement: () => SVGSVGElement | null;
+  getContainerElement: () => HTMLDivElement | null;
 }
 
 interface PdfCanvasProps {
@@ -22,6 +25,7 @@ interface PdfCanvasProps {
 export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function PdfCanvas({ file }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const isImageRef = useRef(false);
 
@@ -31,7 +35,6 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
   const store = usePlanViewerStore();
   const { viewport, currentPage, activeTool } = store;
 
-  // Expose fit-to-screen
   useImperativeHandle(ref, () => ({
     fitToScreen: () => {
       const el = containerRef.current;
@@ -39,6 +42,9 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
       const rect = el.getBoundingClientRect();
       store.fitToScreen(rect.width, rect.height);
     },
+    getCanvasElement: () => canvasRef.current,
+    getSvgElement: () => svgRef.current,
+    getContainerElement: () => containerRef.current,
   }), [store]);
 
   // Load file (PDF or image)
@@ -56,7 +62,6 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
         store.setCurrentPage(1);
       })();
     } else {
-      // Image file — single page, render immediately
       isImageRef.current = true;
       docRef.current = null;
       const canvas = canvasRef.current;
@@ -67,7 +72,6 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
         setCanvasSize({ w: width, h: height });
         store.setPageInfo(1, width, height);
         store.setCurrentPage(1);
-
         const container = containerRef.current;
         if (container) {
           const rect = container.getBoundingClientRect();
@@ -75,12 +79,11 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
         }
       })();
     }
-
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 
-  // Render current PDF page (only for PDFs)
+  // Render current PDF page
   useEffect(() => {
     if (isImageRef.current) return;
     const doc = docRef.current;
@@ -92,8 +95,6 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
       if (cancelled) return;
       setCanvasSize({ w: width, h: height });
       store.setPageInfo(doc.numPages, width, height);
-
-      // Auto-fit on first load
       const container = containerRef.current;
       if (container && viewport.zoom === 1 && viewport.offsetX === 0 && viewport.offsetY === 0) {
         const rect = container.getBoundingClientRect();
@@ -104,88 +105,89 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, file]);
 
-  // Native wheel handler (passive: false to allow preventDefault)
+  // Wheel zoom
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = container.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-
       const { viewport: vp } = usePlanViewerStore.getState();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, vp.zoom * factor));
-
       usePlanViewerStore.getState().setViewport({
         zoom: newZoom,
         offsetX: mouseX - (mouseX - vp.offsetX) * (newZoom / vp.zoom),
         offsetY: mouseY - (mouseY - vp.offsetY) * (newZoom / vp.zoom),
       });
     };
-
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
   }, []);
 
-  // Pan + click handling
   const isPanningRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
 
   const getToolCursor = (tool: ToolMode): string => {
     if (tool === 'pan') return 'grab';
+    if (tool === 'annotate') return 'text';
     return 'crosshair';
   };
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      const state = usePlanViewerStore.getState();
+  // Apply snap if shift is held
+  const applySnap = (pt: PdfPoint, state: ReturnType<typeof usePlanViewerStore.getState>): PdfPoint => {
+    if (!state.snapEnabled || state.activePoints.length === 0) return pt;
+    const anchor = state.activePoints[state.activePoints.length - 1];
+    return snapPoint(pt, anchor);
+  };
 
-      if (e.button === 1 || (e.button === 0 && state.activeTool === 'pan')) {
-        isPanningRef.current = true;
-        lastMouseRef.current = { x: e.clientX, y: e.clientY };
-        e.preventDefault();
-        return;
-      }
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const state = usePlanViewerStore.getState();
 
-      if (e.button !== 0) return;
+    if (e.button === 1 || (e.button === 0 && state.activeTool === 'pan')) {
+      isPanningRef.current = true;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
+      return;
+    }
+    if (e.button !== 0) return;
 
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const pt = screenToPdf(
-        e.clientX - rect.left,
-        e.clientY - rect.top,
-        state.viewport,
-        RENDER_SCALE
-      );
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    let pt = screenToPdf(e.clientX - rect.left, e.clientY - rect.top, state.viewport, RENDER_SCALE);
 
-      const tool = state.activeTool;
-      const pts = state.activePoints;
+    // Snap if enabled
+    if (state.snapEnabled && state.activePoints.length > 0) {
+      pt = applySnap(pt, state);
+    }
 
-      if (tool === 'calibrate') {
-        state.addActivePoint(pt);
-        if (pts.length === 1) {
-          state.setShowCalibrationModal(true);
-        }
-      } else if (tool === 'line') {
-        state.addActivePoint(pt);
-        if (pts.length === 1) {
-          finalizeLine(pts[0], pt);
-        }
-      } else if (tool === 'multiline') {
-        state.addActivePoint(pt);
-      } else if (tool === 'rectangle') {
-        state.addActivePoint(pt);
-        if (pts.length === 1) {
-          finalizeRect(pts[0], pt);
-        }
-      }
-    },
-    [/* stable — reads from getState() */]
-  );
+    const tool = state.activeTool;
+    const pts = state.activePoints;
+
+    if (tool === 'calibrate') {
+      state.addActivePoint(pt);
+      if (pts.length === 1) state.setShowCalibrationModal(true);
+    } else if (tool === 'line') {
+      state.addActivePoint(pt);
+      if (pts.length === 1) finalizeLine(pts[0], pt);
+    } else if (tool === 'multiline') {
+      state.addActivePoint(pt);
+    } else if (tool === 'rectangle') {
+      state.addActivePoint(pt);
+      if (pts.length === 1) finalizeRect(pts[0], pt);
+    } else if (tool === 'angle') {
+      state.addActivePoint(pt);
+      if (pts.length === 2) finalizeAngle(pts[0], pts[1], pt);
+    } else if (tool === 'polygon') {
+      state.addActivePoint(pt);
+    } else if (tool === 'annotate') {
+      state.setPendingAnnotationPos(pt);
+      state.setShowAnnotationInput(true);
+    }
+  }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanningRef.current) {
@@ -199,17 +201,14 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
       });
       return;
     }
-
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const state = usePlanViewerStore.getState();
-    const pt = screenToPdf(
-      e.clientX - rect.left,
-      e.clientY - rect.top,
-      state.viewport,
-      RENDER_SCALE
-    );
+    let pt = screenToPdf(e.clientX - rect.left, e.clientY - rect.top, state.viewport, RENDER_SCALE);
+    if (state.snapEnabled && state.activePoints.length > 0) {
+      pt = applySnap(pt, state);
+    }
     setCursorPos(pt);
   }, []);
 
@@ -220,46 +219,49 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
   const handleDoubleClick = useCallback(() => {
     const state = usePlanViewerStore.getState();
     if (state.activeTool === 'multiline' && state.activePoints.length >= 3) {
-      // The second click of the double-click added a duplicate point — drop it
-      const points = state.activePoints.slice(0, -1);
-      finalizeMultiline(points);
+      finalizeMultiline(state.activePoints.slice(0, -1));
+    } else if (state.activeTool === 'polygon' && state.activePoints.length >= 4) {
+      finalizePolygon(state.activePoints.slice(0, -1));
     }
   }, []);
 
-  // ── Measurement finalization ──────────────────────────────
+  // ── Finalization helpers ──────────────────────────────────
 
   const finalizeLine = useCallback((a: PdfPoint, b: PdfPoint) => {
     const state = usePlanViewerStore.getState();
-    if (!state.calibration) return;
+    const cal = state.calibrations[state.currentPage];
+    if (!cal) return;
     const pxLen = euclideanDistance(a, b);
-    const realLen = pxLen / state.calibration.pixelsPerUnit;
     state.addMeasurement({
       id: crypto.randomUUID(),
       name: state.nextName('line'),
       type: 'line',
       color: state.nextColor(),
       page: state.currentPage,
+      group: state.activeGroup,
       pointA: a,
       pointB: b,
       pxLength: pxLen,
-      realLength: realLen,
+      realLength: pxLen / cal.pixelsPerUnit,
       unit: state.unit,
     });
   }, []);
 
   const finalizeRect = useCallback((a: PdfPoint, b: PdfPoint) => {
     const state = usePlanViewerStore.getState();
-    if (!state.calibration) return;
+    const cal = state.calibrations[state.currentPage];
+    if (!cal) return;
     const pxW = Math.abs(b.x - a.x);
     const pxH = Math.abs(b.y - a.y);
-    const realW = pxW / state.calibration.pixelsPerUnit;
-    const realH = pxH / state.calibration.pixelsPerUnit;
+    const realW = pxW / cal.pixelsPerUnit;
+    const realH = pxH / cal.pixelsPerUnit;
     state.addMeasurement({
       id: crypto.randomUUID(),
       name: state.nextName('rectangle'),
       type: 'rectangle',
       color: state.nextColor(),
       page: state.currentPage,
+      group: state.activeGroup,
       cornerA: a,
       cornerB: b,
       pxWidth: pxW,
@@ -273,7 +275,8 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
 
   const finalizeMultiline = useCallback((points: PdfPoint[]) => {
     const state = usePlanViewerStore.getState();
-    if (!state.calibration) return;
+    const cal = state.calibrations[state.currentPage];
+    if (!cal) return;
     const { segments, total } = polylineLength(points);
     state.addMeasurement({
       id: crypto.randomUUID(),
@@ -281,10 +284,51 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
       type: 'multiline',
       color: state.nextColor(),
       page: state.currentPage,
+      group: state.activeGroup,
       points,
-      segments: segments.map((s) => s / state.calibration!.pixelsPerUnit),
+      segments: segments.map((s) => s / cal.pixelsPerUnit),
       totalPxLength: total,
-      totalRealLength: total / state.calibration!.pixelsPerUnit,
+      totalRealLength: total / cal.pixelsPerUnit,
+      unit: state.unit,
+    });
+    state.clearActivePoints();
+  }, []);
+
+  const finalizeAngle = useCallback((a: PdfPoint, vertex: PdfPoint, c: PdfPoint) => {
+    const state = usePlanViewerStore.getState();
+    const degrees = angleBetweenPoints(a, vertex, c);
+    state.addMeasurement({
+      id: crypto.randomUUID(),
+      name: state.nextName('angle'),
+      type: 'angle',
+      color: state.nextColor(),
+      page: state.currentPage,
+      group: state.activeGroup,
+      pointA: a,
+      vertex,
+      pointC: c,
+      degrees,
+    });
+  }, []);
+
+  const finalizePolygon = useCallback((points: PdfPoint[]) => {
+    const state = usePlanViewerStore.getState();
+    const cal = state.calibrations[state.currentPage];
+    if (!cal) return;
+    const pxPeri = polygonPerimeter(points);
+    const pxAr = polygonArea(points);
+    state.addMeasurement({
+      id: crypto.randomUUID(),
+      name: state.nextName('polygon'),
+      type: 'polygon',
+      color: state.nextColor(),
+      page: state.currentPage,
+      group: state.activeGroup,
+      points,
+      pxPerimeter: pxPeri,
+      pxArea: pxAr,
+      realPerimeter: pxPeri / cal.pixelsPerUnit,
+      realArea: pxAr / (cal.pixelsPerUnit * cal.pixelsPerUnit),
       unit: state.unit,
     });
     state.clearActivePoints();
@@ -301,7 +345,6 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
       onDoubleClick={handleDoubleClick}
       style={{ cursor: isPanningRef.current ? 'grabbing' : getToolCursor(activeTool) }}
     >
-      {/* PDF canvas layer */}
       <canvas
         ref={canvasRef}
         className="absolute origin-top-left"
@@ -310,9 +353,8 @@ export const PdfCanvas = forwardRef<PdfCanvasHandle, PdfCanvasProps>(function Pd
           imageRendering: viewport.zoom > 3 ? 'pixelated' : 'auto',
         }}
       />
-
-      {/* SVG measurement overlay */}
       <MeasurementOverlay
+        ref={svgRef}
         canvasWidth={canvasSize.w}
         canvasHeight={canvasSize.h}
         viewport={viewport}

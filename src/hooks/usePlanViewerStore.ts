@@ -6,13 +6,17 @@ import type {
   PdfPoint,
   Calibration,
   Measurement,
+  Annotation,
   UndoableAction,
+  SessionData,
 } from '../lib/plan-viewer/types';
 
 const MEASUREMENT_COLORS = [
   '#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c',
   '#0891b2', '#be185d', '#4f46e5', '#ca8a04', '#059669',
 ];
+
+const SESSION_KEY = 'plan-viewer-session';
 
 interface PlanViewerState {
   // PDF
@@ -28,13 +32,22 @@ interface PlanViewerState {
   activeTool: ToolMode;
   activePoints: PdfPoint[];
 
-  // Calibration
-  calibration: Calibration | null;
+  // Calibration (per-page)
+  calibrations: Record<number, Calibration>;
   showCalibrationModal: boolean;
 
   // Measurements
   measurements: Measurement[];
   selectedMeasurementId: string | null;
+
+  // Annotations
+  annotations: Annotation[];
+  showAnnotationInput: boolean;
+  pendingAnnotationPos: PdfPoint | null;
+
+  // Groups
+  groups: string[];
+  activeGroup: string | undefined;
 
   // Undo/redo
   undoStack: UndoableAction[];
@@ -43,11 +56,16 @@ interface PlanViewerState {
   // Settings
   unit: MeasurementUnit;
   showCrosshair: boolean;
+  snapEnabled: boolean;
+  showGrid: boolean;
 
-  // Counters for auto-naming
+  // Counters
   lineCount: number;
   multilineCount: number;
   rectCount: number;
+  angleCount: number;
+  polygonCount: number;
+  annotationCount: number;
   colorIndex: number;
 }
 
@@ -62,6 +80,8 @@ interface PlanViewerActions {
   addActivePoint: (pt: PdfPoint) => void;
   clearActivePoints: () => void;
 
+  // Calibration (per-page)
+  getCalibration: () => Calibration | null;
   setCalibration: (cal: Calibration) => void;
   clearCalibration: () => void;
   setShowCalibrationModal: (show: boolean) => void;
@@ -71,15 +91,35 @@ interface PlanViewerActions {
   renameMeasurement: (id: string, name: string) => void;
   selectMeasurement: (id: string | null) => void;
   clearAllMeasurements: () => void;
+  setMeasurementGroup: (id: string, group: string | undefined) => void;
+
+  // Annotations
+  addAnnotation: (a: Annotation) => void;
+  deleteAnnotation: (id: string) => void;
+  setShowAnnotationInput: (show: boolean) => void;
+  setPendingAnnotationPos: (pos: PdfPoint | null) => void;
+
+  // Groups
+  addGroup: (name: string) => void;
+  removeGroup: (name: string) => void;
+  setActiveGroup: (name: string | undefined) => void;
 
   undo: () => void;
   redo: () => void;
 
   setUnit: (u: MeasurementUnit) => void;
   toggleCrosshair: () => void;
+  toggleSnap: () => void;
+  toggleGrid: () => void;
 
   nextColor: () => string;
-  nextName: (type: 'line' | 'multiline' | 'rectangle') => string;
+  nextName: (type: 'line' | 'multiline' | 'rectangle' | 'angle' | 'polygon') => string;
+
+  // Session
+  saveSession: () => void;
+  loadSession: () => boolean;
+  exportSession: () => string;
+  importSession: (json: string) => boolean;
 
   reset: () => void;
 }
@@ -94,17 +134,27 @@ const initialState: PlanViewerState = {
   viewport: { zoom: 1, offsetX: 0, offsetY: 0 },
   activeTool: 'pan',
   activePoints: [],
-  calibration: null,
+  calibrations: {},
   showCalibrationModal: false,
   measurements: [],
   selectedMeasurementId: null,
+  annotations: [],
+  showAnnotationInput: false,
+  pendingAnnotationPos: null,
+  groups: [],
+  activeGroup: undefined,
   undoStack: [],
   redoStack: [],
   unit: 'in',
   showCrosshair: true,
+  snapEnabled: false,
+  showGrid: false,
   lineCount: 0,
   multilineCount: 0,
   rectCount: 0,
+  angleCount: 0,
+  polygonCount: 0,
+  annotationCount: 0,
   colorIndex: 0,
 };
 
@@ -137,19 +187,32 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
 
   clearActivePoints: () => set({ activePoints: [] }),
 
+  // ── Calibration (per-page) ────────────────────────────────
+
+  getCalibration: () => {
+    const { calibrations, currentPage } = get();
+    return calibrations[currentPage] ?? null;
+  },
+
   setCalibration: (cal) => {
-    const prev = get().calibration;
-    set((s) => ({
-      calibration: cal,
+    const { currentPage, calibrations, undoStack } = get();
+    const prev = calibrations[currentPage] ?? null;
+    set({
+      calibrations: { ...calibrations, [currentPage]: cal },
       showCalibrationModal: false,
       activePoints: [],
       activeTool: 'pan',
-      undoStack: [...s.undoStack, { type: 'SET_CALIBRATION', prev, next: cal }],
+      undoStack: [...undoStack, { type: 'SET_CALIBRATION', page: currentPage, prev, next: cal }],
       redoStack: [],
-    }));
+    });
   },
 
-  clearCalibration: () => set({ calibration: null }),
+  clearCalibration: () => {
+    const { currentPage, calibrations } = get();
+    const next = { ...calibrations };
+    delete next[currentPage];
+    set({ calibrations: next });
+  },
 
   setShowCalibrationModal: (show) => set({ showCalibrationModal: show }),
 
@@ -192,8 +255,55 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
     });
   },
 
+  setMeasurementGroup: (id, group) =>
+    set((s) => ({
+      measurements: s.measurements.map((m) => (m.id === id ? { ...m, group } : m)),
+    })),
+
+  // ── Annotations ───────────────────────────────────────────
+
+  addAnnotation: (a) =>
+    set((s) => ({
+      annotations: [...s.annotations, a],
+      showAnnotationInput: false,
+      pendingAnnotationPos: null,
+      undoStack: [...s.undoStack, { type: 'ADD_ANNOTATION', annotation: a }],
+      redoStack: [],
+    })),
+
+  deleteAnnotation: (id) => {
+    const { annotations, undoStack } = get();
+    const index = annotations.findIndex((a) => a.id === id);
+    if (index === -1) return;
+    const annotation = annotations[index];
+    set({
+      annotations: annotations.filter((a) => a.id !== id),
+      undoStack: [...undoStack, { type: 'DELETE_ANNOTATION', annotation, index }],
+      redoStack: [],
+    });
+  },
+
+  setShowAnnotationInput: (show) => set({ showAnnotationInput: show }),
+  setPendingAnnotationPos: (pos) => set({ pendingAnnotationPos: pos }),
+
+  // ── Groups ────────────────────────────────────────────────
+
+  addGroup: (name) =>
+    set((s) => ({ groups: s.groups.includes(name) ? s.groups : [...s.groups, name] })),
+
+  removeGroup: (name) =>
+    set((s) => ({
+      groups: s.groups.filter((g) => g !== name),
+      activeGroup: s.activeGroup === name ? undefined : s.activeGroup,
+      measurements: s.measurements.map((m) => (m.group === name ? { ...m, group: undefined } : m)),
+    })),
+
+  setActiveGroup: (name) => set({ activeGroup: name }),
+
+  // ── Undo/Redo ─────────────────────────────────────────────
+
   undo: () => {
-    const { undoStack, redoStack, measurements, calibration } = get();
+    const { undoStack, redoStack, measurements, calibrations, annotations } = get();
     if (undoStack.length === 0) return;
     const action = undoStack[undoStack.length - 1];
     const newUndo = undoStack.slice(0, -1);
@@ -217,16 +327,38 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
           redoStack: [...redoStack, action],
         });
         break;
-      case 'SET_CALIBRATION':
+      case 'SET_CALIBRATION': {
+        const next = { ...calibrations };
+        if (action.prev) next[action.page] = action.prev;
+        else delete next[action.page];
         set({
-          calibration: action.prev,
+          calibrations: next,
           undoStack: newUndo,
           redoStack: [...redoStack, action],
         });
         break;
+      }
       case 'CLEAR_ALL':
         set({
           measurements: action.measurements,
+          undoStack: newUndo,
+          redoStack: [...redoStack, action],
+        });
+        break;
+      case 'ADD_ANNOTATION':
+        set({
+          annotations: annotations.filter((a) => a.id !== action.annotation.id),
+          undoStack: newUndo,
+          redoStack: [...redoStack, action],
+        });
+        break;
+      case 'DELETE_ANNOTATION':
+        set({
+          annotations: [
+            ...annotations.slice(0, action.index),
+            action.annotation,
+            ...annotations.slice(action.index),
+          ],
           undoStack: newUndo,
           redoStack: [...redoStack, action],
         });
@@ -235,7 +367,7 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
   },
 
   redo: () => {
-    const { undoStack, redoStack, measurements } = get();
+    const { undoStack, redoStack, measurements, calibrations, annotations } = get();
     if (redoStack.length === 0) return;
     const action = redoStack[redoStack.length - 1];
     const newRedo = redoStack.slice(0, -1);
@@ -257,7 +389,7 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
         break;
       case 'SET_CALIBRATION':
         set({
-          calibration: action.next,
+          calibrations: { ...calibrations, [action.page]: action.next },
           undoStack: [...undoStack, action],
           redoStack: newRedo,
         });
@@ -269,12 +401,27 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
           redoStack: newRedo,
         });
         break;
+      case 'ADD_ANNOTATION':
+        set({
+          annotations: [...annotations, action.annotation],
+          undoStack: [...undoStack, action],
+          redoStack: newRedo,
+        });
+        break;
+      case 'DELETE_ANNOTATION':
+        set({
+          annotations: annotations.filter((a) => a.id !== action.annotation.id),
+          undoStack: [...undoStack, action],
+          redoStack: newRedo,
+        });
+        break;
     }
   },
 
   setUnit: (unit) => set({ unit }),
-
   toggleCrosshair: () => set((s) => ({ showCrosshair: !s.showCrosshair })),
+  toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
+  toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
 
   nextColor: () => {
     const idx = get().colorIndex;
@@ -284,19 +431,81 @@ export const usePlanViewerStore = create<PlanViewerStore>((set, get) => ({
 
   nextName: (type) => {
     const s = get();
-    if (type === 'line') {
-      const n = s.lineCount + 1;
-      set({ lineCount: n });
-      return `Line ${n}`;
+    const map: Record<string, [string, keyof PlanViewerState]> = {
+      line: ['Line', 'lineCount'],
+      multiline: ['Path', 'multilineCount'],
+      rectangle: ['Rect', 'rectCount'],
+      angle: ['Angle', 'angleCount'],
+      polygon: ['Polygon', 'polygonCount'],
+    };
+    const [prefix, key] = map[type];
+    const n = (s[key] as number) + 1;
+    set({ [key]: n } as Partial<PlanViewerState>);
+    return `${prefix} ${n}`;
+  },
+
+  // ── Session persistence ───────────────────────────────────
+
+  saveSession: () => {
+    const s = get();
+    const data: SessionData = {
+      calibrations: s.calibrations,
+      measurements: s.measurements,
+      annotations: s.annotations,
+      unit: s.unit,
+      groups: s.groups,
+    };
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    } catch { /* quota exceeded — silently fail */ }
+  },
+
+  loadSession: () => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return false;
+      const data: SessionData = JSON.parse(raw);
+      set({
+        calibrations: data.calibrations || {},
+        measurements: data.measurements || [],
+        annotations: data.annotations || [],
+        unit: data.unit || 'in',
+        groups: data.groups || [],
+      });
+      return true;
+    } catch {
+      return false;
     }
-    if (type === 'multiline') {
-      const n = s.multilineCount + 1;
-      set({ multilineCount: n });
-      return `Path ${n}`;
+  },
+
+  exportSession: () => {
+    const s = get();
+    const data: SessionData = {
+      calibrations: s.calibrations,
+      measurements: s.measurements,
+      annotations: s.annotations,
+      unit: s.unit,
+      groups: s.groups,
+    };
+    return JSON.stringify(data, null, 2);
+  },
+
+  importSession: (json) => {
+    try {
+      const data: SessionData = JSON.parse(json);
+      set({
+        calibrations: data.calibrations || {},
+        measurements: data.measurements || [],
+        annotations: data.annotations || [],
+        unit: data.unit || 'in',
+        groups: data.groups || [],
+        undoStack: [],
+        redoStack: [],
+      });
+      return true;
+    } catch {
+      return false;
     }
-    const n = s.rectCount + 1;
-    set({ rectCount: n });
-    return `Rect ${n}`;
   },
 
   reset: () => set(initialState),
