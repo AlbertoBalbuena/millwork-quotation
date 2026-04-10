@@ -542,6 +542,25 @@ function shelfGuillotinePack(
   return { placed: allPlaced, tree };
 }
 
+/** Transpose a CutTreeNode hierarchy: swap x↔y, w↔h, H↔V.
+ *  Used after packing in a transposed coordinate system (landscape → portrait)
+ *  to convert the result back to the board's actual orientation. */
+function transposeCutTree(node: CutTreeNode | null): void {
+  if (!node) return;
+  [node.x, node.y] = [node.y, node.x];
+  [node.w, node.h] = [node.h, node.w];
+  if (node.cut) {
+    node.cut.type = node.cut.type === 'H' ? 'V' : 'H';
+  }
+  if (node.piece) {
+    [node.piece.x, node.piece.y] = [node.piece.y, node.piece.x];
+    [node.piece.w, node.piece.h] = [node.piece.h, node.piece.w];
+    node.piece.rotated = node.piece.w !== node.piece.piece.ancho;
+  }
+  transposeCutTree(node.left);
+  transposeCutTree(node.right);
+}
+
 // ─────────────────────────────────────────────────────────────
 // OPTIMIZER
 // ─────────────────────────────────────────────────────────────
@@ -832,6 +851,12 @@ class Optimizer {
 
   /** Shelf-first guillotine: same loop as _buildGuillotine but uses shelfGuillotinePack
    *  to guarantee H-cuts at the top level (compatible with HongYe panel saws). */
+  /** Shelf-first guillotine: same loop as _buildGuillotine but uses shelfGuillotinePack
+   *  to guarantee H-cuts at the top level (compatible with HongYe panel saws).
+   *  When the board is in landscape (width > height), the coordinate system is
+   *  transposed so shelves span the SHORT dimension and stack along the LONG
+   *  dimension — matching the HongYe convention where shelves span the full
+   *  board width (1220mm) and stack along the board length (2440mm). */
   private _buildShelfGuillotine(pcs: (Pieza & { _idx: number })[], mat: string, grs: number): Board[] {
     const boards: Board[] = [];
     const availStocks = this._getStocksFor(mat, grs);
@@ -862,8 +887,25 @@ class Optimizer {
         );
         if (!anyFits) continue;
 
-        const result = shelfGuillotinePack(t, t, packW, packH, remaining, sierra);
+        // HongYe shelf convention: shelves span the SHORT side, stack along the LONG side.
+        // If the board is landscape (packW > packH), transpose so the algorithm's
+        // internal Y becomes the long dimension.
+        const needTranspose = packW > packH;
+        const sW = needTranspose ? packH : packW;
+        const sH = needTranspose ? packW : packH;
+
+        const result = shelfGuillotinePack(t, t, sW, sH, remaining, sierra);
         if (!result.placed.length) continue;
+
+        // Transpose coordinates back to the board's actual orientation
+        if (needTranspose) {
+          for (const pp of result.placed) {
+            [pp.x, pp.y] = [pp.y, pp.x];
+            [pp.w, pp.h] = [pp.h, pp.w];
+            pp.rotated = pp.w !== pp.piece.ancho;
+          }
+          if (result.tree) transposeCutTree(result.tree);
+        }
 
         const nb = new Board(st.ancho, st.alto, sierra, mat, grs, {
           nombre: st.nombre, costo: st.costo, isRemnant: !!st.isRemnant,
