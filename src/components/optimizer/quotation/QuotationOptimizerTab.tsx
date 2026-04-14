@@ -48,6 +48,7 @@ import { CutListDetailPanel } from './CutListDetailPanel';
 import { StaleBadge } from './StaleBadge';
 import { BreakdownBOM } from './BreakdownBOM';
 import type { OptimizationResult } from '../../../lib/optimizer/types';
+import { allocateBoardCostsByArea } from '../../../lib/optimizer/quotation/computeOptimizerAreaSubtotals';
 import type {
   PricingMethod,
   ProjectArea,
@@ -81,6 +82,21 @@ interface Props {
    * re-run updateProjectTotal and write the fresh total to Supabase.
    */
   onRecomputeRollup?: () => Promise<void> | void;
+  /**
+   * Current pricing method from the parent. With the Phase-10 global
+   * switch this is the canonical source of truth; the in-tab toggle only
+   * reflects it. Passed alongside `onPricingMethodChange` so all writes go
+   * through a single handler in ProjectDetails.
+   */
+  pricingMethod?: PricingMethod;
+  /**
+   * Delegated write handler for `quotations.pricing_method`. When the user
+   * toggles inside this tab, we call this (instead of doing a supabase
+   * update locally) so the parent can keep its UI state in sync and rerun
+   * the rollup. Also used for the one-shot auto-switch after the first
+   * successful run save.
+   */
+  onPricingMethodChange?: (next: PricingMethod) => Promise<void> | void;
 }
 
 interface QuotationHeaderSlice {
@@ -110,6 +126,8 @@ export function QuotationOptimizerTab({
   areas,
   quotation,
   onRecomputeRollup,
+  pricingMethod: parentPricingMethod,
+  onPricingMethodChange: parentOnPricingMethodChange,
 }: Props) {
   const useStore = useMemo(() => getQuotationOptimizerStore(quotationId), [quotationId]);
 
@@ -181,6 +199,15 @@ export function QuotationOptimizerTab({
     return () => { cancelled = true; };
   }, [quotationId, refreshRunsList, refreshHeader, loadRun, useStore]);
 
+  // Keep the inner header slice's `pricingMethod` in sync with the parent
+  // whenever the parent's value changes (e.g. user toggled from the global
+  // FloatingActionBar switch while the Breakdown tab was open).
+  useEffect(() => {
+    if (parentPricingMethod) {
+      setHeader((h) => (h.pricingMethod === parentPricingMethod ? h : { ...h, pricingMethod: parentPricingMethod }));
+    }
+  }, [parentPricingMethod]);
+
   // Sync the standalone-optimizer singleton store with this quotation's
   // engine settings on mount. CADViewer and RightStatsPanel read a few
   // cosmetic fields (unit, labelScale, globalSierra, boardTrim) directly
@@ -216,9 +243,24 @@ export function QuotationOptimizerTab({
 
   async function handleSave() {
     const name = saveName.trim() || defaultName;
+    // Capture whether this is the FIRST run for this quotation BEFORE the
+    // save, so the post-save auto-switch is a one-shot (only runs the very
+    // first time an optimizer result is persisted).
+    const wasFirstRunBeforeSave = useStore.getState().runs.length === 0;
     try {
       await saveAsRun(name);
       setSaveName('');
+      // One-shot auto-switch: after the first successful run save, flip
+      // `pricing_method` to 'optimizer' automatically. Subsequent runs
+      // respect whatever method the user has chosen (could be FT² if they
+      // manually switched back). This matches the user-confirmed behavior.
+      if (wasFirstRunBeforeSave && parentOnPricingMethodChange) {
+        try {
+          await parentOnPricingMethodChange('optimizer');
+        } catch (err) {
+          console.warn('[QuotationOptimizerTab] auto-switch to optimizer failed:', err);
+        }
+      }
       if (onRecomputeRollup) await onRecomputeRollup();
       await refreshHeader();
     } catch { /* surfaced via lastError */ }
@@ -238,21 +280,33 @@ export function QuotationOptimizerTab({
   }
 
   async function handlePricingMethodChange(next: PricingMethod) {
-    // Optimistic UI
+    // Optimistic UI: reflect the new value in the local header slice so
+    // the segmented control highlights the selection immediately.
     setHeader((h) => ({ ...h, pricingMethod: next }));
-    const { error } = await supabase
-      .from('quotations')
-      .update({ pricing_method: next })
-      .eq('id', quotationId);
-    if (error) {
-      // Rollback
-      await refreshHeader();
-      alert(`Failed to switch pricing method: ${error.message}`);
-      return;
+    // Phase 10: delegate the actual DB write + rollup to the parent so
+    // ProjectDetails stays the single source of truth for `pricing_method`
+    // and the Info/Pricing/Analytics tabs + Header Card update in sync.
+    if (parentOnPricingMethodChange) {
+      try {
+        await parentOnPricingMethodChange(next);
+      } catch (err) {
+        console.error('[QuotationOptimizerTab] parent handler failed:', err);
+        await refreshHeader();
+        return;
+      }
+    } else {
+      // Legacy fallback for standalone use (should not happen in prod).
+      const { error } = await supabase
+        .from('quotations')
+        .update({ pricing_method: next })
+        .eq('id', quotationId);
+      if (error) {
+        await refreshHeader();
+        alert(`Failed to switch pricing method: ${error.message}`);
+        return;
+      }
+      if (onRecomputeRollup) await onRecomputeRollup();
     }
-    // Trigger the parent rollup so total_amount reflects the new choice
-    // immediately (no need to navigate away and back).
-    if (onRecomputeRollup) await onRecomputeRollup();
     await refreshHeader();
   }
 
@@ -276,34 +330,16 @@ export function QuotationOptimizerTab({
 
   // Per-area breakdown rows — recomputed from result.boards + snapshot.stocks
   // each time a run is loaded, so costs are always current (not stale zeros).
+  //
+  // The actual m²→cost allocation lives in `allocateBoardCostsByArea` so the
+  // Breakdown tab, the MXN/USD PDF exporters, and any future diagnostics all
+  // share a single source of truth for how a board's cost is split across
+  // areas when its pieces span multiple areas.
   const perAreaRows = useMemo(() => {
     if (!loadedRun) return [];
     const { result, snapshot } = loadedRun;
-    const stockByName = new Map(snapshot.stocks.map((s) => [s.nombre, s]));
-    const attr: Record<string, { m2: number; cost: number; boards: number }> = {};
+    const attr = allocateBoardCostsByArea(result, snapshot.stocks);
 
-    for (const board of result.boards) {
-      if (board.placed.length === 0) continue;
-      const boardCost =
-        stockByName.get(board.stockInfo.nombre)?.costo ?? board.stockInfo.costo;
-      const perAreaM2: Record<string, number> = {};
-      let totalM2 = 0;
-      for (const pp of board.placed) {
-        const areaId = pp.piece.areaId;
-        if (!areaId) continue;
-        const m2 = (pp.w * pp.h) / 1_000_000;
-        perAreaM2[areaId] = (perAreaM2[areaId] ?? 0) + m2;
-        totalM2 += m2;
-      }
-      if (totalM2 <= 0) continue;
-      for (const [areaId, m2] of Object.entries(perAreaM2)) {
-        const f = m2 / totalM2;
-        const b = (attr[areaId] ??= { m2: 0, cost: 0, boards: 0 });
-        b.m2 += m2;
-        b.cost += boardCost * f;
-        b.boards += f;
-      }
-    }
     return Object.entries(attr)
       .map(([areaId, v]) => ({
         areaId,

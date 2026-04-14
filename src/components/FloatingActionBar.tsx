@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, TrendingUp, Save, ArrowDownUp,
          Printer, FileSpreadsheet, FileJson, Download,
-         DollarSign, Package, ChevronDown, Layers } from 'lucide-react';
+         DollarSign, Package, ChevronDown, Layers, AlertTriangle } from 'lucide-react';
+import { PricingMethodToggle } from './optimizer/quotation/PricingMethodToggle';
+import type { PricingMethod } from '../types';
 
 interface FloatingActionBarProps {
   onAddArea: () => void;
@@ -20,6 +22,19 @@ interface FloatingActionBarProps {
   hasAreasOrderChanged?: boolean;
   savingAreasOrder?: boolean;
   areasEmpty: boolean;
+  /**
+   * Global pricing method for the whole Quotation section. The MXN/USD PDF
+   * exports, the Info/Pricing/Analytics tabs, the Header Card total, and the
+   * per-area Material Breakdown all follow this value. The switch lives in
+   * this toolbar (next to Print) and writes `quotations.pricing_method`
+   * through the `onPricingMethodChange` callback.
+   */
+  pricingMethod?: PricingMethod;
+  /** True once the quotation has at least one active optimizer run. */
+  canSelectOptimizer?: boolean;
+  /** True when the active optimizer run is stale (cabinets changed after run). */
+  optimizerStale?: boolean;
+  onPricingMethodChange?: (next: PricingMethod) => void;
 }
 
 export function FloatingActionBar({
@@ -39,7 +54,12 @@ export function FloatingActionBar({
   hasAreasOrderChanged = false,
   savingAreasOrder = false,
   areasEmpty,
+  pricingMethod = 'sqft',
+  canSelectOptimizer = false,
+  optimizerStale = false,
+  onPricingMethodChange,
 }: FloatingActionBarProps) {
+  const isOptimizerMode = pricingMethod === 'optimizer';
   const [isPrintMenuOpen, setIsPrintMenuOpen] = useState(false);
   const [isCSVMenuOpen, setIsCSVMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -232,6 +252,46 @@ export function FloatingActionBar({
 
           <div style={{ width: 1, height: 20, background: 'rgba(0,0,0,0.1)', margin: '0 4px', flexShrink: 0 }} />
 
+          {/*
+            Global Pricing Method switch — flips FT² ↔ Optimizer for the whole
+            Quotation section: Info/Pricing/Analytics tabs, Header Card total,
+            per-area Material Breakdown, AND the PDF exports. Default is FT²;
+            once the first optimizer run is saved, the method auto-switches to
+            Optimizer (one-shot — further manual toggles are respected).
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <PricingMethodToggle
+              value={pricingMethod}
+              onChange={(next) => onPricingMethodChange?.(next)}
+              canSelectOptimizer={canSelectOptimizer}
+              size="sm"
+            />
+            {isOptimizerMode && optimizerStale && (
+              <div
+                title="The active optimizer run is stale because cabinets changed after it was saved. Values shown are from the last run. Re-optimize in the Breakdown tab to refresh."
+                style={{
+                  height: 22,
+                  padding: '0 8px',
+                  borderRadius: 11,
+                  background: 'rgba(245,158,11,0.12)',
+                  color: '#b45309',
+                  border: '1px solid rgba(245,158,11,0.35)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  cursor: 'help',
+                  userSelect: 'none',
+                }}
+              >
+                <AlertTriangle style={{ width: 10, height: 10 }} />
+                STALE
+              </div>
+            )}
+          </div>
+
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
               onClick={() => { setIsPrintMenuOpen(!isPrintMenuOpen); setIsCSVMenuOpen(false); }}
@@ -273,8 +333,18 @@ export function FloatingActionBar({
                 overflow: 'hidden',
               }}>
                 {[
-                  { icon: Printer,         label: 'Standard PDF',           sub: 'MXN with full details',         onClick: () => { onPrint(); closeMenus(); } },
-                  { icon: DollarSign,      label: 'USD Summary PDF',        sub: 'Price, tariff & tax summary',   onClick: () => { onPrintUSD(); closeMenus(); } },
+                  {
+                    icon: Printer,
+                    label: 'Standard PDF',
+                    sub: `MXN · ${isOptimizerMode ? 'Optimizer pricing' : 'ft² pricing'}`,
+                    onClick: () => { onPrint(); closeMenus(); },
+                  },
+                  {
+                    icon: DollarSign,
+                    label: 'USD Summary PDF',
+                    sub: `USD · ${isOptimizerMode ? 'Optimizer pricing' : 'ft² pricing'}`,
+                    onClick: () => { onPrintUSD(); closeMenus(); },
+                  },
                   { icon: Layers, label: 'Cut-list PDF (English)', sub: 'Breakdown board layouts',       onClick: () => { onPrintCutListEN(); closeMenus(); } },
                   { icon: Layers, label: 'Cut-list PDF (Español)', sub: 'Breakdown board layouts',       onClick: () => { onPrintCutListES(); closeMenus(); } },
                 ].map(({ icon: Icon, label, sub, onClick }) => (
