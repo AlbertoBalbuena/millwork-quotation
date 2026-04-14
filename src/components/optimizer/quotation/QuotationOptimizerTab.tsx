@@ -44,10 +44,11 @@ import { OptimizerComparisonPanel } from './OptimizerComparisonPanel';
 import { PricingMethodToggle } from './PricingMethodToggle';
 import { FtVsOptimizerComparisonCard } from './FtVsOptimizerComparisonCard';
 import { PerAreaBoardsBreakdown } from './PerAreaBoardsBreakdown';
-import { CutListDetailPanel } from './CutListDetailPanel';
+import { CutListDetailPanel, type CabinetDisplayInfo } from './CutListDetailPanel';
 import { StaleBadge } from './StaleBadge';
 import { BreakdownBOM } from './BreakdownBOM';
 import type { OptimizationResult } from '../../../lib/optimizer/types';
+import { allocateBoardCostsByArea } from '../../../lib/optimizer/quotation/computeOptimizerAreaSubtotals';
 import type {
   PricingMethod,
   ProjectArea,
@@ -81,6 +82,21 @@ interface Props {
    * re-run updateProjectTotal and write the fresh total to Supabase.
    */
   onRecomputeRollup?: () => Promise<void> | void;
+  /**
+   * Current pricing method from the parent. With the Phase-10 global
+   * switch this is the canonical source of truth; the in-tab toggle only
+   * reflects it. Passed alongside `onPricingMethodChange` so all writes go
+   * through a single handler in ProjectDetails.
+   */
+  pricingMethod?: PricingMethod;
+  /**
+   * Delegated write handler for `quotations.pricing_method`. When the user
+   * toggles inside this tab, we call this (instead of doing a supabase
+   * update locally) so the parent can keep its UI state in sync and rerun
+   * the rollup. Also used for the one-shot auto-switch after the first
+   * successful run save.
+   */
+  onPricingMethodChange?: (next: PricingMethod) => Promise<void> | void;
 }
 
 interface QuotationHeaderSlice {
@@ -110,6 +126,8 @@ export function QuotationOptimizerTab({
   areas,
   quotation,
   onRecomputeRollup,
+  pricingMethod: parentPricingMethod,
+  onPricingMethodChange: parentOnPricingMethodChange,
 }: Props) {
   const useStore = useMemo(() => getQuotationOptimizerStore(quotationId), [quotationId]);
 
@@ -181,6 +199,15 @@ export function QuotationOptimizerTab({
     return () => { cancelled = true; };
   }, [quotationId, refreshRunsList, refreshHeader, loadRun, useStore]);
 
+  // Keep the inner header slice's `pricingMethod` in sync with the parent
+  // whenever the parent's value changes (e.g. user toggled from the global
+  // FloatingActionBar switch while the Breakdown tab was open).
+  useEffect(() => {
+    if (parentPricingMethod) {
+      setHeader((h) => (h.pricingMethod === parentPricingMethod ? h : { ...h, pricingMethod: parentPricingMethod }));
+    }
+  }, [parentPricingMethod]);
+
   // Sync the standalone-optimizer singleton store with this quotation's
   // engine settings on mount. CADViewer and RightStatsPanel read a few
   // cosmetic fields (unit, labelScale, globalSierra, boardTrim) directly
@@ -216,9 +243,24 @@ export function QuotationOptimizerTab({
 
   async function handleSave() {
     const name = saveName.trim() || defaultName;
+    // Capture whether this is the FIRST run for this quotation BEFORE the
+    // save, so the post-save auto-switch is a one-shot (only runs the very
+    // first time an optimizer result is persisted).
+    const wasFirstRunBeforeSave = useStore.getState().runs.length === 0;
     try {
       await saveAsRun(name);
       setSaveName('');
+      // One-shot auto-switch: after the first successful run save, flip
+      // `pricing_method` to 'optimizer' automatically. Subsequent runs
+      // respect whatever method the user has chosen (could be FT² if they
+      // manually switched back). This matches the user-confirmed behavior.
+      if (wasFirstRunBeforeSave && parentOnPricingMethodChange) {
+        try {
+          await parentOnPricingMethodChange('optimizer');
+        } catch (err) {
+          console.warn('[QuotationOptimizerTab] auto-switch to optimizer failed:', err);
+        }
+      }
       if (onRecomputeRollup) await onRecomputeRollup();
       await refreshHeader();
     } catch { /* surfaced via lastError */ }
@@ -238,21 +280,33 @@ export function QuotationOptimizerTab({
   }
 
   async function handlePricingMethodChange(next: PricingMethod) {
-    // Optimistic UI
+    // Optimistic UI: reflect the new value in the local header slice so
+    // the segmented control highlights the selection immediately.
     setHeader((h) => ({ ...h, pricingMethod: next }));
-    const { error } = await supabase
-      .from('quotations')
-      .update({ pricing_method: next })
-      .eq('id', quotationId);
-    if (error) {
-      // Rollback
-      await refreshHeader();
-      alert(`Failed to switch pricing method: ${error.message}`);
-      return;
+    // Phase 10: delegate the actual DB write + rollup to the parent so
+    // ProjectDetails stays the single source of truth for `pricing_method`
+    // and the Info/Pricing/Analytics tabs + Header Card update in sync.
+    if (parentOnPricingMethodChange) {
+      try {
+        await parentOnPricingMethodChange(next);
+      } catch (err) {
+        console.error('[QuotationOptimizerTab] parent handler failed:', err);
+        await refreshHeader();
+        return;
+      }
+    } else {
+      // Legacy fallback for standalone use (should not happen in prod).
+      const { error } = await supabase
+        .from('quotations')
+        .update({ pricing_method: next })
+        .eq('id', quotationId);
+      if (error) {
+        await refreshHeader();
+        alert(`Failed to switch pricing method: ${error.message}`);
+        return;
+      }
+      if (onRecomputeRollup) await onRecomputeRollup();
     }
-    // Trigger the parent rollup so total_amount reflects the new choice
-    // immediately (no need to navigate away and back).
-    if (onRecomputeRollup) await onRecomputeRollup();
     await refreshHeader();
   }
 
@@ -276,34 +330,16 @@ export function QuotationOptimizerTab({
 
   // Per-area breakdown rows — recomputed from result.boards + snapshot.stocks
   // each time a run is loaded, so costs are always current (not stale zeros).
+  //
+  // The actual m²→cost allocation lives in `allocateBoardCostsByArea` so the
+  // Breakdown tab, the MXN/USD PDF exporters, and any future diagnostics all
+  // share a single source of truth for how a board's cost is split across
+  // areas when its pieces span multiple areas.
   const perAreaRows = useMemo(() => {
     if (!loadedRun) return [];
     const { result, snapshot } = loadedRun;
-    const stockByName = new Map(snapshot.stocks.map((s) => [s.nombre, s]));
-    const attr: Record<string, { m2: number; cost: number; boards: number }> = {};
+    const attr = allocateBoardCostsByArea(result, snapshot.stocks);
 
-    for (const board of result.boards) {
-      if (board.placed.length === 0) continue;
-      const boardCost =
-        stockByName.get(board.stockInfo.nombre)?.costo ?? board.stockInfo.costo;
-      const perAreaM2: Record<string, number> = {};
-      let totalM2 = 0;
-      for (const pp of board.placed) {
-        const areaId = pp.piece.areaId;
-        if (!areaId) continue;
-        const m2 = (pp.w * pp.h) / 1_000_000;
-        perAreaM2[areaId] = (perAreaM2[areaId] ?? 0) + m2;
-        totalM2 += m2;
-      }
-      if (totalM2 <= 0) continue;
-      for (const [areaId, m2] of Object.entries(perAreaM2)) {
-        const f = m2 / totalM2;
-        const b = (attr[areaId] ??= { m2: 0, cost: 0, boards: 0 });
-        b.m2 += m2;
-        b.cost += boardCost * f;
-        b.boards += f;
-      }
-    }
     return Object.entries(attr)
       .map(([areaId, v]) => ({
         areaId,
@@ -315,42 +351,124 @@ export function QuotationOptimizerTab({
       .sort((a, b) => b.cost - a.cost);
   }, [loadedRun, areasById]);
 
-  // Source of truth for the cut-list detail panel: prefer the pending build
-  // (the user's current editing session); fall back to the loaded run's
-  // snapshot so users auditing an old run still see its despiece.
-  // When falling back, `cabinetDetails` is reconstructed from the snapshot
-  // pieces' tags — we have cabinetId, areaId and the per-piece `area`
-  // string, but we don't know productSku or quantity, so the labels are
-  // slightly degraded (no SKU, no ×qty suffix). That's the documented
-  // limitation in the plan.
+  // Retro-compat fallback: for snapshots saved before `cabinetDetails` was
+  // persisted, re-query area_cabinets + products_catalog so the Cut-list
+  // labels still show SKU + description. Keyed by loadedRun.builtAt so the
+  // effect refires when switching between runs.
+  const [legacyCabinetDetails, setLegacyCabinetDetails] = useState<
+    Record<string, CabinetDisplayInfo>
+  >({});
+  useEffect(() => {
+    if (!loadedRun || loadedRun.snapshot.cabinetDetails) {
+      setLegacyCabinetDetails({});
+      return;
+    }
+    const cabinetIds = Array.from(
+      new Set(
+        loadedRun.snapshot.pieces
+          .map((p) => p.cabinetId)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    if (cabinetIds.length === 0) {
+      setLegacyCabinetDetails({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: cabs, error: cabErr } = await supabase
+        .from('area_cabinets')
+        .select('id, product_sku, quantity, project_areas!inner(id, name)')
+        .in('id', cabinetIds);
+      if (cancelled || cabErr || !cabs) return;
+
+      const skus = Array.from(
+        new Set(
+          cabs
+            .map((c) => c.product_sku)
+            .filter((s): s is string => !!s),
+        ),
+      );
+      const descBySku = new Map<string, string>();
+      if (skus.length > 0) {
+        const { data: prods } = await supabase
+          .from('products_catalog')
+          .select('sku, description')
+          .in('sku', skus);
+        for (const p of prods ?? []) descBySku.set(p.sku, p.description);
+      }
+
+      if (cancelled) return;
+      const map: Record<string, CabinetDisplayInfo> = {};
+      for (const c of cabs as Array<{
+        id: string;
+        product_sku: string | null;
+        quantity: number | null;
+        project_areas: { id: string; name: string } | { id: string; name: string }[];
+      }>) {
+        const pa = Array.isArray(c.project_areas) ? c.project_areas[0] : c.project_areas;
+        map[c.id] = {
+          productSku: c.product_sku,
+          productDescription: c.product_sku ? descBySku.get(c.product_sku) ?? null : null,
+          quantity: c.quantity ?? 1,
+          areaId: pa?.id ?? '',
+          areaName: pa?.name ?? '(unknown area)',
+        };
+      }
+      setLegacyCabinetDetails(map);
+    })();
+    return () => { cancelled = true; };
+  }, [loadedRun]);
+
+  // Source of truth for the cut-list detail panel:
+  //   1. Prefer the pending build (user's current editing session).
+  //   2. If a run is loaded, use `snapshot.cabinetDetails` when present.
+  //   3. Otherwise (legacy snapshot), use the re-queried `legacyCabinetDetails`.
+  //   4. Final fallback: reconstruct labels from the per-piece `area` tag.
   const cutListSource = useMemo(() => {
     if (pendingPieces.length > 0) {
       return { pieces: pendingPieces, cabinetDetails: pendingCabinetDetails };
     }
     if (loadedRun) {
-      const derived: Record<string, {
-        productSku: string | null;
-        quantity: number;
-        areaId: string;
-        areaName: string;
-      }> = {};
-      for (const p of loadedRun.snapshot.pieces) {
+      const snap = loadedRun.snapshot;
+      if (snap.cabinetDetails) {
+        return { pieces: snap.pieces, cabinetDetails: snap.cabinetDetails };
+      }
+      if (Object.keys(legacyCabinetDetails).length > 0) {
+        return { pieces: snap.pieces, cabinetDetails: legacyCabinetDetails };
+      }
+      // Final fallback: derive minimal labels from piece tags.
+      const derived: Record<string, CabinetDisplayInfo> = {};
+      for (const p of snap.pieces) {
         if (!p.cabinetId || derived[p.cabinetId]) continue;
         derived[p.cabinetId] = {
           productSku: null,
+          productDescription: null,
           quantity: 1,
           areaId: p.areaId ?? '',
           areaName: p.area ?? '(unknown area)',
         };
       }
-      return { pieces: loadedRun.snapshot.pieces, cabinetDetails: derived };
+      return { pieces: snap.pieces, cabinetDetails: derived };
     }
     return null;
-  }, [pendingPieces, pendingCabinetDetails, loadedRun]);
+  }, [pendingPieces, pendingCabinetDetails, loadedRun, legacyCabinetDetails]);
 
   const canSelectOptimizer = activeRunId != null;
 
   return (
+    // Full-bleed wrapper: escape the Layout's max-w-7xl container so the
+    // Breakdown tab uses the full viewport width. Only affects this tab —
+    // the other tabs (Info, Pricing, Analytics, History) still respect
+    // the centered container.
+    <div
+      className="relative"
+      style={{
+        width: '100vw',
+        marginLeft: 'calc(50% - 50vw)',
+        marginRight: 'calc(50% - 50vw)',
+      }}
+    >
     <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 104px)' }}>
 
       {/* ── Header bar ────────────────────────────────────── */}
@@ -473,41 +591,39 @@ export function QuotationOptimizerTab({
         </div>
       )}
 
-      {/* ── Main three-panel layout ───────────────────────── */}
-      <div className="flex flex-1 min-h-[600px]">
-        <div className="w-64 shrink-0">
+      {/* ── Row 1 — Post-Build: Sidebar (Build Summary / Stocks /     */}
+      {/*         Edgebanding / Settings) + Cut-List Detail          */}
+      <div className="flex min-h-[400px] border-b border-slate-200">
+        <div className="w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
           <QuotationOptimizerSidebar useStore={useStore} />
         </div>
-
-        <div className="flex-1 flex flex-col">
-          {displayResult ? (
-            <CADViewer board={selectedBoard} unit="mm" />
+        <div className="flex-1 bg-slate-50 overflow-y-auto px-4 py-4">
+          {cutListSource && cutListSource.pieces.length > 0 ? (
+            <CutListDetailPanel
+              pieces={cutListSource.pieces}
+              cabinetDetails={cutListSource.cabinetDetails}
+            />
           ) : (
-            <div className="flex-1 flex items-center justify-center bg-slate-50 text-slate-400 text-sm">
-              {pendingPieces.length === 0
-                ? 'Click "Build from Quotation" to start.'
-                : 'Click "Run" to optimize.'}
+            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+              Click "Build from Quotation" to generate the cut list.
             </div>
           )}
         </div>
-
-        <div className="w-80 shrink-0 border-l border-slate-200 bg-white overflow-y-auto">
-          <RightStatsPanel
-            result={displayResult}
-            selectedIdx={selectedBoardIdx}
-            onSelectBoard={(idx) => setSelectedBoardIdx(idx)}
-          />
-        </div>
       </div>
 
-      {/* ── Per-area breakdown below the optimizer panels ─── */}
-      {/* ── Cut-list detail panel ─────────────────────────── */}
-      {cutListSource && cutListSource.pieces.length > 0 && (
-        <div className="px-4 py-4 border-t border-slate-200 bg-slate-50">
-          <CutListDetailPanel
-            pieces={cutListSource.pieces}
-            cabinetDetails={cutListSource.cabinetDetails}
-          />
+      {/* ── Row 2 — Post-Run: CAD Viewer + Global Statistics ── */}
+      {displayResult && (
+        <div className="flex min-h-[600px] border-b border-slate-200">
+          <div className="flex-1 flex flex-col bg-white">
+            <CADViewer board={selectedBoard} unit="mm" />
+          </div>
+          <div className="w-80 shrink-0 border-l border-slate-200 bg-white overflow-y-auto">
+            <RightStatsPanel
+              result={displayResult}
+              selectedIdx={selectedBoardIdx}
+              onSelectBoard={(idx) => setSelectedBoardIdx(idx)}
+            />
+          </div>
         </div>
       )}
 
@@ -535,6 +651,7 @@ export function QuotationOptimizerTab({
         runs={runs}
         activeRunId={activeRunId}
       />
+    </div>
     </div>
   );
 }
